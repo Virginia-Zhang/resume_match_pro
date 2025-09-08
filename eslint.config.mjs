@@ -11,6 +11,8 @@ import { dirname } from "path";
 import { fileURLToPath } from "url";
 import { FlatCompat } from "@eslint/eslintrc";
 import jsdoc from "eslint-plugin-jsdoc";
+import prettier from "eslint-plugin-prettier";
+import prettierConfig from "eslint-config-prettier";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -21,6 +23,7 @@ const compat = new FlatCompat({
 
 const eslintConfig = [
   ...compat.extends("next/core-web-vitals", "next/typescript"),
+  prettierConfig,
   {
     ignores: [
       "node_modules/**",
@@ -36,6 +39,7 @@ const eslintConfig = [
   {
     plugins: {
       jsdoc,
+      prettier,
     },
     rules: {
       // JSDoc basic rules
@@ -91,6 +95,10 @@ const eslintConfig = [
       // TypeScriptが既に型を提供
       "jsdoc/require-returns-type": "off", // TypeScript already provides types
       // TypeScriptが既に型を提供
+
+      // Prettier integration
+      // Prettier統合
+      "prettier/prettier": "error",
     },
   },
 ];

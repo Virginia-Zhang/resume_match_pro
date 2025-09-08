@@ -1,0 +1,113 @@
+---
+description: Apply TypeScript/Next.js commenting & structure rules to TS/TSX across the app (excludes components/ui by scoping).
+globs: app/**/*.ts,app/**/*.tsx,src/**/*.ts,src/**/*.tsx,pages/**/*.ts,pages/**/*.tsx,lib/**/*.ts,lib/**/*.tsx,hooks/**/*.ts,hooks/**/*.tsx,utils/**/*.ts,utils/**/*.tsx,server/**/*.ts,server/**/*.tsx,features/**/*.ts,features/**/*.tsx
+alwaysApply: false
+---
+
+# Next.js + TypeScript AI Resume Matching — Project Rules
+
+## Project Context
+
+- Next.js + TypeScript demo for an AI-powered resume–job matching tool.
+- Core features: PDF (JP/EN) resume upload & parsing, job list & detail, LLM-based matching & interview tips, charts (e.g., Recharts).
+- Use **TypeScript (strict)** across the project; follow Next.js App Router conventions (`app/`), and mark client files with `"use client"` when needed.
+- Comments follow **bilingual JSDoc (EN + JA)**.
+
+## Code Comment Conventions
+
+1. File-Level Comments:
+
+   - Use JSDoc format (`/** */`).
+   - Include:
+     - `@file {filename}`: The file name.
+     - `@description`: Purpose of the file in English.
+     - `@description`: Purpose in Japanese (translation of English).
+     - `@author Virginia Zhang`: Author of the file.
+     - `@remarks`: Next.js-specific context (e.g., client or server, LLM integration) in English and Japanese.
+   - Example:
+     /\*\*
+     - @file jobDetail.tsx
+     - @description A Next.js page for job details, LLM analysis, charts, and interview suggestions.
+     - @description 仕事詳細ページで LLM 分析、チャート、面接対策を表示する Next.js ページ。
+     - @author Virginia Zhang
+     - @remarks Uses server-side for LLM calls and client-side for charts.
+     - @remarks LLM 呼び出しのためサーバーサイド、チャートのためクライアントサイドを使用。
+       \*/
+
+2. Component-Level Comments:
+
+   - Use JSDoc for React components.
+   - Include:
+     - `@component {ComponentName}`: Name of the component.
+     - `@description`: Purpose in English and Japanese.
+     - `@param`: Props with English and Japanese descriptions.
+     - `@returns`: Return value (usually JSX.Element) in English and Japanese.
+     - `@remarks`: Next.js-specific notes (e.g., `use client`) or business logic (e.g., chart rendering) in English and Japanese.
+   - Example:
+     /\*\*
+     - @component JobMatchChart
+     - @description Renders a chart visualizing resume-job match score.
+     - @description 履歴書と仕事のマッチスコアをチャートで視覚化。
+     - @param {Object} props - Component props
+     - @param {Object} props コンポーネントのプロパティ
+     - @param {number} props.matchScore - The match score from LLM
+     - @param {number} props.matchScore LLM からのマッチスコア
+     - @returns {JSX.Element} The chart component
+     - @returns {JSX.Element} チャートコンポーネント
+     - @remarks Uses Chart.js for visualization
+     - @remarks 視覚化のため Chart.js を使用
+       \*/
+
+3. Function-Level Comments:
+
+   - Use JSDoc for all functions.
+   - Include:
+     - `@description`: Purpose in English and Japanese.
+     - `@param`: Parameters in English and Japanese.
+     - `@returns`: Return value in English and Japanese.
+     - `@throws`: Potential errors in English and Japanese.
+   - Example:
+     /\*\*
+     - @description Calls LLM to analyze resume-job match and generate suggestions.
+     - @description LLM を呼び出して履歴書と仕事のマッチを分析し、提案を生成。
+     - @param resumeText The parsed resume text
+     - @param resumeText 解析された履歴書テキスト
+     - @param jobDescription The job details
+     - @param jobDescription 仕事の詳細
+     - @returns A promise resolving to match analysis and suggestions
+     - @returns マッチ分析と提案を解決するプロミス
+     - @throws If LLM API fails
+     - @throws LLM API が失敗した場合
+       \*/
+
+4. Inline Comments:
+
+   - Use `//` for inline comments.
+   - Use bilingual: English on first line, Japanese on second.
+   - Keep concise, only for complex logic, security, or key decisions.
+   - Example:
+     // Call LLM API with sanitized inputs
+     // サニタイズされた入力で LLM API を呼び出し
+
+5. TODO Comments:
+   - Use `// TODO:` format for incomplete features.
+   - Include descriptions in both English and Japanese.
+   - Example:
+     // TODO: Integrate actual GPT-5 API
+     // TODO: 実際の GPT-5 API を統合
+
+## Additional Guidelines
+
+- Ensure comments are concise, avoid redundant explanations, and align with TypeScript types.
+  -For Next.js, specify whether code is client-side (`use client`) or server-side (e.g., for LLM calls).
+- Incorporate project features in comments (e.g., resume upload, job list, details, LLM analysis, charts, interview suggestions).
+- Use double quotes for strings and follow Next.js App Router structure (e.g., app/ directory).
+- For LLM integration, note security (e.g., API keys in env, input sanitization).
+- For command-line operations (e.g., installing dependencies, running scripts):
+  - Do NOT execute commands automatically.
+  - Provide the exact command and step instructions for manual execution.
+
+## File Exclusions
+
+- Files in `components/ui/` directory are excluded from JSDoc comment requirements.
+- These files contain third-party shadcn/ui components and do not require custom documentation.
