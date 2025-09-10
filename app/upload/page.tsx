@@ -146,15 +146,31 @@ export default function UploadPage(): React.JSX.Element {
       setError(`Upload failed: ${t}`);
       return;
     }
-    const { resumeId, resumeHash } = (await res.json()) as {
+    const response = (await res.json()) as {
       resumeId: string;
       resumeHash: string;
+      resumeText?: string; // Development mode may include resume text
     };
-    // Redirect to jobs list with ids; do not store resume_text anywhere persistent
-    // 履歴書テキストを永続保存せず、ID付きで求人一覧へ遷移
+
+    // In development mode, save resume text to sessionStorage
+    // 開発モードでは、履歴書テキストを sessionStorage に保存
+    if (response.resumeText) {
+      try {
+        sessionStorage.setItem(
+          `resume:${response.resumeId}`,
+          response.resumeText
+        );
+        console.log("✅ Resume text saved to sessionStorage for development");
+      } catch (err) {
+        console.warn("⚠️ Failed to save resume text to sessionStorage:", err);
+      }
+    }
+
+    // Redirect to jobs list with ids
+    // ID付きで求人一覧へ遷移
     window.location.href = `/jobs?resumeId=${encodeURIComponent(
-      resumeId
-    )}&resumeHash=${encodeURIComponent(resumeHash)}`;
+      response.resumeId
+    )}&resumeHash=${encodeURIComponent(response.resumeHash)}`;
   }
 
   return (

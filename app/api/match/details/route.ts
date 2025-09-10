@@ -8,24 +8,30 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { cacheKey, getJson, putJson, getText, resumeKey } from "@/lib/s3";
+import {
+  cacheKey,
+  getJson,
+  putJson,
+  getText,
+  resumeKey,
+  isS3Configured,
+} from "@/lib/s3";
 import { sha256Hex } from "@/lib/hash";
 
 type Phase = "summary" | "details";
 
-interface BodyA {
+interface DifyRequestBody {
+  inputs: {
+    resume_text: string;
+    job_description: string;
+    phase: string;
+  };
+  response_mode: string;
+  user: string;
+  // Internal tracking fields
+  jobId: string;
   resumeId: string;
-  resumeHash?: string;
-  jobId: string;
-  job_description: string;
-  phase?: Phase; // default "details"
-}
-
-interface BodyB {
-  resume_text: string;
-  jobId: string;
-  job_description: string;
-  phase?: Phase; // default "details"
+  resumeHash: string;
 }
 
 interface DetailsData {
@@ -51,11 +57,11 @@ interface Envelope {
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   try {
-    const body = (await req.json()) as Partial<BodyA & BodyB>;
+    const body = (await req.json()) as Partial<DifyRequestBody>;
 
     const jobId = (body.jobId || "").toString();
-    const jobDesc = (body.job_description || "").toString();
-    const phase: Phase = (body.phase as Phase) || "details";
+    const jobDesc = (body.inputs?.job_description || "").toString();
+    const phase: Phase = (body.inputs?.phase as Phase) || "details";
     if (!jobId || !jobDesc) {
       return NextResponse.json(
         { error: "Missing jobId or job_description" },
@@ -66,36 +72,31 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     let resumeText: string | null = null;
     let resumeHash: string | undefined = body.resumeHash as string | undefined;
 
-    if ("resume_text" in body && body.resume_text) {
-      resumeText = body.resume_text.toString();
+    if (body.inputs?.resume_text) {
+      resumeText = body.inputs.resume_text.toString();
       resumeHash = await sha256Hex(resumeText);
-    } else if ("resumeId" in body && body.resumeId) {
-      // 开发模式：从内存中获取 mock 数据
-      // 開発モード：メモリからモックデータを取得
-      if (process.env.NODE_ENV === "development") {
-        const globalStorage = global as typeof globalThis & {
-          mockResumeStorage?: Map<string, string>;
-        };
-        resumeText =
-          globalStorage.mockResumeStorage?.get(body.resumeId.toString()) ||
-          null;
+    } else if (body.resumeId) {
+      // Try S3 if configured, otherwise require resume_text in request body
+      // S3が設定されている場合はS3から取得、そうでなければリクエストボディのresume_textが必要
+      if (isS3Configured()) {
+        resumeText = await getText(resumeKey(body.resumeId.toString()));
         if (!resumeText) {
           return NextResponse.json(
-            { error: "Resume not found in mock storage" },
+            { error: "Resume not found in S3" },
             { status: 404 }
           );
         }
-        resumeHash = (body.resumeHash as string) || "mock-hash";
-      } else {
-        // 生产模式：从 S3 获取
-        // 本番モード：S3から取得
-        resumeText = await getText(resumeKey(body.resumeId.toString()));
-        if (!resumeText)
-          return NextResponse.json(
-            { error: "Resume not found" },
-            { status: 404 }
-          );
         resumeHash = await sha256Hex(resumeText);
+      } else {
+        // Development mode: require resume_text in request body
+        // 開発モード：リクエストボディにresume_textが必要
+        return NextResponse.json(
+          {
+            error:
+              "In development mode, resume_text must be provided in request body",
+          },
+          { status: 400 }
+        );
       }
     } else {
       return NextResponse.json(
@@ -104,68 +105,27 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // 本地测试：返回模拟的详细分析
-    // ローカルテスト：モックの詳細分析を返す
-    if (process.env.NODE_ENV === "development") {
-      const mockData: DetailsData = {
-        advantages: [
-          "React と TypeScript の実務経験が豊富",
-          "チーム開発での Git 使用経験",
-          "API 設計・開発の経験",
-        ],
-        disadvantages: [
-          "AWS クラウド環境での開発経験が限定的",
-          "テスト自動化の経験が不足",
-        ],
-        advice: [
-          {
-            title: "AWS クラウドスキルの向上",
-            detail:
-              "AWS の基本的なサービス（EC2, S3, Lambda）について学習し、クラウド環境での開発経験を積むことをお勧めします。",
-          },
-          {
-            title: "テスト自動化の実践",
-            detail:
-              "Jest や Vitest を使ったテスト自動化を実践し、品質保証のスキルを向上させましょう。",
-          },
-          {
-            title: "コンテナ技術の習得",
-            detail:
-              "Docker を使った開発環境構築を経験し、モダンな開発手法を身につけることをお勧めします。",
-          },
-        ],
-      };
-
-      const envelope: Envelope = {
-        meta: {
-          jobId,
-          phase: "details",
-          resumeHash,
-          source: "dify",
-          timestamp: new Date().toISOString(),
-          version: "v1",
-        },
-        data: mockData,
-      };
-
-      return NextResponse.json(envelope);
-    }
-
-    // 生产环境：实际调用 Dify
-    // 本番環境：実際にDifyを呼び出す
-    const key = cacheKey(jobId, phase, resumeHash);
-    const cached = await getJson<Envelope>(key);
-    if (cached) {
-      return NextResponse.json(cached);
-    }
-
-    // Call Dify Workflow (non-streaming)
-    // Difyワークフローを呼び出す（非ストリーミング）
+    // 必须提供 Dify 配置
+    // Dify 設定は必須
     const difyUrl = process.env.DIFY_WORKFLOW_URL || "";
     const apiKey = process.env.DIFY_API_KEY || "";
     if (!difyUrl || !apiKey) {
       return NextResponse.json({ error: "Missing Dify env" }, { status: 500 });
     }
+
+    // 检查缓存（生产环境）
+    // キャッシュをチェック（本番環境）
+    const key = cacheKey(jobId, phase, resumeHash);
+    if (isS3Configured()) {
+      const cached = await getJson<Envelope>(key);
+      if (cached) {
+        return NextResponse.json(cached);
+      }
+    }
+
+    // Call Dify Workflow (non-streaming)
+    // Difyワークフローを呼び出す（非ストリーミング）
+    console.log("🚀 Calling Dify API for details analysis...");
 
     const res = await fetch(difyUrl, {
       method: "POST",
@@ -193,7 +153,19 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     }
 
     const payload = await res.json();
-    const data: DetailsData = payload?.output as DetailsData;
+    // Parse Dify workflow response: expect data.outputs to contain fields
+    // Dify ワークフロー応答を解析: data.outputs 内のフィールドを利用
+    const outputs = (payload?.data?.outputs ?? {}) as Record<string, unknown>;
+    const advantages = (outputs.advantages as string[]) || [];
+    const disadvantages = (outputs.disadvantages as string[]) || [];
+    const adviceRaw = (outputs.advice as Array<Record<string, unknown>>) || [];
+    const advice = adviceRaw
+      .map(it => ({
+        title: String(it.title ?? ""),
+        detail: String(it.detail ?? ""),
+      }))
+      .filter(it => it.title || it.detail);
+    const data: DetailsData = { advantages, disadvantages, advice };
 
     const envelope: Envelope = {
       meta: {
@@ -207,7 +179,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       data,
     };
 
-    await putJson(key, envelope);
+    if (isS3Configured()) {
+      await putJson(key, envelope);
+    }
     return NextResponse.json(envelope);
   } catch (error) {
     console.error("❌ Match details API error:", error);

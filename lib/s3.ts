@@ -14,8 +14,7 @@ import {
 } from "@aws-sdk/client-s3";
 
 const REGION = process.env.AWS_REGION || "";
-const BUCKET = process.env.S3_BUCKET || "";
-const PREFIX = (process.env.S3_PREFIX || "").replace(/\/$/, "");
+const BUCKET = process.env.AWS_S3_BUCKET || process.env.S3_BUCKET || "";
 
 function assertServerEnv(): void {
   if (!REGION || !BUCKET) {
@@ -33,11 +32,6 @@ function client(): S3Client {
   return _client;
 }
 
-function withPrefix(key: string): string {
-  const clean = key.replace(/^\//, "");
-  return PREFIX ? `${PREFIX}/${clean}` : clean;
-}
-
 /**
  * @description Put UTF-8 text to S3.
  * @description UTF-8テキストをS3へ保存。
@@ -50,7 +44,7 @@ export async function putText(
   await client().send(
     new PutObjectCommand({
       Bucket: BUCKET,
-      Key: withPrefix(key),
+      Key: key,
       Body: text,
       ContentType: contentType,
     })
@@ -64,7 +58,7 @@ export async function putText(
 export async function getText(key: string): Promise<string | null> {
   try {
     const out = await client().send(
-      new GetObjectCommand({ Bucket: BUCKET, Key: withPrefix(key) })
+      new GetObjectCommand({ Bucket: BUCKET, Key: key })
     );
     const body = await out.Body?.transformToString("utf-8");
     return body ?? null;
@@ -113,4 +107,14 @@ export function cacheKey(
  */
 export function resumeKey(resumeId: string): string {
   return `resume/${resumeId}.txt`;
+}
+
+/**
+ * @description Whether S3 env is configured. Use to guard optional caching.
+ * @description S3 環境変数が設定済みか。オプションキャッシュのガードに使用。
+ * @remarks For AWS Amplify deployment, IAM roles are automatically used.
+ * @remarks AWS Amplify デプロイでは、IAM ロールが自動的に使用される。
+ */
+export function isS3Configured(): boolean {
+  return Boolean(REGION && BUCKET);
 }
