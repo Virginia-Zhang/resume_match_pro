@@ -36,22 +36,19 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // 本地测试模式：返回模拟数据
-    // ローカルテストモード：モックデータを返す
+    // 开发模式：返回模拟数据，简历文本由前端保存到 sessionStorage
+    // 開発モード：モックデータを返す、履歴書テキストはフロントエンドで sessionStorage に保存
     if (process.env.NODE_ENV === "development") {
       const resumeHash = "mock-hash-" + Date.now();
       const resumeId = "mock-id-" + Date.now();
 
-      // 简单的内存存储，重启后丢失
-      // シンプルなメモリストレージ、再起動後に消失
-      const globalStorage = global as typeof globalThis & {
-        mockResumeStorage?: Map<string, string>;
-      };
-      globalStorage.mockResumeStorage =
-        globalStorage.mockResumeStorage || new Map();
-      globalStorage.mockResumeStorage.set(resumeId, resumeText);
-
-      return NextResponse.json({ resumeId, resumeHash });
+      // 在开发模式下，简历文本由前端保存到 sessionStorage
+      // 開発モードでは、履歴書テキストはフロントエンドで sessionStorage に保存される
+      return NextResponse.json({
+        resumeId,
+        resumeHash,
+        resumeText, // 返回给前端，让前端保存到 sessionStorage
+      });
     }
 
     // 生产环境：实际存储到 S3

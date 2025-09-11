@@ -7,42 +7,18 @@
  * @remarks サーバーコンポーネント。後でISRに切替可能。モックは日本語表記。
  */
 
-import Link from "next/link";
 import { JobListItem } from "@/types/jobs";
 import React from "react";
 import Image from "next/image";
+import { fetchJobs, toListItem } from "@/lib/jobs";
+import SaveSelectedJobLink from "./SaveSelectedJobLink";
+import { redirect } from "next/navigation";
 
-function getMockJobs(): JobListItem[] {
-  return [
-    {
-      id: "kraken-se-1",
-      title: "シニアフロントエンドソフトウェアエンジニア",
-      company: "Kraken",
-      location: "東京都, 日本",
-      tags: ["frontend"],
-      postedAt: new Date(Date.now() - 28 * 24 * 3600 * 1000).toISOString(),
-      logoUrl: "/file.svg",
-    },
-    {
-      id: "kinto-fe-1",
-      title: "フロントエンドデベロッパー（MaaSサービス）",
-      company: "KINTO Technologies",
-      location: "東京都, 日本",
-      tags: ["frontend"],
-      postedAt: new Date(Date.now() - 21 * 24 * 3600 * 1000).toISOString(),
-      logoUrl: "/globe.svg",
-    },
-    {
-      id: "trustana-fe-fullstack-1",
-      title: "シニアフロントエンドエンジニア（フルスタック）",
-      company: "Trustana",
-      location: "東京都, 日本",
-      tags: ["frontend"],
-      postedAt: new Date(Date.now() - 21 * 24 * 3600 * 1000).toISOString(),
-      logoUrl: "/next.svg",
-    },
-  ];
-}
+/**
+ * Client link that saves selected job detail into sessionStorage before navigation
+ * 遷移前に選択した求人詳細をsessionStorageへ保存するクライアントリンク
+ */
+// moved to client file SaveSelectedJobLink.tsx
 
 function timeAgo(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
@@ -56,9 +32,18 @@ export default async function JobsPage({
   searchParams?: Promise<{ resumeId?: string; resumeHash?: string }>;
 }): Promise<React.JSX.Element> {
   const params = await searchParams;
-  const resumeId = params?.resumeId || "";
-  const resumeHash = params?.resumeHash || "";
-  const jobs = getMockJobs();
+  const resumeId = params?.resumeId;
+  const resumeHash = params?.resumeHash;
+
+  // Strict flow guard: must have resumeId and resumeHash from upload flow
+  // 厳格なフローガード：アップロードフローから resumeId と resumeHash が必要
+  if (!resumeId || !resumeHash) {
+    redirect("/upload");
+  }
+
+  // Use runtime-config to decide base URL per environment
+  const details = await fetchJobs();
+  const jobs: JobListItem[] = details.map(toListItem);
 
   return (
     <div className="mx-auto max-w-4xl p-6 space-y-6">
@@ -87,16 +72,17 @@ export default async function JobsPage({
                 {timeAgo(j.postedAt)}
               </p>
             </div>
-            <Link
+            <SaveSelectedJobLink
               className="text-primary underline"
+              job={details.find(d => d.id === j.id)!}
               href={`/jobs/${encodeURIComponent(
                 j.id
               )}?resumeId=${encodeURIComponent(
-                resumeId
-              )}&resumeHash=${encodeURIComponent(resumeHash)}`}
+                resumeId!
+              )}&resumeHash=${encodeURIComponent(resumeHash!)}`}
             >
               詳細を見る
-            </Link>
+            </SaveSelectedJobLink>
           </li>
         ))}
       </ul>
