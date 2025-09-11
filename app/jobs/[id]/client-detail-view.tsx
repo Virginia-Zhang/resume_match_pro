@@ -5,11 +5,12 @@
  */
 "use client";
 
-import React from "react";
-import Image from "next/image";
-import type { JobDetailV2 } from "@/types/jobs_v2";
-import ClientCharts from "./charts";
 import Skeleton from "@/components/ui/skeleton";
+import type { JobDetailV2 } from "@/types/jobs_v2";
+import Image from "next/image";
+import { useRouter } from "next/navigation";
+import React from "react";
+import ClientCharts from "./charts";
 
 /**
  * Serialize JobDetailV2 to plain text for LLM analysis
@@ -132,6 +133,7 @@ export default function ClientDetailView({
 }): React.ReactElement {
   const [detail, setDetail] = React.useState<JobDetailV2 | null>(null);
   const [loading, setLoading] = React.useState(true);
+  const router = useRouter();
 
   React.useEffect(() => {
     // Use setTimeout to defer sessionStorage read and not block initial render
@@ -153,11 +155,15 @@ export default function ClientDetailView({
 
   React.useEffect(() => {
     if (!loading && !detail) {
-      // Missing data -> enforce flow: redirect to jobs list
-      // データがない場合は一覧へ戻す
-      window.location.replace("/jobs");
+      // Missing data -> redirect to jobs list while preserving resume context
+      // データがない場合は履歴書コンテキストを保持したまま一覧へ遷移
+      const params = new URLSearchParams();
+      if (resumeId) params.set("resumeId", resumeId);
+      if (resumeHash) params.set("resumeHash", resumeHash);
+      const query = params.toString();
+      router.push(`/jobs${query ? `?${query}` : ""}`);
     }
-  }, [loading, detail]);
+  }, [loading, detail, resumeId, resumeHash, router]);
 
   if (loading) {
     return (
