@@ -25,11 +25,15 @@ export default function SaveSelectedJobLink({
       className={className}
       href={href}
       onClick={() => {
-        try {
-          sessionStorage.setItem(`job:${job.id}`, JSON.stringify(job));
-        } catch {
-          // ignore storage errors
-        }
+        // Use setTimeout to defer storage operation and not block navigation
+        // ナビゲーションをブロックしないよう、ストレージ操作を遅延実行
+        setTimeout(() => {
+          try {
+            sessionStorage.setItem(`job:${job.id}`, JSON.stringify(job));
+          } catch {
+            // ignore storage errors
+          }
+        }, 0);
       }}
     >
       {children}

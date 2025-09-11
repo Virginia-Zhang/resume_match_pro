@@ -134,17 +134,21 @@ export default function ClientDetailView({
   const [loading, setLoading] = React.useState(true);
 
   React.useEffect(() => {
-    try {
-      const cached = sessionStorage.getItem(`job:${jobId}`);
-      if (cached) {
-        const v2 = JSON.parse(cached) as JobDetailV2;
-        setDetail(v2);
+    // Use setTimeout to defer sessionStorage read and not block initial render
+    // 初期レンダーをブロックしないよう、sessionStorage読み取りを遅延実行
+    setTimeout(() => {
+      try {
+        const cached = sessionStorage.getItem(`job:${jobId}`);
+        if (cached) {
+          const v2 = JSON.parse(cached) as JobDetailV2;
+          setDetail(v2);
+        }
+      } catch {
+        // ignore
+      } finally {
+        setLoading(false);
       }
-    } catch {
-      // ignore
-    } finally {
-      setLoading(false);
-    }
+    }, 0);
   }, [jobId]);
 
   React.useEffect(() => {
@@ -311,6 +315,7 @@ export default function ClientDetailView({
                     src={`/company${index}.webp`}
                     alt={`会社・製品画像${index}`}
                     fill
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 33vw, 25vw"
                     className="object-cover"
                   />
                 </div>

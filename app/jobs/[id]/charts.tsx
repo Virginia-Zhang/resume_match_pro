@@ -86,7 +86,21 @@ export default function ClientCharts({
         return;
       }
       if (existingRequest === "completed") {
-        console.log("✅ Summary already completed, skipping...");
+        console.log("✅ Summary already completed, loading from cache...");
+        // Load cached summary data from sessionStorage
+        // キャッシュされたサマリーデータをsessionStorageから読み込み
+        try {
+          const cachedData = sessionStorage.getItem(
+            `${summaryRequestKey}-data`
+          );
+          if (cachedData) {
+            const parsedData = JSON.parse(cachedData) as SummaryEnvelope;
+            setSummary(parsedData);
+            console.log("✅ Summary loaded from cache successfully");
+          }
+        } catch (err) {
+          console.error("❌ Failed to load cached summary:", err);
+        }
         setSummaryLoading(false);
         return;
       }
@@ -113,7 +127,6 @@ export default function ClientCharts({
             inputs: {
               resume_text: resumeText,
               job_description: jobDescription,
-              phase: "summary",
             },
             response_mode: "blocking",
             user: "Virginia Zhang",
@@ -121,10 +134,20 @@ export default function ClientCharts({
             resumeId,
             resumeHash,
           }),
-          timeoutMs: 60000, // 60 seconds for Dify API processing
+          timeoutMs: 90000, // 90 seconds for Dify API processing
         });
         setSummary(summaryData);
         sessionStorage.setItem(summaryRequestKey, "completed");
+        // Cache the summary data for future use
+        // 将来の使用のためにサマリーデータをキャッシュ
+        try {
+          sessionStorage.setItem(
+            `${summaryRequestKey}-data`,
+            JSON.stringify(summaryData)
+          );
+        } catch (err) {
+          console.warn("⚠️ Failed to cache summary data:", err);
+        }
         console.log("✅ Summary analysis completed successfully");
       } catch (err) {
         setSummaryError(err instanceof Error ? err.message : "Unknown error");
@@ -138,17 +161,41 @@ export default function ClientCharts({
     fetchSummary();
   }, [resumeId, resumeHash, jobId, jobDescription, summaryRequestKey]);
 
-  // Fetch details data independently
-  // 詳細データを独立して取得
+  // Fetch details data only after summary is completed
+  // サマリー完了後にのみ詳細データを取得
   React.useEffect(() => {
     async function fetchDetails() {
+      // Only proceed if summary is completed
+      // サマリーが完了している場合のみ続行
+      const summaryStatus = sessionStorage.getItem(summaryRequestKey);
+      if (summaryStatus !== "completed") {
+        console.log(
+          "⏳ Waiting for summary to complete before fetching details..."
+        );
+        return;
+      }
+
       const existingRequest = sessionStorage.getItem(detailsRequestKey);
       if (existingRequest === "in-progress") {
         console.log("🚫 Details request already in progress, skipping...");
         return;
       }
       if (existingRequest === "completed") {
-        console.log("✅ Details already completed, skipping...");
+        console.log("✅ Details already completed, loading from cache...");
+        // Load cached details data from sessionStorage
+        // キャッシュされた詳細データをsessionStorageから読み込み
+        try {
+          const cachedData = sessionStorage.getItem(
+            `${detailsRequestKey}-data`
+          );
+          if (cachedData) {
+            const parsedData = JSON.parse(cachedData) as DetailsEnvelope;
+            setDetails(parsedData);
+            console.log("✅ Details loaded from cache successfully");
+          }
+        } catch (err) {
+          console.error("❌ Failed to load cached details:", err);
+        }
         setDetailsLoading(false);
         return;
       }
@@ -168,6 +215,32 @@ export default function ClientCharts({
           // Ignore sessionStorage errors
         }
 
+        // Get overall score from summary result in sessionStorage
+        // sessionStorage からサマリー結果の総合スコアを取得
+        let overallFromSummary: number;
+        try {
+          const cachedSummaryData = sessionStorage.getItem(
+            `${summaryRequestKey}-data`
+          );
+          if (cachedSummaryData) {
+            const parsedSummary = JSON.parse(
+              cachedSummaryData
+            ) as SummaryEnvelope;
+            overallFromSummary = parsedSummary.data.overall;
+          } else {
+            throw new Error("Summary data not found in sessionStorage");
+          }
+        } catch {
+          // If we can't get overall from summary, skip details request
+          // サマリーからoverallを取得できない場合は詳細リクエストをスキップ
+          console.error(
+            "❌ Cannot get overall score from summary, skipping details request"
+          );
+          setDetailsError("Summary data not available for details analysis");
+          setDetailsLoading(false);
+          return;
+        }
+
         const detailsUrl = `${window.location.origin}/api/match/details`;
         const detailsData = await fetchJson<DetailsEnvelope>(detailsUrl, {
           method: "POST",
@@ -175,7 +248,7 @@ export default function ClientCharts({
             inputs: {
               resume_text: resumeText,
               job_description: jobDescription,
-              phase: "details",
+              overall_from_summary: overallFromSummary,
             },
             response_mode: "blocking",
             user: "Virginia Zhang",
@@ -183,10 +256,20 @@ export default function ClientCharts({
             resumeId,
             resumeHash,
           }),
-          timeoutMs: 60000, // 60 seconds for Dify API processing
+          timeoutMs: 90000, // 90 seconds for Dify API processing
         });
         setDetails(detailsData);
         sessionStorage.setItem(detailsRequestKey, "completed");
+        // Cache the details data for future use
+        // 将来の使用のために詳細データをキャッシュ
+        try {
+          sessionStorage.setItem(
+            `${detailsRequestKey}-data`,
+            JSON.stringify(detailsData)
+          );
+        } catch (err) {
+          console.warn("⚠️ Failed to cache details data:", err);
+        }
         console.log("✅ Details analysis completed successfully");
       } catch (err) {
         setDetailsError(err instanceof Error ? err.message : "Unknown error");
@@ -198,7 +281,15 @@ export default function ClientCharts({
     }
 
     fetchDetails();
-  }, [resumeId, resumeHash, jobId, jobDescription, detailsRequestKey]);
+  }, [
+    resumeId,
+    resumeHash,
+    jobId,
+    jobDescription,
+    detailsRequestKey,
+    summaryRequestKey,
+    summary, // Add summary as dependency to trigger when summary changes
+  ]);
 
   // Render summary section independently
   // サマリーセクションを独立してレンダリング
@@ -206,10 +297,10 @@ export default function ClientCharts({
     if (summaryLoading) {
       return (
         <div>
-          <Skeleton className="h-6 w-24 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold mb-4 text-center">マッチ度</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="p-4 border rounded-md">
-              <Skeleton className="h-5 w-20 mb-3" />
+              <h4 className="font-medium mb-3">全体スコア</h4>
               <div className="flex flex-col items-center">
                 <Skeleton className="h-56 w-56 rounded-full" />
                 <Skeleton className="mt-4 h-6 w-16" />
@@ -223,9 +314,14 @@ export default function ClientCharts({
               </div>
             </div>
             <div className="p-4 border rounded-md">
-              <Skeleton className="h-5 w-24 mb-3" />
+              <h4 className="font-medium mb-3">5次元スコア</h4>
               <div className="h-64 flex items-center justify-center">
                 <Skeleton className="h-60 w-full" />
+              </div>
+              <div className="mt-3 p-3 rounded-md border bg-white/40 dark:bg-slate-900/30">
+                <div className="text-sm text-muted-foreground">
+                  ヒント：頂点にホバー/タップしてください
+                </div>
               </div>
             </div>
           </div>
@@ -277,6 +373,11 @@ export default function ClientCharts({
               </PieChart>
             </ResponsiveContainer>
             <p className="text-center text-2xl font-semibold">{overall}</p>
+            <div className="mt-3 p-3 rounded-md border bg-white/40 dark:bg-slate-900/30">
+              <div className="text-sm text-muted-foreground text-center">
+                満点は100点です
+              </div>
+            </div>
           </div>
 
           <div className="p-4 border rounded-md">
@@ -318,10 +419,9 @@ export default function ClientCharts({
                 />
               </RadarChart>
             </ResponsiveContainer>
-            <div className="mt-3 p-3 rounded-md border bg-white/40 dark:bg-slate-900/30">
+            <div className="mt-1 p-3 rounded-md border bg-white/40 dark:bg-slate-900/30">
               {hover ? (
                 <div>
-                  <div className="text-sm text-muted-foreground">指標</div>
                   <div className="text-base font-medium">{hover.name}</div>
                   <div className="mt-1 text-2xl font-semibold">
                     {hover.value}
@@ -368,33 +468,34 @@ export default function ClientCharts({
     if (detailsLoading) {
       return (
         <div>
-          <Skeleton className="h-6 w-32 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold mb-4 text-center">
+            面接アドバイス
+          </h3>
           <div className="p-4 border rounded-md">
-            <Skeleton className="h-5 w-16 mb-3" />
-            <div className="space-y-4">
-              <div>
-                <Skeleton className="h-5 w-20 mb-2" />
+            <div className="space-y-6 text-sm">
+              <section>
+                <h4 className="font-medium mb-3">強み</h4>
                 <div className="space-y-2">
                   <Skeleton className="h-4 w-10/12" />
                   <Skeleton className="h-4 w-9/12" />
                   <Skeleton className="h-4 w-8/12" />
                 </div>
-              </div>
-              <div>
-                <Skeleton className="h-5 w-20 mb-2" />
+              </section>
+              <section>
+                <h4 className="font-medium mb-3">弱み</h4>
                 <div className="space-y-2">
                   <Skeleton className="h-4 w-10/12" />
                   <Skeleton className="h-4 w-9/12" />
                 </div>
-              </div>
-              <div>
-                <Skeleton className="h-5 w-20 mb-2" />
+              </section>
+              <section>
+                <h4 className="font-medium mb-3">面接対策</h4>
                 <div className="space-y-2">
                   <Skeleton className="h-4 w-11/12" />
                   <Skeleton className="h-4 w-10/12" />
                   <Skeleton className="h-4 w-9/12" />
                 </div>
-              </div>
+              </section>
             </div>
           </div>
         </div>

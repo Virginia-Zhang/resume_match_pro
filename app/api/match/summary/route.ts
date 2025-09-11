@@ -18,13 +18,10 @@ import {
 } from "@/lib/s3";
 import { sha256Hex } from "@/lib/hash";
 
-type Phase = "summary" | "details";
-
 interface DifyRequestBody {
   inputs: {
     resume_text: string;
     job_description: string;
-    phase: string;
   };
   response_mode: string;
   user: string;
@@ -43,7 +40,6 @@ interface SummaryData {
 interface Envelope {
   meta: {
     jobId: string;
-    phase: Phase;
     resumeHash: string;
     source: "cache" | "dify";
     timestamp: string;
@@ -58,7 +54,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     const jobId = (body.jobId || "").toString();
     const jobDesc = (body.inputs?.job_description || "").toString();
-    const phase: Phase = (body.inputs?.phase as Phase) || "summary";
     if (!jobId || !jobDesc) {
       return NextResponse.json(
         { error: "Missing jobId or job_description" },
@@ -112,7 +107,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     // 检查缓存（生产环境）
     // キャッシュをチェック（本番環境）
-    const key = cacheKey(jobId, phase, resumeHash);
+    const key = cacheKey(jobId, "summary", resumeHash);
     if (isS3Configured()) {
       const cached = await getJson<Envelope>(key);
       if (cached) {
@@ -134,7 +129,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         inputs: {
           resume_text: resumeText,
           job_description: jobDesc,
-          phase: "summary",
         },
         response_mode: "blocking",
         user: "Virginia Zhang",
@@ -180,7 +174,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const envelope: Envelope = {
       meta: {
         jobId,
-        phase: "summary",
         resumeHash,
         source: "dify",
         timestamp: new Date().toISOString(),

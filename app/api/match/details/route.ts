@@ -18,13 +18,11 @@ import {
 } from "@/lib/s3";
 import { sha256Hex } from "@/lib/hash";
 
-type Phase = "summary" | "details";
-
 interface DifyRequestBody {
   inputs: {
     resume_text: string;
     job_description: string;
-    phase: string;
+    overall_from_summary: number;
   };
   response_mode: string;
   user: string;
@@ -46,7 +44,6 @@ interface DetailsData {
 interface Envelope {
   meta: {
     jobId: string;
-    phase: Phase;
     resumeHash: string;
     source: "cache" | "dify";
     timestamp: string;
@@ -61,10 +58,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     const jobId = (body.jobId || "").toString();
     const jobDesc = (body.inputs?.job_description || "").toString();
-    const phase: Phase = (body.inputs?.phase as Phase) || "details";
-    if (!jobId || !jobDesc) {
+    const overallFromSummary = body.inputs?.overall_from_summary;
+    if (!jobId || !jobDesc || overallFromSummary === undefined) {
       return NextResponse.json(
-        { error: "Missing jobId or job_description" },
+        { error: "Missing jobId, job_description, or overall_from_summary" },
         { status: 400 }
       );
     }
@@ -115,7 +112,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     // 检查缓存（生产环境）
     // キャッシュをチェック（本番環境）
-    const key = cacheKey(jobId, phase, resumeHash);
+    const key = cacheKey(jobId, "details", resumeHash);
     if (isS3Configured()) {
       const cached = await getJson<Envelope>(key);
       if (cached) {
@@ -137,7 +134,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         inputs: {
           resume_text: resumeText,
           job_description: jobDesc,
-          phase: "details",
+          overall_from_summary: overallFromSummary,
         },
         response_mode: "blocking",
         user: "Virginia Zhang",
@@ -170,7 +167,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const envelope: Envelope = {
       meta: {
         jobId,
-        phase: "details",
         resumeHash,
         source: "dify",
         timestamp: new Date().toISOString(),
