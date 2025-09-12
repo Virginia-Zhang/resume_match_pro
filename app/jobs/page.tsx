@@ -14,12 +14,6 @@ import { fetchJobs, toListItem } from "@/lib/jobs";
 import SaveSelectedJobLink from "./SaveSelectedJobLink";
 import { redirect } from "next/navigation";
 
-/**
- * Client link that saves selected job detail into sessionStorage before navigation
- * 遷移前に選択した求人詳細をsessionStorageへ保存するクライアントリンク
- */
-// moved to client file SaveSelectedJobLink.tsx
-
 function timeAgo(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
   const weeks = Math.floor(diff / (7 * 24 * 3600 * 1000));

@@ -20,7 +20,6 @@ import { sha256Hex } from "@/lib/hash";
 
 interface DifyRequestBody {
   inputs: {
-    resume_text: string;
     job_description: string;
     overall_from_summary: number;
   };
@@ -66,41 +65,28 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       );
     }
 
-    let resumeText: string | null = null;
-    let resumeHash: string | undefined = body.resumeHash as string | undefined;
+    // Resume text must be retrieved from S3
+    // 履歴書テキストはS3から取得する必要がある
+    if (!body.resumeId) {
+      return NextResponse.json({ error: "Missing resumeId" }, { status: 400 });
+    }
 
-    if (body.inputs?.resume_text) {
-      resumeText = body.inputs.resume_text.toString();
-      resumeHash = await sha256Hex(resumeText);
-    } else if (body.resumeId) {
-      // Try S3 if configured, otherwise require resume_text in request body
-      // S3が設定されている場合はS3から取得、そうでなければリクエストボディのresume_textが必要
-      if (isS3Configured()) {
-        resumeText = await getText(resumeKey(body.resumeId.toString()));
-        if (!resumeText) {
-          return NextResponse.json(
-            { error: "Resume not found in S3" },
-            { status: 404 }
-          );
-        }
-        resumeHash = await sha256Hex(resumeText);
-      } else {
-        // Development mode: require resume_text in request body
-        // 開発モード：リクエストボディにresume_textが必要
-        return NextResponse.json(
-          {
-            error:
-              "In development mode, resume_text must be provided in request body",
-          },
-          { status: 400 }
-        );
-      }
-    } else {
+    if (!isS3Configured()) {
       return NextResponse.json(
-        { error: "Missing resumeId or resume_text" },
-        { status: 400 }
+        { error: "S3 is not configured" },
+        { status: 500 }
       );
     }
+
+    const resumeText = await getText(resumeKey(body.resumeId.toString()));
+    if (!resumeText) {
+      return NextResponse.json(
+        { error: "Resume not found in S3" },
+        { status: 404 }
+      );
+    }
+
+    const resumeHash = await sha256Hex(resumeText);
 
     // 必须提供 Dify 配置
     // Dify 設定は必須

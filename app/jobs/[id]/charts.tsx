@@ -65,67 +65,35 @@ export default function ClientCharts({
     value: number;
   } | null>(null);
 
-  // Request deduplication: prevent multiple calls for the same job/resume combination
-  // リクエスト重複防止：同じ求人/履歴書の組み合わせで複数回呼び出しを防ぐ
-  const summaryRequestKey = React.useMemo(
-    () => `ai-analysis-summary-${jobId}-${resumeHash}`,
-    [jobId, resumeHash]
-  );
-  const detailsRequestKey = React.useMemo(
-    () => `ai-analysis-details-${jobId}-${resumeHash}`,
-    [jobId, resumeHash]
-  );
+  // Simple request deduplication for development mode
+  // 開発モード用のシンプルなリクエスト重複防止
+  const summaryRequested = React.useRef(false);
+  const detailsRequested = React.useRef(false);
 
   // Fetch summary data independently
   // サマリーデータを独立して取得
   React.useEffect(() => {
     async function fetchSummary() {
-      const existingRequest = sessionStorage.getItem(summaryRequestKey);
-      if (existingRequest === "in-progress") {
-        console.log("🚫 Summary request already in progress, skipping...");
+      // Prevent duplicate requests in development mode
+      // 開発モードでの重複リクエストを防ぐ
+      if (summaryRequested.current) {
+        console.log("🚫 Summary request already sent, skipping...");
         return;
       }
-      if (existingRequest === "completed") {
-        console.log("✅ Summary already completed, loading from cache...");
-        // Load cached summary data from sessionStorage
-        // キャッシュされたサマリーデータをsessionStorageから読み込み
-        try {
-          const cachedData = sessionStorage.getItem(
-            `${summaryRequestKey}-data`
-          );
-          if (cachedData) {
-            const parsedData = JSON.parse(cachedData) as SummaryEnvelope;
-            setSummary(parsedData);
-            console.log("✅ Summary loaded from cache successfully");
-          }
-        } catch (err) {
-          console.error("❌ Failed to load cached summary:", err);
-        }
-        setSummaryLoading(false);
-        return;
-      }
+      summaryRequested.current = true;
 
       try {
         setSummaryLoading(true);
         setSummaryError(null);
-        sessionStorage.setItem(summaryRequestKey, "in-progress");
 
-        // Get resume text from sessionStorage in development mode
-        // 開発モードでは sessionStorage から履歴書テキストを取得
-        let resumeText: string | undefined;
-        try {
-          resumeText =
-            sessionStorage.getItem(`resume:${resumeId}`) || undefined;
-        } catch {
-          // Ignore sessionStorage errors
-        }
+        // Resume text is now always retrieved from S3
+        // 履歴書テキストは常にS3から取得される
 
         const summaryUrl = `${window.location.origin}/api/match/summary`;
         const summaryData = await fetchJson<SummaryEnvelope>(summaryUrl, {
           method: "POST",
           body: JSON.stringify({
             inputs: {
-              resume_text: resumeText,
               job_description: jobDescription,
             },
             response_mode: "blocking",
@@ -137,21 +105,9 @@ export default function ClientCharts({
           timeoutMs: 90000, // 90 seconds for Dify API processing
         });
         setSummary(summaryData);
-        sessionStorage.setItem(summaryRequestKey, "completed");
-        // Cache the summary data for future use
-        // 将来の使用のためにサマリーデータをキャッシュ
-        try {
-          sessionStorage.setItem(
-            `${summaryRequestKey}-data`,
-            JSON.stringify(summaryData)
-          );
-        } catch (err) {
-          console.warn("⚠️ Failed to cache summary data:", err);
-        }
         console.log("✅ Summary analysis completed successfully");
       } catch (err) {
         setSummaryError(err instanceof Error ? err.message : "Unknown error");
-        sessionStorage.removeItem(summaryRequestKey);
         console.error("❌ Summary analysis failed:", err);
       } finally {
         setSummaryLoading(false);
@@ -159,7 +115,7 @@ export default function ClientCharts({
     }
 
     fetchSummary();
-  }, [resumeId, resumeHash, jobId, jobDescription, summaryRequestKey]);
+  }, [resumeId, resumeHash, jobId, jobDescription]);
 
   // Fetch details data only after summary is completed
   // サマリー完了後にのみ詳細データを取得
@@ -167,86 +123,43 @@ export default function ClientCharts({
     async function fetchDetails() {
       // Only proceed if summary is completed
       // サマリーが完了している場合のみ続行
-      const summaryStatus = sessionStorage.getItem(summaryRequestKey);
-      if (summaryStatus !== "completed") {
+      if (!summary) {
         console.log(
           "⏳ Waiting for summary to complete before fetching details..."
         );
         return;
       }
 
-      const existingRequest = sessionStorage.getItem(detailsRequestKey);
-      if (existingRequest === "in-progress") {
-        console.log("🚫 Details request already in progress, skipping...");
+      // Prevent duplicate requests in development mode
+      // 開発モードでの重複リクエストを防ぐ
+      if (detailsRequested.current) {
+        console.log("🚫 Details request already sent, skipping...");
         return;
       }
-      if (existingRequest === "completed") {
-        console.log("✅ Details already completed, loading from cache...");
-        // Load cached details data from sessionStorage
-        // キャッシュされた詳細データをsessionStorageから読み込み
-        try {
-          const cachedData = sessionStorage.getItem(
-            `${detailsRequestKey}-data`
-          );
-          if (cachedData) {
-            const parsedData = JSON.parse(cachedData) as DetailsEnvelope;
-            setDetails(parsedData);
-            console.log("✅ Details loaded from cache successfully");
-          }
-        } catch (err) {
-          console.error("❌ Failed to load cached details:", err);
-        }
-        setDetailsLoading(false);
-        return;
-      }
+      detailsRequested.current = true;
 
       try {
         setDetailsLoading(true);
         setDetailsError(null);
-        sessionStorage.setItem(detailsRequestKey, "in-progress");
 
-        // Get resume text from sessionStorage in development mode
-        // 開発モードでは sessionStorage から履歴書テキストを取得
-        let resumeText: string | undefined;
-        try {
-          resumeText =
-            sessionStorage.getItem(`resume:${resumeId}`) || undefined;
-        } catch {
-          // Ignore sessionStorage errors
-        }
+        // Resume text is now always retrieved from S3
+        // 履歴書テキストは常にS3から取得される
 
-        // Get overall score from summary result in sessionStorage
-        // sessionStorage からサマリー結果の総合スコアを取得
-        let overallFromSummary: number;
-        try {
-          const cachedSummaryData = sessionStorage.getItem(
-            `${summaryRequestKey}-data`
-          );
-          if (cachedSummaryData) {
-            const parsedSummary = JSON.parse(
-              cachedSummaryData
-            ) as SummaryEnvelope;
-            overallFromSummary = parsedSummary.data.overall;
-          } else {
-            throw new Error("Summary data not found in sessionStorage");
-          }
-        } catch {
-          // If we can't get overall from summary, skip details request
-          // サマリーからoverallを取得できない場合は詳細リクエストをスキップ
-          console.error(
-            "❌ Cannot get overall score from summary, skipping details request"
-          );
+        // Get overall score from current summary state
+        // 現在のサマリー状態から総合スコアを取得
+        if (!summary) {
+          console.error("❌ Summary data not available for details analysis");
           setDetailsError("Summary data not available for details analysis");
           setDetailsLoading(false);
           return;
         }
+        const overallFromSummary = summary.data.overall;
 
         const detailsUrl = `${window.location.origin}/api/match/details`;
         const detailsData = await fetchJson<DetailsEnvelope>(detailsUrl, {
           method: "POST",
           body: JSON.stringify({
             inputs: {
-              resume_text: resumeText,
               job_description: jobDescription,
               overall_from_summary: overallFromSummary,
             },
@@ -259,21 +172,9 @@ export default function ClientCharts({
           timeoutMs: 90000, // 90 seconds for Dify API processing
         });
         setDetails(detailsData);
-        sessionStorage.setItem(detailsRequestKey, "completed");
-        // Cache the details data for future use
-        // 将来の使用のために詳細データをキャッシュ
-        try {
-          sessionStorage.setItem(
-            `${detailsRequestKey}-data`,
-            JSON.stringify(detailsData)
-          );
-        } catch (err) {
-          console.warn("⚠️ Failed to cache details data:", err);
-        }
         console.log("✅ Details analysis completed successfully");
       } catch (err) {
         setDetailsError(err instanceof Error ? err.message : "Unknown error");
-        sessionStorage.removeItem(detailsRequestKey);
         console.error("❌ Details analysis failed:", err);
       } finally {
         setDetailsLoading(false);
@@ -281,15 +182,7 @@ export default function ClientCharts({
     }
 
     fetchDetails();
-  }, [
-    resumeId,
-    resumeHash,
-    jobId,
-    jobDescription,
-    detailsRequestKey,
-    summaryRequestKey,
-    summary, // Add summary as dependency to trigger when summary changes
-  ]);
+  }, [resumeId, resumeHash, jobId, jobDescription, summary]);
 
   // Render summary section independently
   // サマリーセクションを独立してレンダリング
