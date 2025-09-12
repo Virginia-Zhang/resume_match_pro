@@ -3,8 +3,8 @@
  * @description Minimal S3 JSON/Text helpers (Put/Get) using AWS SDK v3.
  * @description AWS SDK v3 を用いた最小限のS3 JSON/テキストのヘルパー（Put/Get）。
  * @author Virginia Zhang
- * @remarks Server-only. Reads env: AWS_REGION, S3_BUCKET, S3_PREFIX. Avoid client exposure.
- * @remarks サーバー専用。環境変数: AWS_REGION, S3_BUCKET, S3_PREFIX を読み取る。クライアントで公開しない。
+ * @remarks Server-only. Reads env: AWS_REGION, AWS_S3_BUCKET. Avoid client exposure.
+ * @remarks サーバー専用。環境変数: AWS_REGION, AWS_S3_BUCKET を読み取る。クライアントで公開しない。
  */
 
 import {
@@ -14,13 +14,13 @@ import {
 } from "@aws-sdk/client-s3";
 
 const REGION = process.env.AWS_REGION || "";
-const BUCKET = process.env.AWS_S3_BUCKET || process.env.S3_BUCKET || "";
+const BUCKET = process.env.AWS_S3_BUCKET || "";
 
 function assertServerEnv(): void {
   if (!REGION || !BUCKET) {
     // Ensure env is configured on server
     // サーバーで環境変数が設定されていることを確認
-    throw new Error("Missing AWS_REGION or S3_BUCKET env var");
+    throw new Error("Missing AWS_REGION or AWS_S3_BUCKET env var");
   }
 }
 
