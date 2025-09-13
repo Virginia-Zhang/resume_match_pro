@@ -43,25 +43,6 @@ interface DetailsEnvelope {
   };
 }
 
-/**
- * @description Create a short, stable hash for strings to use in cache keys (DJB2 variant)
- * @description 文字列の短い安定ハッシュを作成し、キャッシュキーに使用（DJB2 変種）
- * @param input The string to hash
- * @param input ハッシュ化する文字列
- * @returns A short base36 hash string
- * @returns 短い base36 のハッシュ文字列
- */
-function hashString(input: string): string {
-  // Simple non-cryptographic rolling hash without bitwise operations
-  // ビット演算を使わない単純なローリングハッシュ（非暗号学的）
-  let hash = 0;
-  for (let i = 0; i < input.length; i++) {
-    const code = input.charCodeAt(i);
-    hash = (hash * 131 + code) % 2147483647; // 131 is a common small base
-  }
-  return Math.abs(hash).toString(36);
-}
-
 export default function ClientCharts({
   resumeId,
   jobId,
@@ -82,38 +63,13 @@ export default function ClientCharts({
     value: number;
   } | null>(null);
 
-  // Simple request deduplication for development mode
-  // 開発モード用のシンプルなリクエスト重複防止
-  const summaryRequested = React.useRef(false);
-  const detailsRequested = React.useRef(false)
-  // Request deduplication: prevent multiple calls for the same job/resume combination
-  // リクエスト重複防止：同じ求人/履歴書の組み合わせで複数回呼び出しを防ぐ
-  const jobDescriptionHash = React.useMemo(
-    () => hashString(jobDescription || ""),
-    [jobDescription]
-  );
-  const summaryRequestKey = React.useMemo(
-    () => `ai-analysis-summary-${jobId}-${resumeHash}-${jobDescriptionHash}`,
-    [jobId, resumeHash, jobDescriptionHash]
-  );
-  const detailsRequestKey = React.useMemo(
-    () => `ai-analysis-details-${jobId}-${resumeHash}-${jobDescriptionHash}`,
-    [jobId, resumeHash, jobDescriptionHash]
-  );
+  // With Strict Mode disabled, we can simplify effects without dedupe keys
+  // Strict Mode を無効化したため、重複防止キーは不要
 
-  // Reset local states when the request key changes to allow refetch and show correct loading UI
-  // リクエストキーが変わったらローカル状態をリセットし、再取得と正しいローディング表示を可能にする
-  React.useEffect(() => {
-    setSummary(null);
-    setSummaryError(null);
-    setSummaryLoading(true);
-  }, [summaryRequestKey]);
-
-  React.useEffect(() => {
-    setDetails(null);
-    setDetailsError(null);
-    setDetailsLoading(true);
-  }, [detailsRequestKey]);
+  function isGatewayTimeoutMessage(msg: string | null): boolean {
+    if (!msg) return false;
+    return /\b504\b|gateway\s*time-?out|dify\s*http\s*504/i.test(msg);
+  }
 
   // Fetch summary data independently
   // サマリーデータを独立して取得
@@ -121,12 +77,6 @@ export default function ClientCharts({
     async function fetchSummary() {
       // Prevent duplicate requests in development mode
       // 開発モードでの重複リクエストを防ぐ
-      if (summaryRequested.current) {
-        console.log("🚫 Summary request already sent, skipping...");
-        return;
-      }
-      summaryRequested.current = true;
-
       try {
         setSummaryLoading(true);
         setSummaryError(null);
@@ -176,12 +126,6 @@ export default function ClientCharts({
 
       // Prevent duplicate requests in development mode
       // 開発モードでの重複リクエストを防ぐ
-      if (detailsRequested.current) {
-        console.log("🚫 Details request already sent, skipping...");
-        return;
-      }
-      detailsRequested.current = true;
-
       try {
         setDetailsLoading(true);
         setDetailsError(null);
@@ -266,10 +210,25 @@ export default function ClientCharts({
     }
 
     if (summaryError) {
+      const is504 = isGatewayTimeoutMessage(summaryError);
       return (
         <div className="p-4 border border-red-200 bg-red-50 rounded-md">
           <h3 className="text-red-800 font-medium">サマリー分析エラー</h3>
-          <p className="text-red-600 mt-1">{summaryError}</p>
+          <p className="text-red-600 mt-1">
+            {is504
+              ? "分析処理がタイムアウトしました（504）。ページを更新して再試行してください。"
+              : summaryError}
+          </p>
+          {is504 && (
+            <div className="mt-2">
+              <button
+                className="px-3 py-1.5 text-xs rounded border bg-white hover:bg-gray-50 dark:bg-slate-900 dark:hover:bg-slate-800"
+                onClick={() => window.location.reload()}
+              >
+                ページを更新して再試行
+              </button>
+            </div>
+          )}
           <p className="text-xs text-muted-foreground mt-2">
             履歴書が見つからない場合は、
             <a href="/upload" className="underline">
@@ -446,10 +405,25 @@ export default function ClientCharts({
     }
 
     if (detailsError) {
+      const is504 = isGatewayTimeoutMessage(detailsError);
       return (
         <div className="p-4 border border-red-200 bg-red-50 rounded-md">
           <h3 className="text-red-800 font-medium">詳細分析エラー</h3>
-          <p className="text-red-600 mt-1">{detailsError}</p>
+          <p className="text-red-600 mt-1">
+            {is504
+              ? "分析処理がタイムアウトしました（504）。ページを更新して再試行してください。"
+              : detailsError}
+          </p>
+          {is504 && (
+            <div className="mt-2">
+              <button
+                className="px-3 py-1.5 text-xs rounded border bg-white hover:bg-gray-50 dark:bg-slate-900 dark:hover:bg-slate-800"
+                onClick={() => window.location.reload()}
+              >
+                ページを更新して再試行
+              </button>
+            </div>
+          )}
           <p className="text-xs text-muted-foreground mt-2">
             履歴書が見つからない場合は、
             <a href="/upload" className="underline">
