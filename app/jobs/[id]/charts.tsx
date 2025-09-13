@@ -8,19 +8,19 @@
  */
 "use client";
 
-import React from "react";
-import {
-  PieChart,
-  Pie,
-  Cell,
-  ResponsiveContainer,
-  RadarChart,
-  PolarGrid,
-  PolarAngleAxis,
-  Radar,
-} from "recharts";
 import Skeleton from "@/components/ui/skeleton";
 import { fetchJson } from "@/lib/fetcher";
+import React from "react";
+import {
+  Cell,
+  Pie,
+  PieChart,
+  PolarAngleAxis,
+  PolarGrid,
+  Radar,
+  RadarChart,
+  ResponsiveContainer,
+} from "recharts";
 
 interface SummaryEnvelope {
   meta: { resumeHash: string };
@@ -41,6 +41,25 @@ interface DetailsEnvelope {
       detail: string;
     }>;
   };
+}
+
+/**
+ * @description Create a short, stable hash for strings to use in cache keys (DJB2 variant)
+ * @description 文字列の短い安定ハッシュを作成し、キャッシュキーに使用（DJB2 変種）
+ * @param input The string to hash
+ * @param input ハッシュ化する文字列
+ * @returns A short base36 hash string
+ * @returns 短い base36 のハッシュ文字列
+ */
+function hashString(input: string): string {
+  // Simple non-cryptographic rolling hash without bitwise operations
+  // ビット演算を使わない単純なローリングハッシュ（非暗号学的）
+  let hash = 0;
+  for (let i = 0; i < input.length; i++) {
+    const code = input.charCodeAt(i);
+    hash = (hash * 131 + code) % 2147483647; // 131 is a common small base
+  }
+  return Math.abs(hash).toString(36);
 }
 
 export default function ClientCharts({
@@ -66,7 +85,35 @@ export default function ClientCharts({
   // Simple request deduplication for development mode
   // 開発モード用のシンプルなリクエスト重複防止
   const summaryRequested = React.useRef(false);
-  const detailsRequested = React.useRef(false);
+  const detailsRequested = React.useRef(false)
+  // Request deduplication: prevent multiple calls for the same job/resume combination
+  // リクエスト重複防止：同じ求人/履歴書の組み合わせで複数回呼び出しを防ぐ
+  const jobDescriptionHash = React.useMemo(
+    () => hashString(jobDescription || ""),
+    [jobDescription]
+  );
+  const summaryRequestKey = React.useMemo(
+    () => `ai-analysis-summary-${jobId}-${resumeHash}-${jobDescriptionHash}`,
+    [jobId, resumeHash, jobDescriptionHash]
+  );
+  const detailsRequestKey = React.useMemo(
+    () => `ai-analysis-details-${jobId}-${resumeHash}-${jobDescriptionHash}`,
+    [jobId, resumeHash, jobDescriptionHash]
+  );
+
+  // Reset local states when the request key changes to allow refetch and show correct loading UI
+  // リクエストキーが変わったらローカル状態をリセットし、再取得と正しいローディング表示を可能にする
+  React.useEffect(() => {
+    setSummary(null);
+    setSummaryError(null);
+    setSummaryLoading(true);
+  }, [summaryRequestKey]);
+
+  React.useEffect(() => {
+    setDetails(null);
+    setDetailsError(null);
+    setDetailsLoading(true);
+  }, [detailsRequestKey]);
 
   // Fetch summary data independently
   // サマリーデータを独立して取得
