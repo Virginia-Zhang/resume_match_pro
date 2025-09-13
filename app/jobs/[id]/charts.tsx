@@ -52,13 +52,14 @@ interface DetailsEnvelope {
  * @returns 短い base36 のハッシュ文字列
  */
 function hashString(input: string): string {
-  // Simple non-cryptographic hash for key differentiation
-  // 鍵の差別化のための単純な非暗号学的ハッシュ
-  let hash = 5381;
+  // Simple non-cryptographic rolling hash without bitwise operations
+  // ビット演算を使わない単純なローリングハッシュ（非暗号学的）
+  let hash = 0;
   for (let i = 0; i < input.length; i++) {
-    hash = ((hash << 5) + hash) ^ input.charCodeAt(i);
+    const code = input.charCodeAt(i);
+    hash = (hash * 131 + code) % 2147483647; // 131 is a common small base
   }
-  return (hash >>> 0).toString(36);
+  return Math.abs(hash).toString(36);
 }
 
 export default function ClientCharts({
