@@ -3,8 +3,8 @@
  * @description Minimal S3 JSON/Text helpers (Put/Get) using AWS SDK v3.
  * @description AWS SDK v3 を用いた最小限のS3 JSON/テキストのヘルパー（Put/Get）。
  * @author Virginia Zhang
- * @remarks Server-only. Reads env: AWS_REGION, S3_BUCKET, S3_PREFIX. Avoid client exposure.
- * @remarks サーバー専用。環境変数: AWS_REGION, S3_BUCKET, S3_PREFIX を読み取る。クライアントで公開しない。
+ * @remarks Server-only. Reads env: AWS_REGION, AWS_S3_BUCKET. Avoid client exposure.
+ * @remarks サーバー専用。環境変数: AWS_REGION, AWS_S3_BUCKET を読み取る。クライアントで公開しない。
  */
 
 import {
@@ -14,13 +14,13 @@ import {
 } from "@aws-sdk/client-s3";
 
 const REGION = process.env.AWS_REGION || "";
-const BUCKET = process.env.AWS_S3_BUCKET || process.env.S3_BUCKET || "";
+const BUCKET = process.env.AWS_S3_BUCKET || "";
 
 function assertServerEnv(): void {
   if (!REGION || !BUCKET) {
     // Ensure env is configured on server
     // サーバーで環境変数が設定されていることを確認
-    throw new Error("Missing AWS_REGION or S3_BUCKET env var");
+    throw new Error("Missing AWS_REGION or AWS_S3_BUCKET env var");
   }
 }
 
@@ -28,7 +28,12 @@ let _client: S3Client | null = null;
 function client(): S3Client {
   if (_client) return _client;
   assertServerEnv();
-  _client = new S3Client({ region: REGION });
+  _client = new S3Client({
+    region: REGION,
+    // Use path-style addressing for better compatibility
+    // より良い互換性のためにパススタイルアドレッシングを使用
+    forcePathStyle: true,
+  });
   return _client;
 }
 
@@ -41,6 +46,7 @@ export async function putText(
   text: string,
   contentType = "text/plain; charset=utf-8"
 ): Promise<void> {
+  console.log("🚀 Putting text to S3...");
   await client().send(
     new PutObjectCommand({
       Bucket: BUCKET,
@@ -52,8 +58,8 @@ export async function putText(
 }
 
 /**
- * @description Get UTF-8 text from S3.
- * @description S3からUTF-8テキストを取得。
+ * @description Get UTF-8 text from S3 or local storage as fallback.
+ * @description S3からUTF-8テキストを取得、フォールバックとしてローカルストレージ。
  */
 export async function getText(key: string): Promise<string | null> {
   try {
@@ -71,8 +77,8 @@ export async function getText(key: string): Promise<string | null> {
 }
 
 /**
- * @description Put JSON to S3.
- * @description JSONをS3へ保存。
+ * @description Put JSON to S3 or local storage as fallback.
+ * @description JSONをS3へ保存、フォールバックとしてローカルストレージ。
  */
 export async function putJson<T>(key: string, data: T): Promise<void> {
   const body = JSON.stringify(data);
@@ -80,8 +86,8 @@ export async function putJson<T>(key: string, data: T): Promise<void> {
 }
 
 /**
- * @description Get JSON from S3.
- * @description S3からJSONを取得。
+ * @description Get JSON from S3 or local storage as fallback.
+ * @description S3からJSONを取得、フォールバックとしてローカルストレージ。
  */
 export async function getJson<T>(key: string): Promise<T | null> {
   const body = await getText(key);

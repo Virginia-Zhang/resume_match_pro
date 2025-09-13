@@ -36,32 +36,39 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // 开发模式：返回模拟数据，简历文本由前端保存到 sessionStorage
-    // 開発モード：モックデータを返す、履歴書テキストはフロントエンドで sessionStorage に保存
-    if (process.env.NODE_ENV === "development") {
-      const resumeHash = "mock-hash-" + Date.now();
-      const resumeId = "mock-id-" + Date.now();
-
-      // 在开发模式下，简历文本由前端保存到 sessionStorage
-      // 開発モードでは、履歴書テキストはフロントエンドで sessionStorage に保存される
-      return NextResponse.json({
-        resumeId,
-        resumeHash,
-        resumeText, // 返回给前端，让前端保存到 sessionStorage
-      });
-    }
-
-    // 生产环境：实际存储到 S3
-    // 本番環境：実際にS3に保存
     // Compute hash and generate a simple ID
     // ハッシュを計算し、簡易IDを生成
     const resumeHash = await sha256Hex(resumeText);
     const resumeId = `${Date.now().toString(36)}-${resumeHash.slice(0, 12)}`;
 
+    console.log("💾 Resume ID:", resumeId);
+    console.log("🔑 Resume Hash:", resumeHash);
+    console.log("Resume Key:", resumeKey(resumeId));
+
     await putText(resumeKey(resumeId), resumeText);
+    console.log("✅ Resume stored to S3 successfully!");
 
     return NextResponse.json({ resumeId, resumeHash });
-  } catch {
+  } catch (error: unknown) {
+    // Log detailed error for debugging
+    // デバッグ用の詳細エラーログ
+    console.error("❌ S3 storage error:", error);
+
+    if (error instanceof Error) {
+      console.error("❌ Error type:", error.constructor.name);
+      console.error("❌ Error message:", error.message);
+    }
+
+    if (error && typeof error === "object") {
+      const errorObj = error as Record<string, unknown>;
+      if ("code" in errorObj) {
+        console.error("❌ Error code:", errorObj.code);
+      }
+      if ("$metadata" in errorObj) {
+        console.error("❌ AWS metadata:", errorObj.$metadata);
+      }
+    }
+
     // Avoid echoing sensitive text; return minimal error
     // 機密テキストを返さず、最小限のエラーのみ
     return NextResponse.json(

@@ -11,6 +11,8 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
 import Skeleton from "@/components/ui/skeleton";
+import { resumePointer } from "@/lib/storage";
+import { useRouter } from "next/navigation";
 
 /**
  * Extract text content from PDF file using pdfjs-dist
@@ -87,6 +89,7 @@ async function extractPdfText(file: File): Promise<string> {
  * @returns JSX element / JSX要素
  */
 export default function UploadPage(): React.JSX.Element {
+  const router = useRouter();
   const [file, setFile] = React.useState<File | null>(null);
   const [parsing, setParsing] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -104,13 +107,11 @@ export default function UploadPage(): React.JSX.Element {
     }
     setParsing(true);
     try {
-      console.log("🚀 Starting PDF parse for file:", file.name);
       const t = await extractPdfText(file);
       if (!t) {
         console.warn("⚠️ PDF parsing returned empty text");
         setError("Empty PDF text; please paste manually");
       } else {
-        console.log("✅ PDF parsing successful, setting text");
         setText(t);
       }
     } catch (error) {
@@ -152,25 +153,17 @@ export default function UploadPage(): React.JSX.Element {
       resumeText?: string; // Development mode may include resume text
     };
 
-    // In development mode, save resume text to sessionStorage
-    // 開発モードでは、履歴書テキストを sessionStorage に保存
-    if (response.resumeText) {
-      try {
-        sessionStorage.setItem(
-          `resume:${response.resumeId}`,
-          response.resumeText
-        );
-        console.log("✅ Resume text saved to sessionStorage for development");
-      } catch (err) {
-        console.warn("⚠️ Failed to save resume text to sessionStorage:", err);
-      }
-    }
+    // Save pointer to localStorage for future sessions (non-sensitive)
+    // 将指针保存到 localStorage 以便后续会话使用（非敏感）
+    try {
+      resumePointer.save(response.resumeId);
+    } catch {}
 
-    // Redirect to jobs list with ids
-    // ID付きで求人一覧へ遷移
-    window.location.href = `/jobs?resumeId=${encodeURIComponent(
-      response.resumeId
-    )}&resumeHash=${encodeURIComponent(response.resumeHash)}`;
+    // Redirect to jobs list with ids using Next.js router
+    // Next.js の router を用いて求人一覧へ遷移
+    const q = new URLSearchParams();
+    q.set("resumeId", response.resumeId);
+    router.push(`/jobs?${q.toString()}`);
   }
 
   return (

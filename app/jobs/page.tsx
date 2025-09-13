@@ -14,12 +14,6 @@ import { fetchJobs, toListItem } from "@/lib/jobs";
 import SaveSelectedJobLink from "./SaveSelectedJobLink";
 import { redirect } from "next/navigation";
 
-/**
- * Client link that saves selected job detail into sessionStorage before navigation
- * 遷移前に選択した求人詳細をsessionStorageへ保存するクライアントリンク
- */
-// moved to client file SaveSelectedJobLink.tsx
-
 function timeAgo(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
   const weeks = Math.floor(diff / (7 * 24 * 3600 * 1000));
@@ -29,15 +23,14 @@ function timeAgo(iso: string): string {
 export default async function JobsPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ resumeId?: string; resumeHash?: string }>;
+  searchParams?: Promise<{ resumeId?: string }>;
 }): Promise<React.JSX.Element> {
   const params = await searchParams;
   const resumeId = params?.resumeId;
-  const resumeHash = params?.resumeHash;
 
-  // Strict flow guard: must have resumeId and resumeHash from upload flow
-  // 厳格なフローガード：アップロードフローから resumeId と resumeHash が必要
-  if (!resumeId || !resumeHash) {
+  // Strict flow guard: must have resumeId from upload flow
+  // 厳格なフローガード：アップロードフローから resumeId が必要
+  if (!resumeId) {
     redirect("/upload");
   }
 
@@ -77,9 +70,7 @@ export default async function JobsPage({
               job={details.find(d => d.id === j.id)!}
               href={`/jobs/${encodeURIComponent(
                 j.id
-              )}?resumeId=${encodeURIComponent(
-                resumeId!
-              )}&resumeHash=${encodeURIComponent(resumeHash!)}`}
+              )}?resumeId=${encodeURIComponent(resumeId!)}`}
             >
               詳細を見る
             </SaveSelectedJobLink>
