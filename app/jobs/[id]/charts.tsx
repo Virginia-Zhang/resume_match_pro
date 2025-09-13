@@ -45,12 +45,10 @@ interface DetailsEnvelope {
 
 export default function ClientCharts({
   resumeId,
-  resumeHash,
   jobId,
   jobDescription,
 }: {
   resumeId: string;
-  resumeHash: string;
   jobId: string;
   jobDescription: string;
 }): React.JSX.Element {
@@ -100,7 +98,6 @@ export default function ClientCharts({
             user: "Virginia Zhang",
             jobId,
             resumeId,
-            resumeHash,
           }),
           timeoutMs: 90000, // 90 seconds for Dify API processing
         });
@@ -115,7 +112,7 @@ export default function ClientCharts({
     }
 
     fetchSummary();
-  }, [resumeId, resumeHash, jobId, jobDescription]);
+  }, [resumeId, jobId, jobDescription]);
 
   // Fetch details data only after summary is completed
   // サマリー完了後にのみ詳細データを取得
@@ -167,7 +164,6 @@ export default function ClientCharts({
             user: "Virginia Zhang",
             jobId,
             resumeId,
-            resumeHash,
           }),
           timeoutMs: 90000, // 90 seconds for Dify API processing
         });
@@ -182,7 +178,7 @@ export default function ClientCharts({
     }
 
     fetchDetails();
-  }, [resumeId, resumeHash, jobId, jobDescription, summary]);
+  }, [resumeId, jobId, jobDescription, summary]);
 
   // Render summary section independently
   // サマリーセクションを独立してレンダリング
@@ -227,6 +223,13 @@ export default function ClientCharts({
         <div className="p-4 border border-red-200 bg-red-50 rounded-md">
           <h3 className="text-red-800 font-medium">サマリー分析エラー</h3>
           <p className="text-red-600 mt-1">{summaryError}</p>
+          <p className="text-xs text-muted-foreground mt-2">
+            履歴書が見つからない場合は、
+            <a href="/upload" className="underline">
+              アップロードページ
+            </a>
+            から再度アップロードしてください。
+          </p>
         </div>
       );
     }
@@ -400,6 +403,13 @@ export default function ClientCharts({
         <div className="p-4 border border-red-200 bg-red-50 rounded-md">
           <h3 className="text-red-800 font-medium">詳細分析エラー</h3>
           <p className="text-red-600 mt-1">{detailsError}</p>
+          <p className="text-xs text-muted-foreground mt-2">
+            履歴書が見つからない場合は、
+            <a href="/upload" className="underline">
+              アップロードページ
+            </a>
+            から再度アップロードしてください。
+          </p>
         </div>
       );
     }

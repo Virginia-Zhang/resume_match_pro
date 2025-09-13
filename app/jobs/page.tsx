@@ -23,15 +23,14 @@ function timeAgo(iso: string): string {
 export default async function JobsPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ resumeId?: string; resumeHash?: string }>;
+  searchParams?: Promise<{ resumeId?: string }>;
 }): Promise<React.JSX.Element> {
   const params = await searchParams;
   const resumeId = params?.resumeId;
-  const resumeHash = params?.resumeHash;
 
-  // Strict flow guard: must have resumeId and resumeHash from upload flow
-  // 厳格なフローガード：アップロードフローから resumeId と resumeHash が必要
-  if (!resumeId || !resumeHash) {
+  // Strict flow guard: must have resumeId from upload flow
+  // 厳格なフローガード：アップロードフローから resumeId が必要
+  if (!resumeId) {
     redirect("/upload");
   }
 
@@ -71,9 +70,7 @@ export default async function JobsPage({
               job={details.find(d => d.id === j.id)!}
               href={`/jobs/${encodeURIComponent(
                 j.id
-              )}?resumeId=${encodeURIComponent(
-                resumeId!
-              )}&resumeHash=${encodeURIComponent(resumeHash!)}`}
+              )}?resumeId=${encodeURIComponent(resumeId!)}`}
             >
               詳細を見る
             </SaveSelectedJobLink>

@@ -36,27 +36,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // 开发模式：返回模拟数据，简历文本由前端保存到 sessionStorage
-    // 開発モード：モックデータを返す、履歴書テキストはフロントエンドで sessionStorage に保存
-    if (process.env.NODE_ENV === "development" && !process.env.ENABLE_S3_TEST) {
-      const resumeHash = "mock-hash-" + Date.now();
-      const resumeId = "mock-id-" + Date.now();
-
-      // 在开发模式下，简历文本由前端保存到 sessionStorage
-      // 開発モードでは、履歴書テキストはフロントエンドで sessionStorage に保存される
-      return NextResponse.json({
-        resumeId,
-        resumeHash,
-        resumeText, // 返回给前端，让前端保存到 sessionStorage
-      });
-    }
-
-    // 生产环境：实际存储到 S3
-    // 本番環境：実際にS3に保存
-    console.log("🚀 Storing resume to S3...");
-    console.log("📦 S3 Bucket:", process.env.AWS_S3_BUCKET);
-    console.log("🌍 AWS Region:", process.env.AWS_REGION);
-
     // Compute hash and generate a simple ID
     // ハッシュを計算し、簡易IDを生成
     const resumeHash = await sha256Hex(resumeText);

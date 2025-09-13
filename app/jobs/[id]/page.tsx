@@ -20,25 +20,18 @@ export default async function JobDetailPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams?: Promise<{ resumeId?: string; resumeHash?: string }>;
+  searchParams?: Promise<{ resumeId?: string }>;
 }) {
   const resolvedParams = await params;
   const resolvedSearchParams = await searchParams;
   const jobId = resolvedParams.id;
   const resumeId = resolvedSearchParams?.resumeId;
-  const resumeHash = resolvedSearchParams?.resumeHash;
 
-  // Strict flow guard: must have resumeId and resumeHash from upload flow
-  // 厳格なフローガード：アップロードフローから resumeId と resumeHash が必要
-  if (!resumeId || !resumeHash) {
+  // Strict flow guard: must have resumeId from upload flow
+  // 厳格なフローガード：アップロードフローから resumeId が必要
+  if (!resumeId) {
     redirect("/upload");
   }
 
-  return (
-    <ClientDetailView
-      jobId={jobId}
-      resumeId={resumeId}
-      resumeHash={resumeHash}
-    />
-  );
+  return <ClientDetailView jobId={jobId} resumeId={resumeId} />;
 }

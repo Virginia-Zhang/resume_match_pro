@@ -125,11 +125,9 @@ function serializeJDFromV2(j: JobDetailV2): string {
 export default function ClientDetailView({
   jobId,
   resumeId,
-  resumeHash,
 }: {
   jobId: string;
   resumeId: string;
-  resumeHash: string;
 }): React.ReactElement {
   const [detail, setDetail] = React.useState<JobDetailV2 | null>(null);
   const [loading, setLoading] = React.useState(true);
@@ -159,11 +157,10 @@ export default function ClientDetailView({
       // データがない場合は履歴書コンテキストを保持したまま一覧へ遷移
       const params = new URLSearchParams();
       if (resumeId) params.set("resumeId", resumeId);
-      if (resumeHash) params.set("resumeHash", resumeHash);
       const query = params.toString();
       router.push(`/jobs${query ? `?${query}` : ""}`);
     }
-  }, [loading, detail, resumeId, resumeHash, router]);
+  }, [loading, detail, resumeId, router]);
 
   if (loading) {
     return (
@@ -637,7 +634,6 @@ export default function ClientDetailView({
 
         <ClientCharts
           resumeId={resumeId}
-          resumeHash={resumeHash}
           jobId={jobId}
           jobDescription={serializeJDFromV2(detail)}
         />
