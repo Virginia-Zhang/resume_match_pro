@@ -12,6 +12,7 @@ import React from "react";
 import { Button } from "@/components/ui/button";
 import Skeleton from "@/components/ui/skeleton";
 import { resumePointer } from "@/lib/storage";
+import { fetchJson } from "@/lib/fetcher";
 import { useRouter } from "next/navigation";
 
 /**
@@ -94,6 +95,7 @@ export default function UploadPage(): React.JSX.Element {
   const [parsing, setParsing] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [text, setText] = React.useState("");
+  const [prefilling, setPrefilling] = React.useState(false);
 
   /**
    * Handle PDF parsing with error handling and user feedback
@@ -166,6 +168,33 @@ export default function UploadPage(): React.JSX.Element {
     router.push(`/jobs?${q.toString()}`);
   }
 
+  // Prefill from S3 if resume:current exists
+  // resume:current が存在する場合、S3 から事前入力
+  React.useEffect(() => {
+    const p = resumePointer.load();
+    if (!p?.resumeId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        setPrefilling(true);
+        const url = `/api/resume-text?resumeId=${encodeURIComponent(p.resumeId)}`;
+        const data = await fetchJson<{ resumeText: string }>(url, {
+          timeoutMs: 15000,
+        });
+        if (!cancelled && data?.resumeText && !text) {
+          setText(data.resumeText);
+        }
+      } catch (e) {
+        // silent fail; user can still paste
+      } finally {
+        if (!cancelled) setPrefilling(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <div className="mx-auto max-w-3xl p-6 space-y-6">
       <h1 className="text-2xl font-semibold">
@@ -197,6 +226,7 @@ export default function UploadPage(): React.JSX.Element {
           onChange={e => setText(e.target.value)}
           placeholder="Paste resume text..."
         />
+        {prefilling && <Skeleton className="h-4 w-24" />}
       </div>
 
       {error && <p className="text-red-600 text-sm">{error}</p>}
