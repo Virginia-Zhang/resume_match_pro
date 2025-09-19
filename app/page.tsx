@@ -23,6 +23,7 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
+import FeatureCard from "@/components/home/FeatureCard";
 
 export default function Home() {
   return (
@@ -38,14 +39,14 @@ export default function Home() {
         {/* Hero */}
         <section className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-start">
           <div className="space-y-6 pt-20">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 justify-center lg:justify-start">
               {/* light */}
               <Image
                 src={ASSET_LOGO_LIGHT}
                 alt="MatchPro ロゴ"
                 width={100}
                 height={100}
-                className="h-[100px] w-[100px] rounded dark:hidden"
+                className="h-14 w-14 sm:h-[100px] sm:w-[100px] rounded dark:hidden"
                 priority
               />
               {/* dark */}
@@ -54,20 +55,20 @@ export default function Home() {
                 alt="MatchPro ロゴ"
                 width={100}
                 height={100}
-                className="h-[100px] w-[100px] rounded hidden dark:inline-block"
+                className="h-14 w-14 sm:h-[100px] sm:w-[100px] rounded hidden dark:inline-block"
                 priority
               />
-              <div>
-                <div className="text-4xl md:text-5xl font-extrabold tracking-tight leading-tight">
+              <div className="text-center lg:text-left">
+                <div className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight leading-tight">
                   {PRODUCT_NAME_EN}
                 </div>
-                <div className="text-3xl md:text-4xl font-bold tracking-tight mt-1">
+                <div className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight mt-1">
                   {PRODUCT_NAME_JA}
                 </div>
               </div>
             </div>
             <TypewriterText
-              className="text-base md:text-lg text-slate-700 dark:text-slate-100 leading-relaxed"
+              className="text-base md:text-lg text-slate-700 dark:text-slate-100 leading-relaxed text-center lg:text-left"
               text="高度なAI分析技術により、レジュメと求人の適合度を精密に測定。IT開発者の転職活動を効率化し、理想のキャリアを実現するためのツールです。"
               typeSpeed={60}
               delaySpeed={10000}
@@ -83,20 +84,12 @@ export default function Home() {
         <section className="mt-16 lg:mt-20">
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {FEATURE_CARDS.map(card => (
-              <Card
+              <FeatureCard
                 key={card.title}
-                className="group rounded-xl border shadow-sm bg-white/5 dark:bg-slate-800/5 backdrop-blur hover:-translate-y-1.5 transition-transform duration-300 hover:shadow-lg hover:border-slate-300 dark:hover:border-slate-600"
-              >
-                <CardHeader>
-                  <div className="mb-3 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-white/40 dark:bg-slate-700/40 border text-xl group-hover:animate-[swing_500ms_ease]">
-                    <span>{card.icon}</span>
-                  </div>
-                  <CardTitle className="text-lg mb-1">{card.title}</CardTitle>
-                  <CardDescription className="text-slate-700 dark:text-slate-300 leading-relaxed">
-                    {card.desc}
-                  </CardDescription>
-                </CardHeader>
-              </Card>
+                icon={card.icon}
+                title={card.title}
+                desc={card.desc}
+              />
             ))}
           </div>
         </section>
