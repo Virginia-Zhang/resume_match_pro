@@ -9,6 +9,7 @@ import Skeleton from "@/components/ui/skeleton";
 import type { JobDetailV2 } from "@/types/jobs_v2";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { ROUTE_JOBS } from "@/app/constants/constants";
 import React from "react";
 import ClientCharts from "./charts";
 
@@ -158,7 +159,7 @@ export default function ClientDetailView({
       const params = new URLSearchParams();
       if (resumeId) params.set("resumeId", resumeId);
       const query = params.toString();
-      router.push(`/jobs${query ? `?${query}` : ""}`);
+      router.push(`${ROUTE_JOBS}${query ? `?${query}` : ""}`);
     }
   }, [loading, detail, resumeId, router]);
 

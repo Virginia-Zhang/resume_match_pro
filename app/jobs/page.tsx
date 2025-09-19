@@ -12,9 +12,9 @@ import React from "react";
 import Image from "next/image";
 import { fetchJobs, toListItem } from "@/lib/jobs";
 import SaveSelectedJobLink from "./SaveSelectedJobLink";
+import { ROUTE_JOBS } from "@/app/constants/constants";
 // redirect imported earlier is not used after client-guard refactor
 // クライアントガードへのリファクタ後、redirect は未使用
-// import { redirect } from "next/navigation";
 import ResumeGate from "@/components/guards/ResumeGate";
 
 /**
@@ -72,7 +72,7 @@ export default async function JobsPage(): Promise<React.JSX.Element> {
               <SaveSelectedJobLink
                 className="text-primary underline"
                 job={details.find(d => d.id === j.id)!}
-                href={`/jobs/${encodeURIComponent(j.id)}`}
+                href={`${ROUTE_JOBS}/${encodeURIComponent(j.id)}`}
               >
                 詳細を見る
               </SaveSelectedJobLink>

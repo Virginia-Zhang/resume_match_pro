@@ -1,31 +1,80 @@
 import Image from "next/image";
-import IntroTypewriter from "@/components/home/IntroTypewriter";
+import TypewriterText from "@/components/home/TypewriterText";
 import HomepageActions from "@/components/home/HomepageActions";
 import LottieHero from "@/components/home/LottieHero";
+import ThemeToggle from "@/components/theme-toggle";
+import {
+  PRODUCT_MARK,
+  PRODUCT_NAME_EN,
+  PRODUCT_NAME_JA,
+  ASSET_LOGO_LIGHT,
+  ASSET_LOGO_DARK,
+  FEATURE_CARDS,
+  VP_JA,
+  VP_EN,
+  ICON_GITHUB_LIGHT,
+  ICON_GITHUB_DARK,
+  ICON_MAIL_LIGHT,
+  ICON_MAIL_DARK,
+} from "@/app/constants/constants";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
+
 export default function Home() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
+    <div className="min-h-screen fluid-bg">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-14">
+        {/* Top-Right Brand + Theme Toggle */}
+        <div className="flex items-center justify-end gap-4 mb-4">
+          <div className="text-sm md:text-base font-semibold tracking-wide text-foreground">
+            {PRODUCT_MARK}
+          </div>
+          <ThemeToggle />
+        </div>
         {/* Hero */}
-        <section className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
-          <div className="space-y-6">
+        <section className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-start">
+          <div className="space-y-6 pt-20">
             <div className="flex items-center gap-4">
+              {/* light */}
               <Image
-                src="/match_pro_dev_logo.webp"
+                src={ASSET_LOGO_LIGHT}
                 alt="MatchPro ロゴ"
-                width={56}
-                height={56}
-                className="h-14 w-14 rounded"
+                width={100}
+                height={100}
+                className="h-[100px] w-[100px] rounded dark:hidden"
                 priority
               />
-              <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight">
-                MatchPro / マッチプロ
-              </h1>
+              {/* dark */}
+              <Image
+                src={ASSET_LOGO_DARK}
+                alt="MatchPro ロゴ"
+                width={100}
+                height={100}
+                className="h-[100px] w-[100px] rounded hidden dark:inline-block"
+                priority
+              />
+              <div>
+                <div className="text-4xl md:text-5xl font-extrabold tracking-tight leading-tight">
+                  {PRODUCT_NAME_EN}
+                </div>
+                <div className="text-3xl md:text-4xl font-bold tracking-tight mt-1">
+                  {PRODUCT_NAME_JA}
+                </div>
+              </div>
             </div>
-            <IntroTypewriter />
-            <HomepageActions />
+            <TypewriterText
+              className="text-base md:text-lg text-slate-700 dark:text-slate-100 leading-relaxed"
+              text="高度なAI分析技術により、レジュメと求人の適合度を精密に測定。IT開発者の転職活動を効率化し、理想のキャリアを実現するためのツールです。"
+              typeSpeed={60}
+              delaySpeed={10000}
+              loop={false}
+            />
           </div>
-          <div className="relative">
+          <div className="relative mt-10">
             <LottieHero />
           </div>
         </section>
@@ -33,84 +82,96 @@ export default function Home() {
         {/* Features */}
         <section className="mt-16 lg:mt-20">
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div className="p-6 bg-white dark:bg-slate-800 rounded-lg border shadow-sm">
-              <h3 className="text-lg font-semibold mb-2">
-                開発者特化プラットフォーム
-              </h3>
-              <p className="text-sm text-slate-600 dark:text-slate-300">
-                IT開発職に特化。掲載求人はエンジニア職のみ。評価軸と用語は開発者基準。
-              </p>
-            </div>
-            <div className="p-6 bg-white dark:bg-slate-800 rounded-lg border shadow-sm">
-              <h3 className="text-lg font-semibold mb-2">
-                レジュメ解析と正規化
-              </h3>
-              <p className="text-sm text-slate-600 dark:text-slate-300">
-                PDFから経験・スキルを抽出し、評価に適した形へ正規化。
-              </p>
-            </div>
-            <div className="p-6 bg-white dark:bg-slate-800 rounded-lg border shadow-sm">
-              <h3 className="text-lg font-semibold mb-2">
-                マッチ度スコア（総合＋5指標）
-              </h3>
-              <p className="text-sm text-slate-600 dark:text-slate-300">
-                求人要件との一致度を総合スコアと5つの指標で定量評価。
-              </p>
-            </div>
-            <div className="p-6 bg-white dark:bg-slate-800 rounded-lg border shadow-sm">
-              <h3 className="text-lg font-semibold mb-2">可視化インサイト</h3>
-              <p className="text-sm text-slate-600 dark:text-slate-300">
-                指標内訳やハイライトをグラフで直感的に把握。
-              </p>
-            </div>
-            <div className="p-6 bg-white dark:bg-slate-800 rounded-lg border shadow-sm">
-              <h3 className="text-lg font-semibold mb-2">サマリー生成</h3>
-              <p className="text-sm text-slate-600 dark:text-slate-300">
-                結果の背景と要点を簡潔に要約して提示。
-              </p>
-            </div>
-            <div className="p-6 bg-white dark:bg-slate-800 rounded-lg border shadow-sm">
-              <h3 className="text-lg font-semibold mb-2">
-                強み／弱みと面接対策
-              </h3>
-              <p className="text-sm text-slate-600 dark:text-slate-300">
-                ポジションに対する強み・弱みを明確化し、具体的な面接準備ポイントを提案。
-              </p>
-            </div>
+            {FEATURE_CARDS.map(card => (
+              <Card
+                key={card.title}
+                className="group rounded-xl border shadow-sm bg-white/5 dark:bg-slate-800/5 backdrop-blur hover:-translate-y-1.5 transition-transform duration-300 hover:shadow-lg hover:border-slate-300 dark:hover:border-slate-600"
+              >
+                <CardHeader>
+                  <div className="mb-3 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-white/40 dark:bg-slate-700/40 border text-xl group-hover:animate-[swing_500ms_ease]">
+                    <span>{card.icon}</span>
+                  </div>
+                  <CardTitle className="text-lg mb-1">{card.title}</CardTitle>
+                  <CardDescription className="text-slate-700 dark:text-slate-300 leading-relaxed">
+                    {card.desc}
+                  </CardDescription>
+                </CardHeader>
+              </Card>
+            ))}
           </div>
+        </section>
+
+        {/* CTA moved below features */}
+        <div className="mt-25 flex justify-center">
+          <HomepageActions />
+        </div>
+
+        {/* Value proposition (JA line) + EN small caption */}
+        <section className="mt-15 text-center">
+          <p className="text-xl md:text-2xl font-semibold tracking-tight gradient-text">
+            {VP_JA}
+          </p>
+          <TypewriterText
+            className="text-lg text-slate-700 dark:text-slate-200 mt-3"
+            text={VP_EN}
+            typeSpeed={60}
+            delaySpeed={10000}
+            loop={false}
+          />
         </section>
 
         {/* Footer */}
         <footer className="mt-20 py-8 border-t text-sm text-muted-foreground flex flex-col sm:flex-row items-center justify-between gap-3">
           <div>
-            © {new Date().getFullYear()} MatchPro. All rights reserved.
+            © {new Date().getFullYear()} {PRODUCT_NAME_EN}. All rights
+            reserved.
           </div>
           <div className="flex items-center gap-4">
             <a
-              className="inline-flex items-center gap-1 hover:underline"
+              className="inline-flex items-center gap-1 hover:underline text-foreground"
               href="https://github.com/Virginia-Zhang/resume_match_pro"
               target="_blank"
               rel="noopener noreferrer"
             >
-              {/* Inline GitHub mark to avoid extra dependency */}
-              {/* 追加依存を避けるためのインラインGitHubマーク */}
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="currentColor"
-                className="h-4 w-4"
-                aria-hidden
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M12 2C6.477 2 2 6.486 2 12.021c0 4.428 2.865 8.186 6.839 9.504.5.093.682-.218.682-.485 0-.241-.009-.876-.014-1.72-2.782.605-3.369-1.343-3.369-1.343-.454-1.156-1.11-1.465-1.11-1.465-.908-.62.069-.607.069-.607 1.003.071 1.531 1.033 1.531 1.033.892 1.529 2.341 1.087 2.91.832.091-.647.35-1.087.636-1.338-2.22-.253-4.555-1.113-4.555-4.953 0-1.094.39-1.99 1.029-2.689-.103-.253-.446-1.27.098-2.646 0 0 .84-.27 2.75 1.027A9.564 9.564 0 0 1 12 6.844c.85.004 1.705.116 2.504.34 1.909-1.297 2.748-1.027 2.748-1.027.545 1.376.202 2.393.099 2.646.64.699 1.028 1.595 1.028 2.689 0 3.849-2.338 4.697-4.566 4.947.359.31.679.92.679 1.855 0 1.338-.012 2.418-.012 2.748 0 .269.18.582.688.483C19.139 20.204 22 16.448 22 12.02 22 6.486 17.523 2 12 2z"
-                  clipRule="evenodd"
-                />
-              </svg>
+              {/* light */}
+              <Image
+                src={ICON_GITHUB_LIGHT}
+                alt="GitHub"
+                width={16}
+                height={16}
+                className="h-4 w-4 dark:hidden"
+              />
+              {/* dark */}
+              <Image
+                src={ICON_GITHUB_DARK}
+                alt="GitHub"
+                width={16}
+                height={16}
+                className="h-4 w-4 hidden dark:inline-block"
+              />
               GitHub
             </a>
-            <a className="hover:underline" href="mailto:zhangsakurayi@qq.com">
-              zhangsakurayi@qq.com
+            <a
+              className="inline-flex items-center gap-1 hover:underline text-foreground"
+              href="mailto:zhangsakurayi@qq.com"
+            >
+              {/* light */}
+              <Image
+                src={ICON_MAIL_LIGHT}
+                alt="Email"
+                width={16}
+                height={16}
+                className="h-4 w-4 dark:hidden"
+              />
+              {/* dark */}
+              <Image
+                src={ICON_MAIL_DARK}
+                alt="Email"
+                width={16}
+                height={16}
+                className="h-4 w-4 hidden dark:inline-block"
+              />
+              Contact Me
             </a>
           </div>
         </footer>

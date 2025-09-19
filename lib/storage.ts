@@ -11,8 +11,10 @@
  * Helper to persist and retrieve current resume pointer.
  * 現在の履歴書ポインタを保存・取得するヘルパー。
  */
+import { STORAGE_RESUME_POINTER_KEY } from "@/app/constants/constants";
+
 export const resumePointer = {
-  key: "resume:current",
+  key: STORAGE_RESUME_POINTER_KEY,
   /**
    * @description Save pointer to localStorage as JSON { resumeId, savedAt }.
    * @description ポインタを { resumeId, savedAt } のJSONとして localStorage に保存。

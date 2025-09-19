@@ -12,6 +12,11 @@ import Skeleton from "@/components/ui/skeleton";
 import { fetchJson } from "@/lib/fetcher";
 import React from "react";
 import {
+  API_MATCH_SUMMARY,
+  API_MATCH_DETAILS,
+  ROUTE_UPLOAD,
+} from "@/app/constants/constants";
+import {
   Cell,
   Pie,
   PieChart,
@@ -84,7 +89,7 @@ export default function ClientCharts({
         // Resume text is now always retrieved from S3
         // 履歴書テキストは常にS3から取得される
 
-        const summaryUrl = `${window.location.origin}/api/match/summary`;
+        const summaryUrl = `${window.location.origin}${API_MATCH_SUMMARY}`;
         const summaryData = await fetchJson<SummaryEnvelope>(summaryUrl, {
           method: "POST",
           body: JSON.stringify({
@@ -143,7 +148,7 @@ export default function ClientCharts({
         }
         const overallFromSummary = summary.data.overall;
 
-        const detailsUrl = `${window.location.origin}/api/match/details`;
+        const detailsUrl = `${window.location.origin}${API_MATCH_DETAILS}`;
         const detailsData = await fetchJson<DetailsEnvelope>(detailsUrl, {
           method: "POST",
           body: JSON.stringify({
@@ -231,7 +236,7 @@ export default function ClientCharts({
           )}
           <p className="text-xs text-muted-foreground mt-2">
             履歴書が見つからない場合は、
-            <a href="/upload" className="underline">
+            <a href={ROUTE_UPLOAD} className="underline">
               アップロードページ
             </a>
             から再度アップロードしてください。
@@ -426,7 +431,7 @@ export default function ClientCharts({
           )}
           <p className="text-xs text-muted-foreground mt-2">
             履歴書が見つからない場合は、
-            <a href="/upload" className="underline">
+            <a href={ROUTE_UPLOAD} className="underline">
               アップロードページ
             </a>
             から再度アップロードしてください。

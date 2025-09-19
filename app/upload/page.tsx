@@ -12,6 +12,11 @@ import React from "react";
 import { Button } from "@/components/ui/button";
 import Skeleton from "@/components/ui/skeleton";
 import { resumePointer } from "@/lib/storage";
+import {
+  API_RESUME,
+  API_RESUME_TEXT,
+  ROUTE_JOBS,
+} from "@/app/constants/constants";
 import { fetchJson } from "@/lib/fetcher";
 import { useRouter } from "next/navigation";
 
@@ -139,7 +144,7 @@ export default function UploadPage(): React.JSX.Element {
       setError("No text to submit");
       return;
     }
-    const res = await fetch("/api/resume", {
+    const res = await fetch(API_RESUME, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -165,7 +170,7 @@ export default function UploadPage(): React.JSX.Element {
     // Next.js の router を用いて求人一覧へ遷移
     const q = new URLSearchParams();
     q.set("resumeId", response.resumeId);
-    router.push(`/jobs?${q.toString()}`);
+    router.push(`${ROUTE_JOBS}?${q.toString()}`);
   }
 
   // Prefill from S3 if resume:current exists
@@ -177,14 +182,15 @@ export default function UploadPage(): React.JSX.Element {
     (async () => {
       try {
         setPrefilling(true);
-        const url = `/api/resume-text?resumeId=${encodeURIComponent(p.resumeId)}`;
+        const url = `${API_RESUME_TEXT}?resumeId=${encodeURIComponent(p.resumeId)}`;
         const data = await fetchJson<{ resumeText: string }>(url, {
           timeoutMs: 15000,
         });
         if (!cancelled && data?.resumeText && !text) {
           setText(data.resumeText);
         }
-      } catch (e) {
+      } catch (error) {
+        console.error("❌ Prefilling error:", error);
         // silent fail; user can still paste
       } finally {
         if (!cancelled) setPrefilling(false);
@@ -193,7 +199,7 @@ export default function UploadPage(): React.JSX.Element {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [text]);
 
   return (
     <div className="mx-auto max-w-3xl p-6 space-y-6">

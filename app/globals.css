@@ -5,7 +5,9 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  /* Set Tailwind font-sans to Noto Sans JP variable from next/font */
+  /* Tailwind の font-sans を next/font の Noto Sans JP に設定 */
+  --font-sans: var(--font-noto-sans-jp);
   --font-mono: var(--font-geist-mono);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -117,5 +119,126 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+/* Utility to use M PLUS Rounded 1c on demand */
+.font-rounded {
+  font-family: var(--font-zen-maru), inherit;
+}
+
+/* Fluid Gradient background  - blue/cyan palette */
+.fluid-bg {
+  position: relative;
+  background:
+    radial-gradient(
+      120% 160% at 15% 20%,
+      rgba(255, 255, 255, 0.25),
+      rgba(255, 255, 255, 0) 40%
+    ),
+    radial-gradient(
+      120% 160% at 85% 75%,
+      rgba(255, 255, 255, 0.14),
+      rgba(255, 255, 255, 0) 45%
+    ),
+    linear-gradient(45deg, #e0f2fe, #bfdbfe, #93c5fd, #a5f3fc);
+  background-size:
+    200% 200%,
+    200% 200%,
+    300% 300%;
+  animation: gradientBG 5s ease-in-out infinite;
+}
+.dark .fluid-bg {
+  /* Darker, near-black navy gradient with greater separation for wave contrast */
+  background:
+    radial-gradient(
+      110% 140% at 20% 20%,
+      rgba(11, 18, 32, 0.95),
+      rgba(15, 23, 42, 0.95) 35%,
+      rgba(12, 27, 46, 0.95) 55%,
+      rgba(11, 58, 98, 0.9) 75%
+    ),
+    radial-gradient(
+      120% 160% at 80% 70%,
+      rgba(255, 255, 255, 0.06),
+      rgba(255, 255, 255, 0) 45%
+    ),
+    linear-gradient(45deg, #0b1220, #0c1b2e, #0b2747, #0b3a62);
+  background-size:
+    300% 300%,
+    200% 200%,
+    300% 300%;
+  animation: gradientBG 5s ease-in-out infinite;
+}
+@keyframes gradientBG {
+  0% {
+    background-position: 0% 30%;
+  }
+  50% {
+    background-position: 100% 70%;
+  }
+  100% {
+    background-position: 0% 30%;
+  }
+}
+
+/* Icon swing used by homepage cards */
+@keyframes swing {
+  0% {
+    transform: rotate(0deg);
+  }
+  25% {
+    transform: rotate(-10deg);
+  }
+  50% {
+    transform: rotate(10deg);
+  }
+  75% {
+    transform: rotate(-5deg);
+  }
+  100% {
+    transform: rotate(0deg);
+  }
+}
+
+/* Continuous gradient ink animation (Subtle) */
+@keyframes gradientTextFlow {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 100% 50%;
+  }
+}
+.gradient-text {
+  /* Subtle palette with higher contrast on light bg; alternate motion for seamless loop */
+  background-image: linear-gradient(
+    60deg,
+    #0f172a,
+    /* near-black navy for contrast */ #1e40af,
+    /* deep indigo */ #0c92d0,
+    /* cyan */ #168798,
+    /* lighter cyan */ #0f172a
+  );
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: gradientTextFlow 10s ease-in-out infinite alternate;
+}
+.dark .gradient-text {
+  /* Subtle bright palette for dark bg */
+  background-image: linear-gradient(
+    60deg,
+    #f8fbff,
+    #e6faff,
+    #c3f0ff,
+    #93c5fd,
+    #f8fbff
+  );
+}
+@media (prefers-reduced-motion: reduce) {
+  .gradient-text {
+    animation: none;
   }
 }

@@ -12,6 +12,12 @@ import React from "react";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import { resumePointer } from "@/lib/storage";
+import {
+  ROUTE_UPLOAD,
+  ROUTE_JOBS,
+  CTA_UPLOAD_JA,
+  CTA_UPLOADED_JA,
+} from "@/app/constants/constants";
 
 /**
  * @component HomepageActions
@@ -31,18 +37,20 @@ export default function HomepageActions(): React.ReactElement {
 
   return (
     <div className="flex flex-wrap gap-4">
-      <Button size="lg" onClick={() => router.push("/upload")} className="px-6">
-        レジュメをアップロード／再アップロード
+      <Button
+        onClick={() => router.push(ROUTE_UPLOAD)}
+        className="h-14 md:h-16 px-8 md:px-10 text-lg md:text-xl font-rounded font-semibold rounded-full bg-sky-500 text-white hover:bg-sky-600 shadow-[0_8px_0_0_rgba(0,0,0,0.08)] hover:shadow-[0_10px_0_0_rgba(0,0,0,0.10)] transition-all"
+      >
+        {CTA_UPLOAD_JA}
       </Button>
       <Button
-        size="lg"
         variant="secondary"
-        className="px-6"
+        className="h-14 md:h-16 px-8 md:px-10 text-lg md:text-xl font-rounded font-semibold rounded-full bg-white/90 dark:bg-slate-800/70 text-slate-900 dark:text-slate-100 border border-slate-300/70 dark:border-slate-600/60 hover:bg-white dark:hover:bg-slate-800 shadow-[0_8px_0_0_rgba(0,0,0,0.05)] hover:shadow-[0_10px_0_0_rgba(0,0,0,0.08)] transition-all"
         disabled={!hasResume}
         aria-disabled={!hasResume}
-        onClick={() => hasResume && router.push("/jobs")}
+        onClick={() => hasResume && router.push(ROUTE_JOBS)}
       >
-        レジュメはアップロード済み？
+        {CTA_UPLOADED_JA}
       </Button>
     </div>
   );

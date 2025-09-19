@@ -8,6 +8,7 @@
 import React from "react";
 import Skeleton from "@/components/ui/skeleton";
 import { resumePointer } from "@/lib/storage";
+import { ROUTE_UPLOAD } from "@/app/constants/constants";
 
 /**
  * Minimal client-only gate component.
@@ -39,7 +40,7 @@ export default function ResumeGate({
     const p = resumePointer.load();
     if (!p?.resumeId) {
       setOk(false);
-      const t = setTimeout(() => window.location.replace("/upload"), 300);
+      const t = setTimeout(() => window.location.replace(ROUTE_UPLOAD), 300);
       return () => clearTimeout(t);
     }
     setResumeId(p.resumeId);

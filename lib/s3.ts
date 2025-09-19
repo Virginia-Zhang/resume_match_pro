@@ -111,8 +111,10 @@ export function cacheKey(
  * @description Resume storage key builder.
  * @description 履歴書の保存キー作成。
  */
+import { buildResumeKey } from "@/app/constants/constants";
+
 export function resumeKey(resumeId: string): string {
-  return `resume/${resumeId}.txt`;
+  return buildResumeKey(resumeId);
 }
 
 /**
