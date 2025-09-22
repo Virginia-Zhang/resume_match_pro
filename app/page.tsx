@@ -1,7 +1,6 @@
 import Image from "next/image";
 import TypewriterText from "@/components/home/TypewriterText";
 import HomepageActions from "@/components/home/HomepageActions";
-import LottieHero from "@/components/home/LottieHero";
 import ThemeToggle from "@/components/theme-toggle";
 import {
   PRODUCT_MARK,
@@ -9,6 +8,7 @@ import {
   PRODUCT_NAME_JA,
   ASSET_LOGO_LIGHT,
   ASSET_LOGO_DARK,
+  ASSET_HERO_ANIMATION,
   FEATURE_CARDS,
   VP_JA,
   VP_EN,
@@ -16,29 +16,45 @@ import {
   ICON_GITHUB_DARK,
   ICON_MAIL_LIGHT,
   ICON_MAIL_DARK,
+  ATTRIBUTION_STORYSET_TEXT,
+  ATTRIBUTION_STORYSET_URL,
 } from "@/app/constants/constants";
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card";
 import FeatureCard from "@/components/home/FeatureCard";
 
+/**
+ * Landing page with hero graphic, features, CTA, and footer.
+ * ヒーロー画像、機能カード、CTA、フッターを備えたランディングページ。
+ *
+ * @component Home
+ * @returns {JSX.Element} Page element | ページ要素
+ * @remarks Server Component; composes client components (Typewriter, Actions).
+ * @remarks サーバーコンポーネント。クライアント要素を合成。
+ */
 export default function Home() {
   return (
     <div className="min-h-screen fluid-bg">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-14">
-        {/* Top-Right Brand + Theme Toggle */}
-        <div className="flex items-center justify-end gap-4 mb-4">
-          <div className="text-sm md:text-base font-semibold tracking-wide text-foreground">
-            {PRODUCT_MARK}
+        {/* Top bar: left attribution for Storyset (lg+) + right brand & theme toggle */}
+        {/* 上部バー: Storyset のクレジット（lg+） + 右側ブランド & テーマトグル */}
+        <div className="flex items-center justify-end lg:justify-between mb-4">
+          <a
+            className="hidden lg:inline text-xs text-muted-foreground hover:underline"
+            href={ATTRIBUTION_STORYSET_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {ATTRIBUTION_STORYSET_TEXT}
+          </a>
+          <div className="flex items-center gap-4">
+            <div className="text-sm md:text-base font-semibold tracking-wide text-foreground">
+              {PRODUCT_MARK}
+            </div>
+            <ThemeToggle />
           </div>
-          <ThemeToggle />
         </div>
         {/* Hero */}
         <section className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-start">
-          <div className="space-y-6 pt-20">
+          <div className="space-y-6 pt-10">
             <div className="flex items-center gap-4 justify-center lg:justify-start">
               {/* light */}
               <Image
@@ -59,7 +75,7 @@ export default function Home() {
                 priority
               />
               <div className="text-center lg:text-left">
-                <div className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight leading-tight">
+                <div className="text-3xl sm:text-4xl xl:text-5xl font-extrabold tracking-tight leading-tight">
                   {PRODUCT_NAME_EN}
                 </div>
                 <div className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight mt-1">
@@ -69,14 +85,34 @@ export default function Home() {
             </div>
             <TypewriterText
               className="text-base md:text-lg text-slate-700 dark:text-slate-100 leading-relaxed text-center lg:text-left"
-              text="高度なAI分析技術により、レジュメと求人の適合度を精密に測定。IT開発者の転職活動を効率化し、理想のキャリアを実現するためのツールです。"
+              text="高度なAI分析技術により、レジュメと求人の適合度を精密に測定。外国人IT開発者の転職活動を効率化し、理想のキャリアを実現するためのツールです。"
               typeSpeed={60}
               delaySpeed={10000}
               loop={false}
             />
           </div>
           <div className="relative mt-10">
-            <LottieHero />
+            <div className="relative aspect-video rounded-xl border bg-white/5 dark:bg-slate-900/5 overflow-hidden max-w-[560px] mx-auto lg:ml-auto">
+              <Image
+                src={ASSET_HERO_ANIMATION}
+                alt="Hero graphic"
+                width={500}
+                height={500}
+                className="h-full w-full object-cover"
+              />
+            </div>
+            {/* Mobile-only attribution below hero graphic */}
+            {/* モバイルのみの Storyset のクレジット */}
+            <div className="mt-2 text-xs text-muted-foreground text-center lg:hidden">
+              <a
+                className="hover:underline"
+                href={ATTRIBUTION_STORYSET_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {ATTRIBUTION_STORYSET_TEXT}
+              </a>
+            </div>
           </div>
         </section>
 

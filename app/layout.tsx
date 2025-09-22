@@ -41,7 +41,7 @@ const zenMaru = Zen_Maru_Gothic({
 export const metadata: Metadata = {
   title: `${PRODUCT_NAME_EN} - AI Resume Job Matching`,
   description:
-    "高度なAI分析技術により、レジュメと求人の適合度を精密に測定。IT開発者の転職活動を効率化し、理想のキャリアを実現するためのツールです。",
+    "高度なAI分析技術により、レジュメと求人の適合度を精密に測定。外国人IT開発者の転職活動を効率化し、理想のキャリアを実現するためのツールです。",
 };
 
 /**
