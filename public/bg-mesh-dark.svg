@@ -1,0 +1,27 @@
+<svg width="1200" height="800" viewBox="0 0 1200 800" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="g1d" cx="45%" cy="35%" r="60%">
+      <stop offset="0%" stop-color="#7c3aed" stop-opacity="0.65"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="g2d" cx="80%" cy="20%" r="55%">
+      <stop offset="0%" stop-color="#06b6d4" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="g3d" cx="30%" cy="80%" r="55%">
+      <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="g4d" cx="70%" cy="70%" r="45%">
+      <stop offset="0%" stop-color="#f43f5e" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="800" fill="#0b1220"/>
+  <rect width="1200" height="800" fill="url(#g1d)"/>
+  <rect width="1200" height="800" fill="url(#g2d)"/>
+  <rect width="1200" height="800" fill="url(#g3d)"/>
+  <rect width="1200" height="800" fill="url(#g4d)"/>
+</svg>
+
+

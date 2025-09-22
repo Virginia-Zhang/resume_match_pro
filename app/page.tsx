@@ -1,65 +1,209 @@
-import { Button } from "@/components/ui/button";
+import Image from "next/image";
+import TypewriterText from "@/components/home/TypewriterText";
+import HomepageActions from "@/components/home/HomepageActions";
+import ThemeToggle from "@/components/theme-toggle";
+import {
+  PRODUCT_MARK,
+  PRODUCT_NAME_EN,
+  PRODUCT_NAME_JA,
+  ASSET_LOGO_LIGHT,
+  ASSET_LOGO_DARK,
+  ASSET_HERO_ANIMATION,
+  FEATURE_CARDS,
+  VP_JA,
+  VP_EN,
+  ICON_GITHUB_LIGHT,
+  ICON_GITHUB_DARK,
+  ICON_MAIL_LIGHT,
+  ICON_MAIL_DARK,
+  ATTRIBUTION_STORYSET_TEXT,
+  ATTRIBUTION_STORYSET_URL,
+} from "@/app/constants/constants";
+import FeatureCard from "@/components/home/FeatureCard";
 
 /**
+ * Landing page with hero graphic, features, CTA, and footer.
+ * ヒーロー画像、機能カード、CTA、フッターを備えたランディングページ。
  *
+ * @component Home
+ * @returns {JSX.Element} Page element | ページ要素
+ * @remarks Server Component; composes client components (Typewriter, Actions).
+ * @remarks サーバーコンポーネント。クライアント要素を合成。
  */
 export default function Home() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
-      <div className="container mx-auto px-4 py-16">
-        <div className="text-center space-y-8">
-          <div className="space-y-4">
-            <h1 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              ResumeMatch Pro
-            </h1>
-            <p className="text-xl text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">
-              Next.js + TypeScript + Tailwind CSS + shadcn/ui 项目骨架已就绪
-            </p>
-          </div>
-
-          <div className="flex flex-wrap justify-center gap-4">
-            <Button size="lg" className="text-lg px-8">
-              开始使用
-            </Button>
-            <Button variant="outline" size="lg" className="text-lg px-8">
-              查看文档
-            </Button>
-            <Button variant="secondary" size="lg" className="text-lg px-8">
-              GitHub
-            </Button>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-8 mt-16">
-            <div className="p-6 bg-white dark:bg-slate-800 rounded-lg shadow-sm border">
-              <h3 className="text-xl font-semibold mb-3">⚡ 快速开发</h3>
-              <p className="text-slate-600 dark:text-slate-400">
-                使用 Turbopack 提升开发体验，热更新极速响应
-              </p>
+    <div className="min-h-screen fluid-bg">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-14">
+        {/* Top bar: left attribution for Storyset (lg+) + right brand & theme toggle */}
+        {/* 上部バー: Storyset のクレジット（lg+） + 右側ブランド & テーマトグル */}
+        <div className="flex items-center justify-end lg:justify-between mb-4">
+          <a
+            className="hidden lg:inline text-xs text-muted-foreground hover:underline"
+            href={ATTRIBUTION_STORYSET_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {ATTRIBUTION_STORYSET_TEXT}
+          </a>
+          <div className="flex items-center gap-4">
+            <div className="text-sm md:text-base font-semibold tracking-wide text-foreground">
+              {PRODUCT_MARK}
             </div>
-            <div className="p-6 bg-white dark:bg-slate-800 rounded-lg shadow-sm border">
-              <h3 className="text-xl font-semibold mb-3">🎨 现代 UI</h3>
-              <p className="text-slate-600 dark:text-slate-400">
-                shadcn/ui + Tailwind CSS 打造精美用户界面
-              </p>
-            </div>
-            <div className="p-6 bg-white dark:bg-slate-800 rounded-lg shadow-sm border">
-              <h3 className="text-xl font-semibold mb-3">🔧 类型安全</h3>
-              <p className="text-slate-600 dark:text-slate-400">
-                TypeScript 提供完整的类型检查和智能提示
-              </p>
-            </div>
-          </div>
-
-          <div className="mt-16 p-6 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-800">
-            <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-2">
-              ✅ 项目骨架已完成
-            </h3>
-            <p className="text-blue-700 dark:text-blue-300">
-              Next.js 15 + TypeScript + Tailwind CSS + shadcn/ui
-              已配置完毕，可以开始开发了！
-            </p>
+            <ThemeToggle />
           </div>
         </div>
+        {/* Hero */}
+        <section className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-start">
+          <div className="space-y-6 pt-10">
+            <div className="flex items-center gap-4 justify-center lg:justify-start">
+              {/* light */}
+              <Image
+                src={ASSET_LOGO_LIGHT}
+                alt="MatchPro ロゴ"
+                width={100}
+                height={100}
+                className="h-14 w-14 sm:h-[100px] sm:w-[100px] rounded dark:hidden"
+                priority
+              />
+              {/* dark */}
+              <Image
+                src={ASSET_LOGO_DARK}
+                alt="MatchPro ロゴ"
+                width={100}
+                height={100}
+                className="h-14 w-14 sm:h-[100px] sm:w-[100px] rounded hidden dark:inline-block"
+                priority
+              />
+              <div className="text-center lg:text-left">
+                <div className="text-3xl sm:text-4xl xl:text-5xl font-extrabold tracking-tight leading-tight">
+                  {PRODUCT_NAME_EN}
+                </div>
+                <div className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight mt-1">
+                  {PRODUCT_NAME_JA}
+                </div>
+              </div>
+            </div>
+            <TypewriterText
+              className="text-base md:text-lg text-slate-700 dark:text-slate-100 leading-relaxed text-center lg:text-left"
+              text="高度なAI分析技術により、レジュメと求人の適合度を精密に測定。外国人IT開発者の転職活動を効率化し、理想のキャリアを実現するためのツールです。"
+              typeSpeed={60}
+              delaySpeed={10000}
+              loop={false}
+            />
+          </div>
+          <div className="relative mt-10">
+            <div className="relative aspect-video rounded-xl border bg-white/5 dark:bg-slate-900/5 overflow-hidden max-w-[560px] mx-auto lg:ml-auto">
+              <Image
+                src={ASSET_HERO_ANIMATION}
+                alt="Hero graphic"
+                width={500}
+                height={500}
+                className="h-full w-full object-cover"
+              />
+            </div>
+            {/* Mobile-only attribution below hero graphic */}
+            {/* モバイルのみの Storyset のクレジット */}
+            <div className="mt-2 text-xs text-muted-foreground text-center lg:hidden">
+              <a
+                className="hover:underline"
+                href={ATTRIBUTION_STORYSET_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {ATTRIBUTION_STORYSET_TEXT}
+              </a>
+            </div>
+          </div>
+        </section>
+
+        {/* Features */}
+        <section className="mt-16 lg:mt-20">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {FEATURE_CARDS.map(card => (
+              <FeatureCard
+                key={card.title}
+                icon={card.icon}
+                title={card.title}
+                desc={card.desc}
+              />
+            ))}
+          </div>
+        </section>
+
+        {/* CTA moved below features */}
+        <div className="mt-25 flex justify-center">
+          <HomepageActions />
+        </div>
+
+        {/* Value proposition (JA line) + EN small caption */}
+        <section className="mt-15 text-center">
+          <p className="text-xl md:text-2xl font-semibold tracking-tight gradient-text">
+            {VP_JA}
+          </p>
+          <TypewriterText
+            className="text-lg text-slate-700 dark:text-slate-200 mt-3"
+            text={VP_EN}
+            typeSpeed={60}
+            delaySpeed={10000}
+            loop={false}
+          />
+        </section>
+
+        {/* Footer */}
+        <footer className="mt-20 py-8 border-t text-sm text-muted-foreground flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div>
+            © {new Date().getFullYear()} {PRODUCT_NAME_EN}. All rights
+            reserved.
+          </div>
+          <div className="flex items-center gap-4">
+            <a
+              className="inline-flex items-center gap-1 hover:underline text-foreground"
+              href="https://github.com/Virginia-Zhang/resume_match_pro"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {/* light */}
+              <Image
+                src={ICON_GITHUB_LIGHT}
+                alt="GitHub"
+                width={16}
+                height={16}
+                className="h-4 w-4 dark:hidden"
+              />
+              {/* dark */}
+              <Image
+                src={ICON_GITHUB_DARK}
+                alt="GitHub"
+                width={16}
+                height={16}
+                className="h-4 w-4 hidden dark:inline-block"
+              />
+              GitHub
+            </a>
+            <a
+              className="inline-flex items-center gap-1 hover:underline text-foreground"
+              href="mailto:zhangsakurayi@qq.com"
+            >
+              {/* light */}
+              <Image
+                src={ICON_MAIL_LIGHT}
+                alt="Email"
+                width={16}
+                height={16}
+                className="h-4 w-4 dark:hidden"
+              />
+              {/* dark */}
+              <Image
+                src={ICON_MAIL_DARK}
+                alt="Email"
+                width={16}
+                height={16}
+                className="h-4 w-4 hidden dark:inline-block"
+              />
+              Contact Me
+            </a>
+          </div>
+        </footer>
       </div>
     </div>
   );

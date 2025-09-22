@@ -5,8 +5,13 @@
  */
 
 import React from "react";
-import { redirect } from "next/navigation";
+// redirect not used after guard refactor
+// リファクタ後 redirect は未使用
+// import { redirect } from "next/navigation";
+// import Skeleton from "@/components/ui/skeleton";
+// import { resumePointer } from "@/lib/storage";
 import ClientDetailView from "./client-detail-view";
+import ResumeGate from "@/components/guards/ResumeGate";
 
 // Data fetching functions moved to client-side charts component
 // データ取得関数はクライアントサイドのチャートコンポーネントに移動
@@ -15,23 +20,29 @@ import ClientDetailView from "./client-detail-view";
  * Server component for job detail page with strict flow guard
  * 厳格なフローガード付きの求人詳細ページのサーバーコンポーネント
  */
+/**
+ * Job detail server component wrapped by ResumeGuard.
+ * ResumeGuard でラップされた求人詳細サーバーコンポーネント。
+ * @param {object} params - Route params
+ * @param {Promise<{ id: string }>} params.params - dynamic segment
+ * @returns {Promise<React.JSX.Element>} JSX element
+ */
 export default async function JobDetailPage({
   params,
-  searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams?: Promise<{ resumeId?: string }>;
-}) {
+}): Promise<React.JSX.Element> {
   const resolvedParams = await params;
-  const resolvedSearchParams = await searchParams;
   const jobId = resolvedParams.id;
-  const resumeId = resolvedSearchParams?.resumeId;
 
-  // Strict flow guard: must have resumeId from upload flow
-  // 厳格なフローガード：アップロードフローから resumeId が必要
-  if (!resumeId) {
-    redirect("/upload");
-  }
+  // Keep detail view as-is; charts fetch uses `resumeId` from searchParams previously.
+  // Here we simply allow navigation when gate passes (i.e., resume:current exists).
+  // The child component already receives resumeId from server props earlier; if needed,
+  // we can extend to read from localStorage, but current flow relies on APIs using resumeId passed along.
 
-  return <ClientDetailView jobId={jobId} resumeId={resumeId} />;
+  return (
+    <ResumeGate variant="detail" injectResumeId>
+      <ClientDetailView jobId={jobId} resumeId={""} />
+    </ResumeGate>
+  );
 }
