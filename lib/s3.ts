@@ -109,7 +109,7 @@ export function cacheKey(
 
 /**
  * @description Resume storage key builder.
- * @description 履歴書の保存キー作成。
+ * @description レジュメの保存キー作成。
  */
 import { buildResumeKey } from "@/app/constants/constants";
 

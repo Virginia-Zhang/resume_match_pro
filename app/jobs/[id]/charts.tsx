@@ -87,7 +87,7 @@ export default function ClientCharts({
         setSummaryError(null);
 
         // Resume text is now always retrieved from S3
-        // 履歴書テキストは常にS3から取得される
+        // レジュメテキストは常にS3から取得される
 
         const summaryUrl = `${window.location.origin}${API_MATCH_SUMMARY}`;
         const summaryData = await fetchJson<SummaryEnvelope>(summaryUrl, {
@@ -136,7 +136,7 @@ export default function ClientCharts({
         setDetailsError(null);
 
         // Resume text is now always retrieved from S3
-        // 履歴書テキストは常にS3から取得される
+        // レジュメテキストは常にS3から取得される
 
         // Get overall score from current summary state
         // 現在のサマリー状態から総合スコアを取得
@@ -235,7 +235,7 @@ export default function ClientCharts({
             </div>
           )}
           <p className="text-xs text-muted-foreground mt-2">
-            履歴書が見つからない場合は、
+            レジュメが見つからない場合は、
             <a href={ROUTE_UPLOAD} className="underline">
               アップロードページ
             </a>
@@ -430,7 +430,7 @@ export default function ClientCharts({
             </div>
           )}
           <p className="text-xs text-muted-foreground mt-2">
-            履歴書が見つからない場合は、
+            レジュメが見つからない場合は、
             <a href={ROUTE_UPLOAD} className="underline">
               アップロードページ
             </a>

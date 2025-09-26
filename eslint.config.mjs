@@ -98,7 +98,12 @@ const eslintConfig = [
 
       // Prettier integration
       // Prettier統合
-      "prettier/prettier": "error",
+      "prettier/prettier": [
+        "error",
+        {
+          endOfLine: "auto",
+        },
+      ],
     },
   },
 ];

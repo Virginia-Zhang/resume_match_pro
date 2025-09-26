@@ -9,7 +9,7 @@
 "use client";
 
 import React from "react";
-import { Button } from "@/components/ui/button";
+import { PrimaryCtaButton, SecondaryCtaButton } from "@/components/common/buttons/CtaButtons";
 import { useRouter } from "next/navigation";
 import { resumePointer } from "@/lib/storage";
 import {
@@ -37,21 +37,16 @@ export default function HomepageActions(): React.ReactElement {
 
   return (
     <div className="flex flex-wrap gap-4 justify-center px-4 w-full lg:w-auto">
-      <Button
-        onClick={() => router.push(ROUTE_UPLOAD)}
-        className="h-12 sm:h-14 md:h-16 px-6 sm:px-8 md:px-10 text-base sm:text-lg md:text-xl font-rounded font-semibold rounded-full bg-sky-500 text-white hover:bg-sky-600 shadow-[0_8px_0_0_rgba(0,0,0,0.08)] hover:shadow-[0_10px_0_0_rgba(0,0,0,0.10)] transition-all sm:max-w-[90vw] lg:max-w-none"
-      >
+      <PrimaryCtaButton onClick={() => router.push(ROUTE_UPLOAD)}>
         {CTA_UPLOAD_JA}
-      </Button>
-      <Button
-        variant="secondary"
-        className="h-12 sm:h-14 md:h-16 px-6 sm:px-8 md:px-10 text-base sm:text-lg md:text-xl font-rounded font-semibold rounded-full bg-white/90 dark:bg-slate-800/70 text-slate-900 dark:text-slate-100 border border-slate-300/70 dark:border-slate-600/60 hover:bg-white dark:hover:bg-slate-800 shadow-[0_8px_0_0_rgba(0,0,0,0.05)] hover:shadow-[0_10px_0_0_rgba(0,0,0,0.08)] transition-all sm:max-w-[90vw] lg:max-w-none"
+      </PrimaryCtaButton>
+      <SecondaryCtaButton
         disabled={!hasResume}
         aria-disabled={!hasResume}
         onClick={() => hasResume && router.push(ROUTE_JOBS)}
       >
         {CTA_UPLOADED_JA}
-      </Button>
+      </SecondaryCtaButton>
     </div>
   );
 }

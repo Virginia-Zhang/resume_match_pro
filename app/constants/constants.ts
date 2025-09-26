@@ -44,7 +44,7 @@ export type ApiPath =
 export const STORAGE_RESUME_POINTER_KEY = "resume:current" as const;
 /**
  * Pointer to the latest uploaded resume in local storage.
- * 最新のアップロード履歴書を示すローカルストレージのポインタ。
+ * 最新のアップロードレジュメを示すローカルストレージのポインタ。
  */
 export interface ResumePointer {
   resumeId: string;
@@ -57,9 +57,9 @@ export const S3_RESUME_SUFFIX = ".txt" as const;
 
 /**
  * Build S3 key for a resume id.
- * 履歴書IDからS3キーを生成します。
+ * レジュメIDからS3キーを生成します。
  *
- * @param resumeId Resume identifier | 履歴書ID
+ * @param resumeId Resume identifier | レジュメID
  * @returns S3 object key | S3 オブジェクトキー
  */
 export function buildResumeKey(resumeId: string): string {
@@ -123,9 +123,8 @@ export const FEATURE_CARDS: ReadonlyArray<FeatureCard> = [
   },
 ] as const;
 
-// ---------- Misc Labels ----------
-export const CTA_UPLOAD_JA = "レジュメをアップロード／再アップロード" as const;
-export const CTA_UPLOADED_JA = "レジュメはアップロード済み？" as const;
+
+
 export const VP_JA =
   "外国人IT開発者の転職を加速。職務との適合度・強み弱み・面接対策をすばやく把握。" as const;
 export const VP_EN =
@@ -162,3 +161,44 @@ export type AssetPath =
   | typeof ICON_GITHUB_DARK
   | typeof ICON_MAIL_LIGHT
   | typeof ICON_MAIL_DARK;
+
+// ---------- Upload Page ----------
+export const CTA_UPLOAD_JA = "レジュメをアップロード／再アップロード" as const;
+export const CTA_UPLOADED_JA = "レジュメはアップロード済み？" as const;
+
+export const UPLOAD_FEATURES = [
+  {
+    icon: "/upload/job_hunting.svg",
+    title: "無料で使える転職サポート",
+    body: "開発系かつ外国人歓迎の求人を厳選。登録不要ですぐに利用でき、理想の仕事へワンクリックで近づけます。",
+  },
+  {
+    icon: "/upload/safety.svg",
+    title: "セキュリティ重視",
+    body: "レジュメは安全なクラウドサービス（Amazon S3）に保管され、第三者がアクセスすることはありません。マッチング分析と応募以外には利用しません。",
+  },
+  {
+    icon: "/upload/devices.svg",
+    title: "どのデバイスでも快適",
+    body: "レスポンシブ設計で PC でもスマホでも快適。レジュメのアップロードから応募まで、いつでもどこでも進められます。",
+  },
+] as const;
+
+export const UPLOAD_STEPS = [
+  "レジュメの PDF をファイル選択ダイアログから選ぶか、このページのアップロード領域へドラッグ＆ドロップしてください。",
+  "アップロード後に『PDFを解析』をクリックして解析を開始します。成功するとテキストは下の入力欄に表示されます（画像などは対象外です）。",
+  "アップロードや解析に失敗した場合は、レジュメのテキストをそのまま下の入力欄に貼り付けてご利用いただけます。",
+  "準備ができたら『求人一覧へ進む』をクリック。気になる求人の詳細ページで、AI がレジュメと求人情報をもとにマッチ度、強み・弱み、面接対策を提示します。",
+] as const;
+
+export const UPLOAD_TEXTAREA_GUIDELINES = [
+  "アップロードや解析に失敗した場合は、ここにレジュメのテキストを貼り付けてご利用ください。",
+  "解析はテキストのみを対象とし、画像などの非テキスト要素は含まれません。",
+  "解析結果は AI 分析を主目的とした素のテキストであり、再レイアウトは行いません。",
+  "以前にレジュメをアップロード済みの場合、その解析テキストが自動的に表示されます。",
+] as const;
+
+export const UPLOAD_MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
+export const UPLOAD_FILE_SIZE_ERROR_JA =
+  "アップロードされたファイルがサイズ制限（5MB）を超えています。5MB 以下の PDF を選択してください。" as const;
+

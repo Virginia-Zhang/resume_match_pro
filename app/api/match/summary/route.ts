@@ -61,7 +61,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     }
 
     // Resume text must be retrieved from S3
-    // 履歴書テキストはS3から取得する必要がある
+    // レジュメテキストはS3から取得する必要がある
     if (!body.resumeId) {
       return NextResponse.json({ error: "Missing resumeId" }, { status: 400 });
     }

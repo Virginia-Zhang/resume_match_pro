@@ -16,7 +16,6 @@ alwaysApply: false
 ## Code Comment Conventions
 
 1. File-Level Comments:
-
    - Use JSDoc format (`/** */`).
    - Include:
      - `@file {filename}`: The file name.
@@ -35,7 +34,6 @@ alwaysApply: false
        \*/
 
 2. Component-Level Comments:
-
    - Use JSDoc for React components.
    - Include:
      - `@component {ComponentName}`: Name of the component.
@@ -47,7 +45,7 @@ alwaysApply: false
      /\*\*
      - @component JobMatchChart
      - @description Renders a chart visualizing resume-job match score.
-     - @description 履歴書と仕事のマッチスコアをチャートで視覚化。
+     - @description レジュメと仕事のマッチスコアをチャートで視覚化。
      - @param {Object} props - Component props
      - @param {Object} props コンポーネントのプロパティ
      - @param {number} props.matchScore - The match score from LLM
@@ -59,7 +57,6 @@ alwaysApply: false
        \*/
 
 3. Function-Level Comments:
-
    - Use JSDoc for all functions.
    - Include:
      - `@description`: Purpose in English and Japanese.
@@ -69,9 +66,9 @@ alwaysApply: false
    - Example:
      /\*\*
      - @description Calls LLM to analyze resume-job match and generate suggestions.
-     - @description LLM を呼び出して履歴書と仕事のマッチを分析し、提案を生成。
+     - @description LLM を呼び出してレジュメと仕事のマッチを分析し、提案を生成。
      - @param resumeText The parsed resume text
-     - @param resumeText 解析された履歴書テキスト
+     - @param resumeText 解析されたレジュメテキスト
      - @param jobDescription The job details
      - @param jobDescription 仕事の詳細
      - @returns A promise resolving to match analysis and suggestions
@@ -81,7 +78,6 @@ alwaysApply: false
        \*/
 
 4. Inline Comments:
-
    - Use `//` for inline comments.
    - Use bilingual: English on first line, Japanese on second.
    - Keep concise, only for complex logic, security, or key decisions.
