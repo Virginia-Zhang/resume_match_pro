@@ -11,6 +11,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { ROUTE_JOBS } from "@/app/constants/constants";
 import React from "react";
+import BreadcrumbsProvider from "@/components/common/BreadcrumbsProvider";
 import ClientCharts from "./charts";
 
 /**
@@ -155,7 +156,7 @@ export default function ClientDetailView({
   React.useEffect(() => {
     if (!loading && !detail) {
       // Missing data -> redirect to jobs list while preserving resume context
-      // データがない場合は履歴書コンテキストを保持したまま一覧へ遷移
+      // データがない場合はレジュメコンテキストを保持したまま一覧へ遷移
       const params = new URLSearchParams();
       if (resumeId) params.set("resumeId", resumeId);
       const query = params.toString();
@@ -236,7 +237,19 @@ export default function ClientDetailView({
   if (!detail) return <></>;
 
   return (
-    <div className="mx-auto max-w-4xl p-6 space-y-8">
+    <BreadcrumbsProvider
+      items={
+        detail
+          ? [
+              { href: "/", label: "ホーム" },
+              { href: "/upload", label: "アップロード" },
+              { href: "/jobs", label: "求人一覧" },
+              { href: `/jobs/${jobId}`, label: detail.title },
+            ]
+          : undefined
+      }
+    >
+      <div className="mx-auto max-w-4xl p-6 space-y-8">
       <header className="flex items-center gap-4">
         <Image
           src={detail.logoUrl}
@@ -629,7 +642,7 @@ export default function ClientDetailView({
             AI（GPT-5）適合度分析レポート
           </h2>
           <p className="text-sm text-muted-foreground mt-2">
-            履歴書と求人情報を基にしたリアルタイム分析結果
+            レジュメと求人情報を基にしたリアルタイム分析結果
           </p>
         </div>
 
@@ -639,6 +652,7 @@ export default function ClientDetailView({
           jobDescription={serializeJDFromV2(detail)}
         />
       </section>
-    </div>
+      </div>
+    </BreadcrumbsProvider>
   );
 }

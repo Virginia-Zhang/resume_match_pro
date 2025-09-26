@@ -1,9 +1,7 @@
 import Image from "next/image";
 import TypewriterText from "@/components/home/TypewriterText";
 import HomepageActions from "@/components/home/HomepageActions";
-import ThemeToggle from "@/components/theme-toggle";
 import {
-  PRODUCT_MARK,
   PRODUCT_NAME_EN,
   PRODUCT_NAME_JA,
   ASSET_LOGO_LIGHT,
@@ -34,8 +32,8 @@ export default function Home() {
   return (
     <div className="min-h-screen fluid-bg">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-14">
-        {/* Top bar: left attribution for Storyset (lg+) + right brand & theme toggle */}
-        {/* 上部バー: Storyset のクレジット（lg+） + 右側ブランド & テーマトグル */}
+        {/* Top bar: left attribution for Storyset (lg+). BrandBar is global in layout */}
+        {/* 上部バー: Storyset のクレジット（lg+）。ブランドバーはレイアウト側で表示 */}
         <div className="flex items-center justify-end lg:justify-between mb-4">
           <a
             className="hidden lg:inline text-xs text-muted-foreground hover:underline"
@@ -45,12 +43,6 @@ export default function Home() {
           >
             {ATTRIBUTION_STORYSET_TEXT}
           </a>
-          <div className="flex items-center gap-4">
-            <div className="text-sm md:text-base font-semibold tracking-wide text-foreground">
-              {PRODUCT_MARK}
-            </div>
-            <ThemeToggle />
-          </div>
         </div>
         {/* Hero */}
         <section className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-start">

@@ -1,7 +1,7 @@
 /**
  * @file route.ts
  * @description API route to persist resume_text to S3 and return { resumeId, resumeHash }.
- * @description 履歴書テキストをS3に保存し、{ resumeId, resumeHash } を返すAPIルート。
+ * @description レジュメテキストをS3に保存し、{ resumeId, resumeHash } を返すAPIルート。
  * @author Virginia Zhang
  * @remarks Server route (App Router). Accepts JSON { resume_text } only; no secrets exposed.
  * @remarks サーバールート（App Router）。JSON { resume_text } のみ受け付け、機密情報は公開しない。
@@ -20,7 +20,7 @@ interface ResumePostBody {
 }
 
 /**
- * HTTP POST handler to save resume text. 履歴書テキストを保存するHTTP POSTハンドラー。
+ * HTTP POST handler to save resume text. レジュメテキストを保存するHTTP POSTハンドラー。
  *
  * @param req NextRequest - Request object / リクエストオブジェクト
  * @returns NextResponse - JSON { resumeId, resumeHash } / JSON { resumeId, resumeHash }
