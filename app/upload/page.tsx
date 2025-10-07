@@ -421,20 +421,18 @@ export default function UploadPage(): React.JSX.Element {
                 onChange={handleFileInputChange}
               />
               {file && (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div className="w-full px-4">
-                        <p className="text-xs text-slate-600 dark:text-slate-200 truncate cursor-help">
-                          選択中: {file.name}
-                        </p>
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p className="max-w-xs break-words">{file.name}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="w-full px-4">
+                      <p className="text-xs text-slate-600 dark:text-slate-200 truncate cursor-help">
+                        選択中: {file.name}
+                      </p>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="max-w-xs break-words">{file.name}</p>
+                  </TooltipContent>
+                </Tooltip>
               )}
             </div>
           </div>
