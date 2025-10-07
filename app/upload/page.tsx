@@ -54,18 +54,20 @@ export default function UploadPage(): React.JSX.Element {
   const [parsing, setParsing] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [text, setText] = React.useState("");
-  // Initialize prefilling based on whether user has a saved resume (client-side only)
-  // 保存された履歴書があるかどうかに基づいてprefillingを初期化（クライアント側のみ）
+  // Initialize prefilling state to false to ensure SSR/client consistency
+  // prefillingの状態をfalseで初期化し、SSR/クライアントの一貫性を確保
   const [prefilling, setPrefilling] = React.useState(false);
   
-  // Check for saved resume on mount (client-side only to avoid SSR hydration mismatch)
-  // マウント時に保存された履歴書を確認（SSR hydration mismatchを避けるためクライアント側のみ）
+  // Check for saved resume after mount and update prefilling state (client-side only)
+  // マウント後に保存されたレジュメを確認し、prefilling状態を更新（クライアント側のみ実行）
+  // This runs after hydration to avoid SSR mismatch
+  // SSRのミスマッチを避けるため、hydration後に実行
   React.useEffect(() => {
     const pointer = resumePointer.load();
     if (pointer?.resumeId && !text) {
       setPrefilling(true);
     }
-  }, []);
+  }, [text]);
   const [dragActive, setDragActive] = React.useState(false);
   const dropRef = React.useRef<HTMLDivElement | null>(null);
   const [uploadError, setUploadError] = React.useState<string | null>(null);
@@ -345,7 +347,6 @@ export default function UploadPage(): React.JSX.Element {
         }
       } catch (error) {
         console.error("❌ Prefilling error:", error);
-        // silent fail; user can still paste
         // Silent failure; user can still paste manually
         // サイレント失敗；ユーザーは手動で貼り付け可能
       } finally {
