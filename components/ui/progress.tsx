@@ -10,9 +10,13 @@ import { cn } from "@/lib/utils";
 
 interface ProgressProps extends React.HTMLAttributes<HTMLDivElement> {
   value?: number;
+  indeterminate?: boolean;
 }
 
-export function Progress({ value = 0, className, ...props }: ProgressProps) {
+export function Progress({ value = 0, indeterminate: propIndeterminate, className, ...props }: ProgressProps) {
+  // Use nullish coalescing to ensure indeterminate is always a boolean
+  // nullish coalescing を使用して indeterminate が常にブール値になることを保証
+  const indeterminate = propIndeterminate ?? false;
   const clamped = Math.max(0, Math.min(100, value));
   return (
     <div
@@ -22,10 +26,16 @@ export function Progress({ value = 0, className, ...props }: ProgressProps) {
       )}
       {...props}
     >
-      <div
-        className="h-full rounded-full bg-sky-500 transition-[width] duration-300"
-        style={{ width: `${clamped}%` }}
-      />
+      {indeterminate ? (
+        <div className="absolute inset-0 overflow-hidden">
+          <div className="absolute left-[-40%] top-0 h-full w-[40%] rounded-full bg-sky-500 animate-[progress-indeterminate_1.2s_ease-in-out_infinite]" />
+        </div>
+      ) : (
+        <div
+          className="h-full rounded-full bg-sky-500 transition-[width] duration-300"
+          style={{ width: `${clamped}%` }}
+        />
+      )}
     </div>
   );
 }

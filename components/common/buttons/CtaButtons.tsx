@@ -21,7 +21,7 @@ export function PrimaryCtaButton({ className, ...props }: ButtonProps): JSX.Elem
   return (
     <Button
       className={cn(
-        "h-12 sm:h-14 md:h-16 px-10 sm:px-12 text-base sm:text-lg font-rounded font-semibold rounded-full bg-sky-500 text-white hover:bg-sky-600 shadow-[0_8px_0_rgba(14,116,144,0.4)] hover:shadow-[0_12px_0_rgba(14,116,144,0.45)] transition-all disabled:opacity-60 disabled:shadow-none",
+        "h-12 sm:h-14 md:h-16 px-6 sm:px-10 text-base sm:text-lg font-rounded font-semibold rounded-full bg-sky-500 text-white hover:bg-sky-600 shadow-[0_8px_0_rgba(14,116,144,0.4)] hover:shadow-[0_12px_0_rgba(14,116,144,0.45)] transition-all disabled:opacity-60 disabled:shadow-none w-auto",
         className
       )}
       {...props}
