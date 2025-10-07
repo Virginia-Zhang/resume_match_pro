@@ -54,6 +54,8 @@ export default function UploadPage(): React.JSX.Element {
   const [parsing, setParsing] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [text, setText] = React.useState("");
+  // Initialize prefilling state to false to ensure SSR/client consistency
+  // prefillingの状態をfalseで初期化し、SSR/クライアントの一貫性を確保
   const [prefilling, setPrefilling] = React.useState(false);
   const [dragActive, setDragActive] = React.useState(false);
   const dropRef = React.useRef<HTMLDivElement | null>(null);
@@ -61,12 +63,12 @@ export default function UploadPage(): React.JSX.Element {
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
 
   /**
-   * @description Validates if the uploaded file is a PDF format.
-   * @description アップロードされたファイルがPDF形式かどうかを検証します。
+   * @description Validates whether the uploaded file is in PDF format for both PC and mobile platforms.
+   * @description PC・モバイル両プラットフォームでアップロードされたファイルがPDF形式かどうかを検証します。
    * @param {File} f - The file to validate | 検証するファイル
    * @returns {boolean} True if the file is PDF, false otherwise | PDFファイルの場合はtrue、そうでなければfalse
-   * @remarks Handles both PC and mobile platforms; prefers MIME type, falls back to file extension for iOS compatibility.
-   * @remarks PC・モバイル両プラットフォームに対応。MIMEタイプを優先し、iOS互換性のため拡張子にフォールバック。
+   * @remarks Prefers MIME type check, falls back to file extension for iOS compatibility (iOS may provide empty MIME type).
+   * @remarks MIMEタイプチェックを優先し、iOS互換性のため拡張子にフォールバック（iOSではMIMEタイプが空の場合がある）。
    */
   const isPdfFile = React.useCallback((f: File): boolean => {
     if (!f) return false;
@@ -100,10 +102,144 @@ export default function UploadPage(): React.JSX.Element {
     const input = fileInputRef.current;
     if (!input) return;
     input.value = "";
-    // blur to prevent immediate re-trigger of the picker on certain browsers
+    // Blur to prevent immediate re-trigger of the picker on certain browsers
     // 一部ブラウザで即座にダイアログが再表示されるのを防ぐため blur を実行
     input.blur();
   }, []);
+
+  /**
+   * @description Handle container click event to open file picker.
+   * @description ファイルピッカーを開くためのコンテナクリックイベントを処理します。
+   * @param {React.MouseEvent} event - The mouse event | マウスイベント
+   * @returns {void} No return value | 返り値なし
+   * @remarks Prevents event bubbling to avoid double trigger.
+   * @remarks イベントバブリングを防止し、二重トリガーを回避します。
+   */
+  const handleContainerClick = React.useCallback((event: React.MouseEvent) => {
+    event.stopPropagation();
+    openFilePicker();
+  }, [openFilePicker]);
+
+  /**
+   * @description Handle keyboard events for accessibility (Enter/Space to open file picker).
+   * @description アクセシビリティ用のキーボードイベントを処理します（Enter/Spaceでファイルピッカーを開く）。
+   * @param {React.KeyboardEvent} event - The keyboard event | キーボードイベント
+   * @returns {void} No return value | 返り値なし
+   * @remarks Supports Enter and Space keys.
+   * @remarks EnterキーとSpaceキーをサポートします。
+   */
+  const handleContainerKeyDown = React.useCallback((event: React.KeyboardEvent) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      event.stopPropagation();
+      openFilePicker();
+    }
+  }, [openFilePicker]);
+
+  /**
+   * @description Handle drag over event to activate drop zone visual feedback.
+   * @description ドロップゾーンの視覚的フィードバックを有効にするためのドラッグオーバーイベントを処理します。
+   * @param {React.DragEvent} event - The drag event | ドラッグイベント
+   * @returns {void} No return value | 返り値なし
+   */
+  const handleDragOver = React.useCallback((event: React.DragEvent) => {
+    event.preventDefault();
+    setDragActive(true);
+  }, []);
+
+  /**
+   * @description Handle drag leave event to deactivate drop zone visual feedback.
+   * @description ドロップゾーンの視覚的フィードバックを無効にするためのドラッグリーブイベントを処理します。
+   * @param {React.DragEvent} event - The drag event | ドラッグイベント
+   * @returns {void} No return value | 返り値なし
+   * @remarks Only deactivates if leaving the actual drop zone container.
+   * @remarks 実際のドロップゾーンコンテナを離れた場合のみ無効化します。
+   */
+  const handleDragLeave = React.useCallback((event: React.DragEvent) => {
+    if (!dropRef.current?.contains(event.relatedTarget as Node)) {
+      setDragActive(false);
+    }
+  }, []);
+
+  /**
+   * @description Handle file drop event with validation (file type and size).
+   * @description ファイルドロップイベントを検証付きで処理します（ファイルタイプとサイズ）。
+   * @param {React.DragEvent} event - The drag event | ドラッグイベント
+   * @returns {void} No return value | 返り値なし
+   * @remarks Validates PDF format and file size before setting the file state.
+   * @remarks ファイルの状態を設定する前にPDF形式とファイルサイズを検証します。
+   */
+  const handleDrop = React.useCallback((event: React.DragEvent) => {
+    event.preventDefault();
+    setDragActive(false);
+    const dropped = event.dataTransfer.files?.[0];
+    if (!dropped) return;
+    
+    if (!isPdfFile(dropped)) {
+      setUploadError("PDF ファイルのみアップロードできます");
+      setFile(null);
+      setText("");
+      resetFileInput();
+      return;
+    }
+    
+    if (dropped.size > UPLOAD_MAX_FILE_SIZE_BYTES) {
+      setUploadError(UPLOAD_FILE_SIZE_ERROR_JA);
+      setFile(null);
+      setText("");
+      event.dataTransfer.clearData();
+      resetFileInput();
+      return;
+    }
+    
+    setFile(dropped);
+    setText("");
+    setError(null);
+    setUploadError(null);
+  }, [isPdfFile, resetFileInput]);
+
+  /**
+   * @description Handle file input change event with validation (file type and size).
+   * @description ファイル入力変更イベントを検証付きで処理します（ファイルタイプとサイズ）。
+   * @param {React.ChangeEvent<HTMLInputElement>} event - The change event | 変更イベント
+   * @returns {void} No return value | 返り値なし
+   * @remarks Validates PDF format and file size before setting the file state.
+   * @remarks ファイルの状態を設定する前にPDF形式とファイルサイズを検証します。
+   */
+  const handleFileInputChange = React.useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    const selected = event.target.files?.[0];
+    if (!selected) return;
+    
+    if (!isPdfFile(selected)) {
+      setUploadError("PDF ファイルのみアップロードできます");
+      setFile(null);
+      setText("");
+      return;
+    }
+    
+    if (selected.size > UPLOAD_MAX_FILE_SIZE_BYTES) {
+      setUploadError(UPLOAD_FILE_SIZE_ERROR_JA);
+      setFile(null);
+      setText("");
+      return;
+    }
+    
+    setFile(selected);
+    setText("");
+    setError(null);
+    setUploadError(null);
+  }, [isPdfFile]);
+
+  /**
+   * @description Handle button click to open file picker (prevents event bubbling).
+   * @description ファイルピッカーを開くためのボタンクリックを処理します（イベントバブリングを防止）。
+   * @param {React.MouseEvent} event - The mouse event | マウスイベント
+   * @returns {void} No return value | 返り値なし
+   */
+  const handleButtonClick = React.useCallback((event: React.MouseEvent) => {
+    event.stopPropagation();
+    openFilePicker();
+  }, [openFilePicker]);
 
 
   /**
@@ -169,27 +305,33 @@ export default function UploadPage(): React.JSX.Element {
     };
 
     // Save pointer to localStorage for future sessions (non-sensitive)
-    // 将指针保存到 localStorage 以便后续会话使用（非敏感）
+    // localStorageに将来のセッション用のポインタを保存（非機密情報）
     try {
       resumePointer.save(response.resumeId);
     } catch {}
 
     // Redirect to jobs list with ids using Next.js router
-    // Next.js の router を用いて求人一覧へ遷移
+    // Next.jsのルーターを使用して求人一覧ページへ遷移
     const q = new URLSearchParams();
     q.set("resumeId", response.resumeId);
     router.push(`${ROUTE_JOBS}?${q.toString()}`);
   }
 
   // Prefill from S3 if resume:current exists
-  // resume:current が存在する場合、S3 から事前入力
+  // resume:currentが存在する場合、S3から事前入力
   React.useEffect(() => {
     const p = resumePointer.load();
     if (!p?.resumeId || text) return;
+    
+    // Set prefilling to true before fetching
+    // 取得前にprefillingをtrueに設定
+    setPrefilling(true);
+    
+    // Track whether component has unmounted to prevent state updates after unmount
+    // コンポーネントがアンマウントされたかを追跡し、アンマウント後の状態更新を防ぐ
     let cancelled = false;
     (async () => {
       try {
-        setPrefilling(true);
         const url = `${API_RESUME_TEXT}?resumeId=${encodeURIComponent(p.resumeId)}`;
         const data = await fetchJson<{ resumeText: string }>(url, {
           timeoutMs: 15000,
@@ -199,7 +341,8 @@ export default function UploadPage(): React.JSX.Element {
         }
       } catch (error) {
         console.error("❌ Prefilling error:", error);
-        // silent fail; user can still paste
+        // Silent failure; user can still paste manually
+        // サイレント失敗；ユーザーは手動で貼り付け可能
       } finally {
         if (!cancelled) setPrefilling(false);
       }
@@ -210,7 +353,7 @@ export default function UploadPage(): React.JSX.Element {
   }, [text]);
 
   return (
-    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8 space-y-10">
+    <div className="mx-auto max-w-7xl 2xl:max-w-[85vw] px-4 sm:px-6 lg:px-8 py-8 space-y-10">
       {/* Hero */}
       <div className="space-y-6">
         <div className="flex items-center gap-5">
@@ -221,7 +364,6 @@ export default function UploadPage(): React.JSX.Element {
               fill
               sizes="80px"
               className="object-contain"
-              priority
             />
           </div>
           <div className="text-left">
@@ -243,53 +385,11 @@ export default function UploadPage(): React.JSX.Element {
           tabIndex={0}
           aria-labelledby="upload-title"
           aria-describedby="upload-instructions"
-          onClick={event => {
-            // Prevent bubbling to avoid double trigger (div role=button + inner button)
-            event.stopPropagation();
-            openFilePicker();
-          }}
-          onKeyDown={event => {
-            if (event.key === "Enter" || event.key === " ") {
-              event.preventDefault();
-              // Avoid double trigger by stopping propagation
-              event.stopPropagation();
-              openFilePicker();
-            }
-          }}
-          onDragOver={event => {
-            event.preventDefault();
-            setDragActive(true);
-          }}
-          onDragLeave={event => {
-            if (!dropRef.current?.contains(event.relatedTarget as Node)) {
-              setDragActive(false);
-            }
-          }}
-          onDrop={event => {
-            event.preventDefault();
-            setDragActive(false);
-            const dropped = event.dataTransfer.files?.[0];
-            if (!dropped) return;
-            if (!isPdfFile(dropped)) {
-              setUploadError("PDF ファイルのみアップロードできます");
-              setFile(null);
-              setText("");
-              resetFileInput();
-              return;
-            }
-            if (dropped.size > UPLOAD_MAX_FILE_SIZE_BYTES) {
-              setUploadError(UPLOAD_FILE_SIZE_ERROR_JA);
-              setFile(null);
-              setText("");
-              event.dataTransfer.clearData();
-              resetFileInput();
-              return;
-            }
-            setFile(dropped);
-            setText("");
-            setError(null);
-            setUploadError(null);
-          }}
+          onClick={handleContainerClick}
+          onKeyDown={handleContainerKeyDown}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
         >
           <div
             className={`w-full max-w-4xl rounded-2xl border-2 border-dashed px-12 py-20 min-h-[340px] text-center transition-colors ${
@@ -307,10 +407,7 @@ export default function UploadPage(): React.JSX.Element {
               </p>
               <SecondaryCtaButton
                 className="h-12 px-10 text-base"
-                onClick={event => {
-                  event.stopPropagation();
-                  openFilePicker();
-                }}
+                onClick={handleButtonClick}
               >
                 ファイルを選択
               </SecondaryCtaButton>
@@ -321,33 +418,21 @@ export default function UploadPage(): React.JSX.Element {
           accept="application/pdf,.pdf"
           multiple={false}
                 ref={fileInputRef}
-                onChange={event => {
-                  const selected = event.target.files?.[0];
-                  if (!selected) return;
-                  if (!isPdfFile(selected)) {
-                    setUploadError("PDF ファイルのみアップロードできます");
-                    setFile(null);
-                    setText("");
-                    return;
-                  }
-                  if (selected.size > UPLOAD_MAX_FILE_SIZE_BYTES) {
-                    setUploadError(UPLOAD_FILE_SIZE_ERROR_JA);
-                    setFile(null);
-                    setText("");
-                    return;
-                  }
-                  setFile(selected);
-                  setText("");
-                  setError(null);
-                  setUploadError(null);
-                }}
+                onChange={handleFileInputChange}
               />
               {file && (
-                <div className="w-full px-4">
-                  <p className="text-xs text-slate-600 dark:text-slate-200 truncate">
-                    選択中: {file.name}
-                  </p>
-                </div>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="w-full px-4">
+                      <p className="text-xs text-slate-600 dark:text-slate-200 truncate cursor-help">
+                        選択中: {file.name}
+                      </p>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="max-w-xs break-words">{file.name}</p>
+                  </TooltipContent>
+                </Tooltip>
               )}
             </div>
           </div>
@@ -374,7 +459,8 @@ export default function UploadPage(): React.JSX.Element {
         )}
       </div>
 
-      {/* 中段：Textarea 区域（放入 Card） */}
+      {/* Resume text area (middle section wrapped in Card) */}
+      {/* レジュメテキストエリア（中央セクション、Cardでラップ） */}
       <Card className="shadow-[0_24px_80px_rgba(15,23,42,0.1)] border border-slate-200/80 dark:border-slate-700/70 bg-sky-50/80 dark:bg-slate-600/20">
         <CardHeader>
           <CardTitle className="text-xl sm:text-2xl font-semibold text-slate-900 dark:text-slate-100">
@@ -390,13 +476,23 @@ export default function UploadPage(): React.JSX.Element {
         </CardHeader>
         <Separator />
         <CardContent className="pt-6">
-          <textarea
+          {prefilling ? (
+            <div className="w-full min-h-[440px] rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 space-y-3">
+              {Array.from({ length: 20 }, (_, index) => (
+                <Skeleton 
+                  key={index} 
+                  className={index === 0 ? "h-4 w-[50%]" : "h-4 w-full"} 
+                />
+              ))}
+            </div>
+          ) : (
+            <textarea
               className="w-full min-h-[440px] rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 text-sm leading-7"
-            value={text}
-            onChange={e => setText(e.target.value)}
+              value={text}
+              onChange={e => setText(e.target.value)}
               placeholder="レジュメテキストを貼り付け..."
             />
-          {prefilling && <Skeleton className="h-4 w-24 mt-2" />}
+          )}
           {error && (
             <div className="mt-4 flex justify-center">
               <p className="text-red-600 text-sm text-center">{error}</p>
@@ -405,14 +501,16 @@ export default function UploadPage(): React.JSX.Element {
         </CardContent>
       </Card>
 
-      {/* CTA 放在文本框区域下方、手順上方 */}
+      {/* CTA button below text area, above operation steps */}
+      {/* テキストエリア下、操作手順の上のCTAボタン */}
       <div className="flex justify-center">
         <PrimaryCtaButton onClick={handleSubmit} disabled={!text.trim()}>
           求人一覧へ進む
         </PrimaryCtaButton>
       </div>
 
-      {/* 操作手順：左图右文 */}
+      {/* Operation steps: image on left, text on right */}
+      {/* 操作手順：左側に画像、右側にテキスト */}
       <section className="rounded-2xl bg-sky-50/80 dark:bg-slate-600/20 px-6 sm:px-10 py-10 shadow-[0_24px_80px_rgba(56,189,248,0.12)] border border-sky-100/80 dark:border-slate-600/60">
         <h2 className="text-xl sm:text-2xl font-semibold text-slate-800 dark:text-slate-100 mb-8">
           操作手順

@@ -43,7 +43,7 @@ export default async function JobsPage(): Promise<React.JSX.Element> {
 
   return (
     <ResumeGate variant="list">
-      <div className="mx-auto max-w-4xl p-6 space-y-6">
+      <div className="mx-auto max-w-4xl 2xl:max-w-[75vw] p-6 space-y-6">
         <h1 className="text-2xl font-semibold">求人一覧</h1>
         <ul className="divide-y">
           {jobs.map(j => (

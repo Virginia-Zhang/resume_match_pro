@@ -166,7 +166,7 @@ export default function ClientDetailView({
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-4xl p-6 space-y-8">
+      <div className="mx-auto max-w-4xl 2xl:max-w-[75vw] p-6 space-y-8">
         <header className="flex items-center gap-4">
           <Skeleton className="h-12 w-12 rounded" />
           <div className="flex-1 space-y-2">
@@ -249,7 +249,7 @@ export default function ClientDetailView({
           : undefined
       }
     >
-      <div className="mx-auto max-w-4xl p-6 space-y-8">
+      <div className="mx-auto max-w-4xl 2xl:max-w-[75vw] p-6 space-y-8">
       <header className="flex items-center gap-4">
         <Image
           src={detail.logoUrl}
