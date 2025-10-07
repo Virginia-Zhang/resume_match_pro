@@ -57,17 +57,6 @@ export default function UploadPage(): React.JSX.Element {
   // Initialize prefilling state to false to ensure SSR/client consistency
   // prefillingの状態をfalseで初期化し、SSR/クライアントの一貫性を確保
   const [prefilling, setPrefilling] = React.useState(false);
-  
-  // Check for saved resume after mount and update prefilling state (client-side only)
-  // マウント後に保存されたレジュメを確認し、prefilling状態を更新（クライアント側のみ実行）
-  // This runs after hydration to avoid SSR mismatch
-  // SSRのミスマッチを避けるため、hydration後に実行
-  React.useEffect(() => {
-    const pointer = resumePointer.load();
-    if (pointer?.resumeId && !text) {
-      setPrefilling(true);
-    }
-  }, [text]);
   const [dragActive, setDragActive] = React.useState(false);
   const dropRef = React.useRef<HTMLDivElement | null>(null);
   const [uploadError, setUploadError] = React.useState<string | null>(null);
@@ -333,6 +322,11 @@ export default function UploadPage(): React.JSX.Element {
   React.useEffect(() => {
     const p = resumePointer.load();
     if (!p?.resumeId || text) return;
+    
+    // Set prefilling to true before fetching
+    // 取得前にprefillingをtrueに設定
+    setPrefilling(true);
+    
     // Track whether component has unmounted to prevent state updates after unmount
     // コンポーネントがアンマウントされたかを追跡し、アンマウント後の状態更新を防ぐ
     let cancelled = false;
