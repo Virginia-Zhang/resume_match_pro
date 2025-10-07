@@ -32,8 +32,8 @@ export default function Home() {
   return (
     <div className="min-h-screen fluid-bg">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-10 pb-14 sm:pt-14">
-        {/* Top bar: left attribution for Storyset (lg+). BrandBar is global in layout */}
-        {/* 上部バー: Storyset のクレジット（lg+）。ブランドバーはレイアウト側で表示 */}
+        {/* Declaration of using animation resources provided by StorySet website (displayed here on large screens, displayed below the animation on mobile devices)  */}
+        {/* StorySet ウェブサイトが提供するアニメーションリソースの使用宣言（大画面ではここに表示、モバイルではアニメーションの下に表示） */}
         <div className="flex items-center justify-end lg:justify-between mb-4 hidden lg:inline">
           <a
             className="text-xs text-muted-foreground hover:underline"

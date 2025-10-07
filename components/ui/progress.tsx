@@ -13,7 +13,10 @@ interface ProgressProps extends React.HTMLAttributes<HTMLDivElement> {
   indeterminate?: boolean;
 }
 
-export function Progress({ value = 0, indeterminate = false, className, ...props }: ProgressProps) {
+export function Progress({ value = 0, indeterminate: propIndeterminate, className, ...props }: ProgressProps) {
+  // Use nullish coalescing to ensure indeterminate is always a boolean
+  // nullish coalescing を使用して indeterminate が常にブール値になることを保証
+  const indeterminate = propIndeterminate ?? false;
   const clamped = Math.max(0, Math.min(100, value));
   return (
     <div

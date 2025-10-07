@@ -320,7 +320,6 @@ export default function UploadPage(): React.JSX.Element {
           type="file"
           accept="application/pdf,.pdf"
           multiple={false}
-          capture={undefined as unknown as boolean}
                 ref={fileInputRef}
                 onChange={event => {
                   const selected = event.target.files?.[0];
