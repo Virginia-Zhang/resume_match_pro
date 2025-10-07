@@ -35,7 +35,12 @@ import { fetchJson } from "@/lib/fetcher";
 import { useRouter } from "next/navigation";
 
 import { Progress } from "@/components/ui/progress";
-import { extractPdfText } from "@/lib/pdf";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 /**
  * Upload page component for PDF parsing and resume text input
@@ -51,9 +56,55 @@ export default function UploadPage(): React.JSX.Element {
   const [text, setText] = React.useState("");
   const [prefilling, setPrefilling] = React.useState(false);
   const [dragActive, setDragActive] = React.useState(false);
-  const [parseProgress, setParseProgress] = React.useState<number>(0);
   const dropRef = React.useRef<HTMLDivElement | null>(null);
   const [uploadError, setUploadError] = React.useState<string | null>(null);
+  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+
+  /**
+   * @description Validates if the uploaded file is a PDF format.
+   * @description アップロードされたファイルがPDF形式かどうかを検証します。
+   * @param {File} f - The file to validate | 検証するファイル
+   * @returns {boolean} True if the file is PDF, false otherwise | PDFファイルの場合はtrue、そうでなければfalse
+   * @remarks Handles both PC and mobile platforms; prefers MIME type, falls back to file extension for iOS compatibility.
+   * @remarks PC・モバイル両プラットフォームに対応。MIMEタイプを優先し、iOS互換性のため拡張子にフォールバック。
+   */
+  const isPdfFile = React.useCallback((f: File): boolean => {
+    if (!f) return false;
+    if (f.type === "application/pdf") return true;
+    if (!f.type && /\.pdf$/i.test(f.name)) return true;
+    return false;
+  }, []);
+
+  /**
+   * @description Open the hidden file input with graceful fallback when `showPicker` fails.
+   * @description `showPicker` が失敗した場合にフォールバックでファイル入力を開きます。
+   * @returns {void} No return value | 返り値なし
+   * @remarks Prefers `showPicker` for modern UX, reverts to `click` when blocked.
+   * @remarks モダンな UX のため `showPicker` を優先し、拒否された場合は `click` に戻します。
+   */
+  const openFilePicker = React.useCallback(() => {
+    const input = fileInputRef.current;
+    if (!input) return;
+    input.click();
+  }, []);
+
+
+  /**
+   * @description Reset the file input value and blur to prevent immediate re-triggering.
+   * @description ファイル入力の値をリセットし、即時再トリガーを防ぐために blur します。
+   * @returns {void} No return value | 返り値なし
+   * @remarks Keeps upload error flow consistent across browsers.
+   * @remarks ブラウザ間でアップロードエラー時の挙動を統一します。
+   */
+  const resetFileInput = React.useCallback(() => {
+    const input = fileInputRef.current;
+    if (!input) return;
+    input.value = "";
+    // blur to prevent immediate re-trigger of the picker on certain browsers
+    // 一部ブラウザで即座にダイアログが再表示されるのを防ぐため blur を実行
+    input.blur();
+  }, []);
+
 
   /**
    * Handle PDF parsing with error handling and user feedback
@@ -66,26 +117,27 @@ export default function UploadPage(): React.JSX.Element {
       return;
     }
     setParsing(true);
-    setParseProgress(0);
     try {
-      const t = await extractPdfText(file, progress => setParseProgress(progress));
-      if (!t) {
-        console.warn("⚠️ PDF parsing returned empty text");
-        setError("PDFからテキストを抽出できません。手動で貼り付けてください。");
-      } else {
-        setText(t);
+      const form = new FormData();
+      form.append("file", file);
+      const res = await fetch("/api/parse", { method: "POST", body: form });
+      if (!res.ok) {
+        const msg = await res.text().catch(() => "");
+        throw new Error(`HTTP ${res.status} ${res.statusText}: ${msg}`);
       }
-      setParseProgress(100);
+      const data = (await res.json()) as { resumeText?: string };
+      const t = (data.resumeText || "").trim();
+      if (!t) {
+        throw new Error("Empty parse result");
+      }
+      setText(t);
     } catch (error) {
       console.error("❌ PDF parsing error:", error);
       setError(
-        `PDFの解析に失敗しました: ${
-          error instanceof Error ? error.message : "不明なエラー"
-        }。再試行するか、テキストを手動で貼り付けてください。`
+        "PDFの解析に失敗しました。再試行するか、テキストを手動で貼り付けてください。"
       );
     } finally {
       setParsing(false);
-      setTimeout(() => setParseProgress(0), 800);
     }
   }
 
@@ -173,7 +225,7 @@ export default function UploadPage(): React.JSX.Element {
             />
           </div>
           <div className="text-left">
-            <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+            <h1 className="text-2xl sm:text-4xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
               レジュメアップロード（PDF → テキスト）
       </h1>
             <p className="mt-2 text-base text-slate-600 dark:text-slate-300">
@@ -191,11 +243,17 @@ export default function UploadPage(): React.JSX.Element {
           tabIndex={0}
           aria-labelledby="upload-title"
           aria-describedby="upload-instructions"
-          onClick={() => document.getElementById("upload-input")?.click()}
+          onClick={event => {
+            // Prevent bubbling to avoid double trigger (div role=button + inner button)
+            event.stopPropagation();
+            openFilePicker();
+          }}
           onKeyDown={event => {
             if (event.key === "Enter" || event.key === " ") {
               event.preventDefault();
-              document.getElementById("upload-input")?.click();
+              // Avoid double trigger by stopping propagation
+              event.stopPropagation();
+              openFilePicker();
             }
           }}
           onDragOver={event => {
@@ -212,12 +270,19 @@ export default function UploadPage(): React.JSX.Element {
             setDragActive(false);
             const dropped = event.dataTransfer.files?.[0];
             if (!dropped) return;
-            if (dropped.type !== "application/pdf") {
+            if (!isPdfFile(dropped)) {
               setUploadError("PDF ファイルのみアップロードできます");
+              setFile(null);
+              setText("");
+              resetFileInput();
               return;
             }
             if (dropped.size > UPLOAD_MAX_FILE_SIZE_BYTES) {
               setUploadError(UPLOAD_FILE_SIZE_ERROR_JA);
+              setFile(null);
+              setText("");
+              event.dataTransfer.clearData();
+              resetFileInput();
               return;
             }
             setFile(dropped);
@@ -242,7 +307,10 @@ export default function UploadPage(): React.JSX.Element {
               </p>
               <SecondaryCtaButton
                 className="h-12 px-10 text-base"
-                onClick={() => document.getElementById("upload-input")?.click()}
+                onClick={event => {
+                  event.stopPropagation();
+                  openFilePicker();
+                }}
               >
                 ファイルを選択
               </SecondaryCtaButton>
@@ -250,16 +318,23 @@ export default function UploadPage(): React.JSX.Element {
                 id="upload-input"
                 className="sr-only"
           type="file"
-          accept="application/pdf"
+          accept="application/pdf,.pdf"
+          multiple={false}
+          capture={undefined as unknown as boolean}
+                ref={fileInputRef}
                 onChange={event => {
                   const selected = event.target.files?.[0];
                   if (!selected) return;
-                  if (selected.type !== "application/pdf") {
+                  if (!isPdfFile(selected)) {
                     setUploadError("PDF ファイルのみアップロードできます");
+                    setFile(null);
+                    setText("");
                     return;
                   }
                   if (selected.size > UPLOAD_MAX_FILE_SIZE_BYTES) {
                     setUploadError(UPLOAD_FILE_SIZE_ERROR_JA);
+                    setFile(null);
+                    setText("");
                     return;
                   }
                   setFile(selected);
@@ -269,9 +344,11 @@ export default function UploadPage(): React.JSX.Element {
                 }}
               />
               {file && (
-                <p className="text-xs text-slate-600 dark:text-slate-200 truncate max-w-[320px]">
-                  選択中: {file.name}
-                </p>
+                <div className="w-full px-4">
+                  <p className="text-xs text-slate-600 dark:text-slate-200 truncate">
+                    選択中: {file.name}
+                  </p>
+                </div>
               )}
             </div>
           </div>
@@ -290,12 +367,10 @@ export default function UploadPage(): React.JSX.Element {
         <PrimaryCtaButton onClick={handleParse} disabled={!file || parsing}>
           PDFを解析
         </PrimaryCtaButton>
-        {parseProgress > 0 && (
+        {parsing && (
           <div className="w-full max-w-md text-center space-y-2">
-            <Progress value={parseProgress} aria-label="PDF解析の進捗" className="h-3" />
-            <p className="text-sm font-medium text-slate-700 dark:text-slate-200">
-              {`${Math.min(100, Math.round(parseProgress))}%`}
-            </p>
+            <Progress indeterminate aria-label="PDF解析の進捗" className="h-3" />
+            <p className="text-sm font-medium text-slate-700 dark:text-slate-200">解析中...</p>
           </div>
         )}
       </div>
@@ -316,12 +391,12 @@ export default function UploadPage(): React.JSX.Element {
         </CardHeader>
         <Separator />
         <CardContent className="pt-6">
-        <textarea
-            className="w-full min-h-[440px] rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 text-sm leading-7"
-          value={text}
-          onChange={e => setText(e.target.value)}
-            placeholder="レジュメテキストを貼り付け..."
-          />
+          <textarea
+              className="w-full min-h-[440px] rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 text-sm leading-7"
+            value={text}
+            onChange={e => setText(e.target.value)}
+              placeholder="レジュメテキストを貼り付け..."
+            />
           {prefilling && <Skeleton className="h-4 w-24 mt-2" />}
           {error && (
             <div className="mt-4 flex justify-center">

@@ -242,3 +242,9 @@
     animation: none;
   }
 }
+
+/* Indeterminate progress keyframes for Progress component */
+@keyframes progress-indeterminate {
+  0% { transform: translateX(-40%); }
+  100% { transform: translateX(260%); }
+}

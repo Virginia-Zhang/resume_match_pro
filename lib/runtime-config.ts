@@ -4,7 +4,7 @@
  * @description サーバー/クライアントで一貫した API ベースURL解決。
  */
 
-const DEV_DEFAULT_BASE = "http://localhost:3000";
+const DEV_DEFAULT_BASE = "http://127.0.0.1:3000";
 
 /**
  * @description Get API base URL. On client returns empty string (same-origin). On server uses env or dev default.

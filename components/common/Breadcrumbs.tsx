@@ -78,7 +78,7 @@ export default function Breadcrumbs({
   if (autoItems.length <= 1) return null; // hide on homepage
 
   return (
-    <Breadcrumb>
+    <Breadcrumb className="hidden sm:block">
       <BreadcrumbList>
         {autoItems.map((c, i) => {
           const isLast = i === autoItems.length - 1;
