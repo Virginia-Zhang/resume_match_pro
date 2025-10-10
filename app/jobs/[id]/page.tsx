@@ -5,21 +5,9 @@
  */
 
 import React from "react";
-// redirect not used after guard refactor
-// リファクタ後 redirect は未使用
-// import { redirect } from "next/navigation";
-// import Skeleton from "@/components/ui/skeleton";
-// import { resumePointer } from "@/lib/storage";
 import ClientDetailView from "./client-detail-view";
 import ResumeGate from "@/components/guards/ResumeGate";
 
-// Data fetching functions moved to client-side charts component
-// データ取得関数はクライアントサイドのチャートコンポーネントに移動
-
-/**
- * Server component for job detail page with strict flow guard
- * 厳格なフローガード付きの求人詳細ページのサーバーコンポーネント
- */
 /**
  * Job detail server component wrapped by ResumeGuard.
  * ResumeGuard でラップされた求人詳細サーバーコンポーネント。

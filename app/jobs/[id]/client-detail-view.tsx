@@ -13,112 +13,7 @@ import { ROUTE_JOBS } from "@/app/constants/constants";
 import React from "react";
 import BreadcrumbsProvider from "@/components/common/BreadcrumbsProvider";
 import ClientCharts from "./charts";
-
-/**
- * Serialize JobDetailV2 to plain text for LLM analysis
- * LLM分析のためのJobDetailV2のプレーンテキストシリアライズ
- */
-function serializeJDFromV2(j: JobDetailV2): string {
-  const lines: string[] = [];
-  lines.push(`# Title: ${j.title}`);
-  lines.push(`# Company: ${j.company}`);
-  lines.push(`# Location: ${j.location}`);
-  if (j.salary) lines.push(`# Salary: ${j.salary}`);
-  if (j.employmentType) lines.push(`# EmploymentType: ${j.employmentType}`);
-  if (j.interviewType) lines.push(`# InterviewType: ${j.interviewType}`);
-  if (j.remotePolicy)
-    lines.push(
-      `# RemotePolicy: fromOverseas=${j.remotePolicy.fromOverseas}, fromJapan=${j.remotePolicy.fromJapan}`
-    );
-
-  // Description (include all fields under description)
-  lines.push("\n## Description");
-  if (j.description.whoWeAre) {
-    lines.push("### WhoWeAre");
-    lines.push(j.description.whoWeAre);
-  }
-  if (j.description.products) {
-    lines.push("### Products");
-    lines.push(j.description.products);
-  }
-  if (j.description.productIntro) {
-    lines.push("### ProductIntro");
-    lines.push(j.description.productIntro);
-  }
-  if (j.description.responsibilities?.length) {
-    lines.push("### Responsibilities");
-    j.description.responsibilities.forEach(r => lines.push(`- ${r}`));
-  }
-
-  // Dev info (compact)
-  if (j.devInfo) {
-    lines.push("\n## DevInfo");
-    if (j.devInfo.frontEnd) {
-      const fe = j.devInfo.frontEnd;
-      if (fe.languages?.length)
-        lines.push(`fe.languages=${fe.languages.join(", ")}`);
-      if (fe.frameworks?.length)
-        lines.push(`fe.frameworks=${fe.frameworks.join(", ")}`);
-      if (fe.wasm?.length && !fe.wasm.includes("なし"))
-        lines.push(`fe.wasm=${fe.wasm.join(", ")}`);
-      if (fe.designTools?.length)
-        lines.push(`fe.designTools=${fe.designTools.join(", ")}`);
-    }
-    if (j.devInfo.backEnd) {
-      const be = j.devInfo.backEnd;
-      if (be.languages?.length)
-        lines.push(`be.languages=${be.languages.join(", ")}`);
-      if (be.frameworks?.length)
-        lines.push(`be.frameworks=${be.frameworks.join(", ")}`);
-    }
-    if (j.devInfo.database?.length)
-      lines.push(`database=${j.devInfo.database.join(", ")}`);
-    if (j.devInfo.infra) {
-      const infra = j.devInfo.infra;
-      if (infra.cloud?.length) lines.push(`cloud=${infra.cloud.join(", ")}`);
-      if (infra.containers?.length)
-        lines.push(`containers=${infra.containers.join(", ")}`);
-      if (infra.monitoring?.length)
-        lines.push(`monitoring=${infra.monitoring.join(", ")}`);
-    }
-    if (j.devInfo.tools) {
-      const tools = j.devInfo.tools;
-      if (tools.repository?.length)
-        lines.push(`repoTools=${tools.repository.join(", ")}`);
-      if (tools.documentation?.length)
-        lines.push(`docsTools=${tools.documentation.join(", ")}`);
-      if (tools.communication?.length)
-        lines.push(`commTools=${tools.communication.join(", ")}`);
-      if (tools.taskManagement?.length)
-        lines.push(`taskTools=${tools.taskManagement.join(", ")}`);
-    }
-    if (j.devInfo.methodology)
-      lines.push(`methodology=${j.devInfo.methodology}`);
-  }
-
-  // Requirements
-  if (j.requirements) {
-    lines.push("\n## Requirements");
-    if (j.requirements.must?.length) {
-      lines.push("MUST:");
-      j.requirements.must.forEach(m => lines.push(`- ${m}`));
-    }
-    if (j.requirements.want?.length) {
-      lines.push("WANT:");
-      j.requirements.want.forEach(w => lines.push(`- ${w}`));
-    }
-  }
-
-  // Candidate
-  if (j.candidateRequirements?.length) {
-    lines.push("\n## Candidate");
-    j.candidateRequirements.forEach(c => lines.push(`- ${c}`));
-  }
-
-  // Exclude workingConditions and selectionProcess from serialization per spec
-
-  return lines.join("\n");
-}
+import { serializeJDForBatchMatching } from "@/lib/jobs";
 
 /**
  * Client component that renders job details from sessionStorage with skeletons
@@ -292,6 +187,15 @@ export default function ClientDetailView({
               ・国内{detail.remotePolicy.fromJapan ? "可" : "不可"}
             </div>
           )}
+          {detail.languageRequirements && (
+            <div>
+              言語要件: 日本語 {detail.languageRequirements.ja} ・ 英語{" "}
+              {detail.languageRequirements.en}
+            </div>
+          )}
+          <div>
+            海外採用: {detail.recruitFromOverseas ? "可" : "不可"}
+          </div>
         </div>
       </section>
 
@@ -375,25 +279,6 @@ export default function ClientDetailView({
                         フレームワーク:
                       </span>
                       <div>{detail.devInfo.frontEnd.frameworks.join(", ")}</div>
-                    </div>
-                  )}
-                  {detail.devInfo.frontEnd.wasm?.length &&
-                    !detail.devInfo.frontEnd.wasm.includes("なし") && (
-                      <div>
-                        <span className="text-xs text-muted-foreground">
-                          WebAssembly:
-                        </span>
-                        <div>{detail.devInfo.frontEnd.wasm.join(", ")}</div>
-                      </div>
-                    )}
-                  {detail.devInfo.frontEnd.designTools?.length && (
-                    <div>
-                      <span className="text-xs text-muted-foreground">
-                        デザインツール:
-                      </span>
-                      <div>
-                        {detail.devInfo.frontEnd.designTools.join(", ")}
-                      </div>
                     </div>
                   )}
                 </div>
@@ -649,7 +534,7 @@ export default function ClientDetailView({
         <ClientCharts
           resumeId={resumeId}
           jobId={jobId}
-          jobDescription={serializeJDFromV2(detail)}
+          jobDescription={serializeJDForBatchMatching(detail)}
         />
       </section>
       </div>
