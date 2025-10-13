@@ -10,6 +10,8 @@
 
 import Skeleton from "@/components/ui/skeleton";
 import { fetchJson } from "@/lib/fetcher";
+import { getFriendlyErrorMessage } from "@/lib/errorHandling";
+import ErrorDisplay from "@/components/common/ErrorDisplay";
 import React from "react";
 import {
   API_MATCH_SUMMARY,
@@ -48,6 +50,69 @@ interface DetailsEnvelope {
   };
 }
 
+/**
+ * @description Normalize scores data for radar chart display
+ * @description レーダーチャート表示用のスコアデータを正規化
+ * @param scores Raw scores object
+ * @param scores 生のスコアオブジェクト
+ * @returns Normalized scores array for radar chart
+ * @returns レーダーチャート用の正規化されたスコア配列
+ */
+function normalizeScores(scores: Record<string, number> | undefined) {
+  // Map English keys to Japanese labels for display
+  const labelMap: Record<string, string> = {
+    skills: "技術スキル",
+    experience: "経験",
+    projects: "プロジェクト",
+    education: "学歴",
+    soft: "ソフトスキル",
+  };
+
+  const fallback = Object.values(labelMap).map(name => ({ name, value: 0 }));
+  if (!scores) return fallback;
+
+  // Object: map each key to JP label if available
+  const items = Object.entries(scores).map(([rawName, value]) => {
+    const name = labelMap[rawName] || rawName;
+    return { name, value: Number(value) };
+  });
+  return items;
+}
+
+/**
+ * @description Skeleton data for loading states
+ * @description ローディング状態用のスケルトンデータ
+ */
+const SKELETON_CONFIGS = {
+  summary: {
+    overall: { width: "h-56 w-56", className: "rounded-full" },
+    score: { width: "h-6 w-16", className: "" },
+    lines: [
+      { width: "w-full" },
+      { width: "w-11/12" },
+      { width: "w-10/12" },
+      { width: "w-9/12" },
+      { width: "w-8/12" },
+    ],
+  },
+  details: {
+    advantages: [
+      { width: "w-10/12" },
+      { width: "w-9/12" },
+      { width: "w-8/12" },
+    ],
+    disadvantages: [
+      { width: "w-10/12" },
+      { width: "w-9/12" },
+    ],
+    advice: [
+      { width: "w-11/12" },
+      { width: "w-10/12" },
+      { width: "w-9/12" },
+    ],
+  },
+};
+
 export default function ClientCharts({
   resumeId,
   jobId,
@@ -68,26 +133,13 @@ export default function ClientCharts({
     value: number;
   } | null>(null);
 
-  // With Strict Mode disabled, we can simplify effects without dedupe keys
-  // Strict Mode を無効化したため、重複防止キーは不要
-
-  function isGatewayTimeoutMessage(msg: string | null): boolean {
-    if (!msg) return false;
-    return /\b504\b|gateway\s*time-?out|dify\s*http\s*504/i.test(msg);
-  }
-
   // Fetch summary data independently
   // サマリーデータを独立して取得
   React.useEffect(() => {
     async function fetchSummary() {
-      // Prevent duplicate requests in development mode
-      // 開発モードでの重複リクエストを防ぐ
       try {
         setSummaryLoading(true);
         setSummaryError(null);
-
-        // Resume text is now always retrieved from S3
-        // レジュメテキストは常にS3から取得される
 
         const summaryUrl = `${window.location.origin}${API_MATCH_SUMMARY}`;
         const summaryData = await fetchJson<SummaryEnvelope>(summaryUrl, {
@@ -104,10 +156,8 @@ export default function ClientCharts({
           timeoutMs: 90000, // 90 seconds for Dify API processing
         });
         setSummary(summaryData);
-        console.log("✅ Summary analysis completed successfully");
       } catch (err) {
         setSummaryError(err instanceof Error ? err.message : "Unknown error");
-        console.error("❌ Summary analysis failed:", err);
       } finally {
         setSummaryLoading(false);
       }
@@ -121,27 +171,14 @@ export default function ClientCharts({
   React.useEffect(() => {
     async function fetchDetails() {
       // Only proceed if summary is completed
-      // サマリーが完了している場合のみ続行
-      if (!summary) {
-        console.log(
-          "⏳ Waiting for summary to complete before fetching details..."
-        );
-        return;
-      }
+      if (!summary) return;
 
-      // Prevent duplicate requests in development mode
-      // 開発モードでの重複リクエストを防ぐ
       try {
         setDetailsLoading(true);
         setDetailsError(null);
 
-        // Resume text is now always retrieved from S3
-        // レジュメテキストは常にS3から取得される
-
         // Get overall score from current summary state
-        // 現在のサマリー状態から総合スコアを取得
         if (!summary) {
-          console.error("❌ Summary data not available for details analysis");
           setDetailsError("Summary data not available for details analysis");
           setDetailsLoading(false);
           return;
@@ -164,10 +201,8 @@ export default function ClientCharts({
           timeoutMs: 90000, // 90 seconds for Dify API processing
         });
         setDetails(detailsData);
-        console.log("✅ Details analysis completed successfully");
       } catch (err) {
         setDetailsError(err instanceof Error ? err.message : "Unknown error");
-        console.error("❌ Details analysis failed:", err);
       } finally {
         setDetailsLoading(false);
       }
@@ -187,14 +222,12 @@ export default function ClientCharts({
             <div className="p-4 border rounded-md">
               <h4 className="font-medium mb-3">全体スコア</h4>
               <div className="flex flex-col items-center">
-                <Skeleton className="h-56 w-56 rounded-full" />
-                <Skeleton className="mt-4 h-6 w-16" />
+                <Skeleton className={`${SKELETON_CONFIGS.summary.overall.width} ${SKELETON_CONFIGS.summary.overall.className}`} />
+                <Skeleton className={`mt-4 ${SKELETON_CONFIGS.summary.score.width}`} />
                 <div className="mt-3 w-full space-y-2">
-                  <Skeleton className="h-4 w-full" />
-                  <Skeleton className="h-4 w-11/12" />
-                  <Skeleton className="h-4 w-10/12" />
-                  <Skeleton className="h-4 w-9/12" />
-                  <Skeleton className="h-4 w-8/12" />
+                  {SKELETON_CONFIGS.summary.lines.map((line, index) => (
+                    <Skeleton key={index} className={`h-4 ${line.width}`} />
+                  ))}
                 </div>
               </div>
             </div>
@@ -215,33 +248,12 @@ export default function ClientCharts({
     }
 
     if (summaryError) {
-      const is504 = isGatewayTimeoutMessage(summaryError);
       return (
-        <div className="p-4 border border-red-200 bg-red-50 rounded-md">
-          <h3 className="text-red-800 font-medium">サマリー分析エラー</h3>
-          <p className="text-red-600 mt-1">
-            {is504
-              ? "分析処理がタイムアウトしました（504）。ページを更新して再試行してください。"
-              : summaryError}
-          </p>
-          {is504 && (
-            <div className="mt-2">
-              <button
-                className="px-3 py-1.5 text-xs rounded border bg-white hover:bg-gray-50 dark:bg-slate-900 dark:hover:bg-slate-800"
-                onClick={() => window.location.reload()}
-              >
-                ページを更新して再試行
-              </button>
-            </div>
-          )}
-          <p className="text-xs text-muted-foreground mt-2">
-            レジュメが見つからない場合は、
-            <a href={ROUTE_UPLOAD} className="underline">
-              アップロードページ
-            </a>
-            から再度アップロードしてください。
-          </p>
-        </div>
+        <ErrorDisplay
+          title="サマリー分析エラー"
+          errorInfo={getFriendlyErrorMessage(summaryError)}
+          uploadRoute={ROUTE_UPLOAD}
+        />
       );
     }
 
@@ -343,8 +355,7 @@ export default function ClientCharts({
           </div>
         </div>
 
-        {/* Overview text section - extracted from overall score section */}
-        {/* 概要テキストセクション - 全体スコアセクションから抽出 */}
+        {/* Overview text section */}
         {summary?.data?.overview && (
           <div className="mt-6 p-4 border rounded-md bg-gray-50 dark:bg-gray-900/50">
             <h4 className="font-medium mb-3">分析概要</h4>
@@ -383,24 +394,25 @@ export default function ClientCharts({
               <section>
                 <h4 className="font-medium mb-3">強み</h4>
                 <div className="space-y-2">
-                  <Skeleton className="h-4 w-10/12" />
-                  <Skeleton className="h-4 w-9/12" />
-                  <Skeleton className="h-4 w-8/12" />
+                  {SKELETON_CONFIGS.details.advantages.map((line, index) => (
+                    <Skeleton key={index} className={`h-4 ${line.width}`} />
+                  ))}
                 </div>
               </section>
               <section>
                 <h4 className="font-medium mb-3">弱み</h4>
                 <div className="space-y-2">
-                  <Skeleton className="h-4 w-10/12" />
-                  <Skeleton className="h-4 w-9/12" />
+                  {SKELETON_CONFIGS.details.disadvantages.map((line, index) => (
+                    <Skeleton key={index} className={`h-4 ${line.width}`} />
+                  ))}
                 </div>
               </section>
               <section>
                 <h4 className="font-medium mb-3">面接対策</h4>
                 <div className="space-y-2">
-                  <Skeleton className="h-4 w-11/12" />
-                  <Skeleton className="h-4 w-10/12" />
-                  <Skeleton className="h-4 w-9/12" />
+                  {SKELETON_CONFIGS.details.advice.map((line, index) => (
+                    <Skeleton key={index} className={`h-4 ${line.width}`} />
+                  ))}
                 </div>
               </section>
             </div>
@@ -410,33 +422,12 @@ export default function ClientCharts({
     }
 
     if (detailsError) {
-      const is504 = isGatewayTimeoutMessage(detailsError);
       return (
-        <div className="p-4 border border-red-200 bg-red-50 rounded-md">
-          <h3 className="text-red-800 font-medium">詳細分析エラー</h3>
-          <p className="text-red-600 mt-1">
-            {is504
-              ? "分析処理がタイムアウトしました（504）。ページを更新して再試行してください。"
-              : detailsError}
-          </p>
-          {is504 && (
-            <div className="mt-2">
-              <button
-                className="px-3 py-1.5 text-xs rounded border bg-white hover:bg-gray-50 dark:bg-slate-900 dark:hover:bg-slate-800"
-                onClick={() => window.location.reload()}
-              >
-                ページを更新して再試行
-              </button>
-            </div>
-          )}
-          <p className="text-xs text-muted-foreground mt-2">
-            レジュメが見つからない場合は、
-            <a href={ROUTE_UPLOAD} className="underline">
-              アップロードページ
-            </a>
-            から再度アップロードしてください。
-          </p>
-        </div>
+        <ErrorDisplay
+          title="詳細分析エラー"
+          errorInfo={getFriendlyErrorMessage(detailsError)}
+          uploadRoute={ROUTE_UPLOAD}
+        />
       );
     }
 
@@ -490,25 +481,4 @@ export default function ClientCharts({
       {renderDetailsSection()}
     </div>
   );
-}
-
-function normalizeScores(scores: Record<string, number> | undefined) {
-  // Map English keys to Japanese labels for display
-  const labelMap: Record<string, string> = {
-    skills: "技術スキル",
-    experience: "経験",
-    projects: "プロジェクト",
-    education: "学歴",
-    soft: "ソフトスキル",
-  };
-
-  const fallback = Object.values(labelMap).map(name => ({ name, value: 0 }));
-  if (!scores) return fallback;
-
-  // Object: map each key to JP label if available
-  const items = Object.entries(scores).map(([rawName, value]) => {
-    const name = labelMap[rawName] || rawName;
-    return { name, value: Number(value) };
-  });
-  return items;
 }

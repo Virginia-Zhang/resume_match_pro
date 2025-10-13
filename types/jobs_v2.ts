@@ -8,6 +8,20 @@
  */
 
 /**
+ * @description Lightweight job list item for list views
+ * @description 一覧表示用の軽量な求人アイテム
+ */
+export interface JobListItem {
+  id: string;
+  title: string; // e.g., "シニアフロントエンドソフトウェアエンジニア"
+  company: string; // e.g., "Kraken"
+  location: string; // e.g., "東京都, 日本"
+  tags: string[]; // e.g., ["frontend"]
+  postedAt: string; // ISO date; UI renders relative time
+  logoUrl: string; // required
+}
+
+/**
  * @description Rich job detail schema for detail pages and APIs
  * @description 詳細ページとAPIで使用するリッチな求人スキーマ
  */

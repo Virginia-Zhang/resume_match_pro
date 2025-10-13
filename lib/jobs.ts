@@ -3,8 +3,7 @@
  * @description Utilities to derive list items from JobDetailV2 and fetch helpers.
  * @description JobDetailV2 から一覧用データを導出するユーティリティと取得ヘルパー。
  */
-import type { JobListItem } from "@/types/jobs";
-import type { JobDetailV2 } from "@/types/jobs_v2";
+import type { JobListItem, JobDetailV2 } from "@/types/jobs_v2";
 import { fetchJson } from "@/lib/fetcher";
 import { getApiBase } from "@/lib/runtime-config";
 

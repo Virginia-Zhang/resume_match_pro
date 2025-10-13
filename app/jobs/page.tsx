@@ -7,14 +7,12 @@
  * @remarks サーバーコンポーネント。後でISRに切替可能。モックは日本語表記。
  */
 
-import { JobListItem } from "@/types/jobs";
+import { JobListItem } from "@/types/jobs_v2";
 import React from "react";
 import Image from "next/image";
 import { fetchJobs, toListItem } from "@/lib/jobs";
 import SaveSelectedJobLink from "./SaveSelectedJobLink";
 import { ROUTE_JOBS } from "@/app/constants/constants";
-// redirect imported earlier is not used after client-guard refactor
-// クライアントガードへのリファクタ後、redirect は未使用
 import ResumeGate from "@/components/guards/ResumeGate";
 
 /**
@@ -22,12 +20,12 @@ import ResumeGate from "@/components/guards/ResumeGate";
  * 求人の掲載からの経過時間（週）を簡易表示。
  *
  * @param {string} iso ISO timestamp
- * @returns {string} e.g., "3 weeks ago"
+ * @returns {string} e.g., "3週間前"
  */
 function timeAgo(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
   const weeks = Math.floor(diff / (7 * 24 * 3600 * 1000));
-  return `${weeks} weeks ago`;
+  return `${weeks} 週間前`;
 }
 
 /**

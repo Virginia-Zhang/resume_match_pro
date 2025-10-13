@@ -32,13 +32,14 @@ import {
   UPLOAD_FILE_SIZE_ERROR_JA,
 } from "@/app/constants/constants";
 import { fetchJson } from "@/lib/fetcher";
+import { getFriendlyErrorMessage } from "@/lib/errorHandling";
+import ErrorDisplay from "@/components/common/ErrorDisplay";
 import { useRouter } from "next/navigation";
 
 import { Progress } from "@/components/ui/progress";
 import {
   Tooltip,
   TooltipContent,
-  TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
@@ -438,10 +439,14 @@ export default function UploadPage(): React.JSX.Element {
           </div>
         </div>
         {uploadError && (
-          <div className="mt-3 flex justify-center">
-            <p className="text-sm text-red-600 text-center" role="alert" aria-live="assertive">
-              {uploadError}
-            </p>
+          <div className="mt-3">
+            <ErrorDisplay
+              title="アップロードエラー"
+              errorInfo={{
+                message: "ファイルのアップロードに問題があります。ファイル形式（PDF）とサイズ（5MB以下）を確認して、正しいファイルを選択してください。",
+                isRetryable: false,
+              }}
+            />
           </div>
         )}
       </div>
@@ -494,8 +499,11 @@ export default function UploadPage(): React.JSX.Element {
             />
           )}
           {error && (
-            <div className="mt-4 flex justify-center">
-              <p className="text-red-600 text-sm text-center">{error}</p>
+            <div className="mt-4">
+              <ErrorDisplay
+                title="処理エラー"
+                errorInfo={getFriendlyErrorMessage(error)}
+              />
             </div>
           )}
         </CardContent>
