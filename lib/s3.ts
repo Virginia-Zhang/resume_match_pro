@@ -46,7 +46,6 @@ export async function putText(
   text: string,
   contentType = "text/plain; charset=utf-8"
 ): Promise<void> {
-  console.log("🚀 Putting text to S3...");
   await client().send(
     new PutObjectCommand({
       Bucket: BUCKET,

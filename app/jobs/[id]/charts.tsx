@@ -34,7 +34,6 @@ interface SummaryEnvelope {
   data: {
     overall: number;
     scores: Record<string, number>;
-    overview: string;
   };
 }
 
@@ -47,6 +46,7 @@ interface DetailsEnvelope {
       title: string;
       detail: string;
     }>;
+    overview: string;
   };
 }
 
@@ -355,27 +355,6 @@ export default function ClientCharts({
           </div>
         </div>
 
-        {/* Overview text section */}
-        {summary?.data?.overview && (
-          <div className="mt-6 p-4 border rounded-md bg-gray-50 dark:bg-gray-900/50">
-            <h4 className="font-medium mb-3">分析概要</h4>
-            <div className="text-sm text-muted-foreground">
-              {summary.data.overview
-                .split(/[。！？]/)
-                .filter(sentence => sentence.trim())
-                .map((sentence, index) => (
-                  <div key={index} className="mb-2">
-                    {sentence.trim()}
-                    {sentence.trim() &&
-                      !sentence.endsWith("。") &&
-                      !sentence.endsWith("！") &&
-                      !sentence.endsWith("？") &&
-                      "。"}
-                  </div>
-                ))}
-            </div>
-          </div>
-        )}
       </div>
     );
   };
@@ -386,6 +365,18 @@ export default function ClientCharts({
     if (detailsLoading) {
       return (
         <div>
+          {/* Overview skeleton section */}
+          {/* 概要のスケルトンセクション */}
+          <div className="my-6 p-4 border rounded-md bg-gray-50 dark:bg-gray-900/50">
+            <h4 className="font-medium mb-3">分析概要</h4>
+            <div className="text-sm text-muted-foreground">
+              {Array.from({ length: 5 }, (_, index) => (
+                <Skeleton key={index} className="h-4 mb-2 w-full" />
+              ))}
+            </div>
+          </div>
+          {/* Advice skeleton section */}
+          {/* 面接アドバイスのスケルトンセクション */}
           <h3 className="text-lg font-semibold mb-4 text-center">
             面接アドバイス
           </h3>
@@ -435,6 +426,30 @@ export default function ClientCharts({
 
     return (
       <div>
+        {/* Overview text section */}
+        {/* 概要テキストセクション */}
+        {details.data.overview && (
+          <div className="my-6 p-4 border rounded-md bg-gray-50 dark:bg-gray-900/50">
+            <h4 className="font-medium mb-3">分析概要</h4>
+            <div className="text-sm text-muted-foreground">
+              {details.data.overview
+                .split(/[。！？]/)
+                .filter(sentence => sentence.trim())
+                .map((sentence, index) => (
+                  <div key={index} className="mb-2">
+                    {sentence.trim()}
+                    {sentence.trim() &&
+                      !sentence.endsWith("。") &&
+                      !sentence.endsWith("！") &&
+                      !sentence.endsWith("？") &&
+                      "。"}
+                  </div>
+                ))}
+            </div>
+          </div>
+        )}
+        {/* Advice section */}
+        {/* 面接アドバイスセクション */}
         <h3 className="text-lg font-semibold mb-4 text-center">
           面接アドバイス
         </h3>

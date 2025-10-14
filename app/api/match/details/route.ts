@@ -1,10 +1,10 @@
 /**
  * @file route.ts
- * @description Match details API: resolves advantages, disadvantages, and advice with S3 cache.
- * @description マッチ詳細API：強み・弱み・面接対策をS3キャッシュ付きで返す。
+ * @description Match details API: returns overview, advantages, disadvantages, and advice with S3 cache.
+ * @description マッチ詳細API：概要、強み・弱み・面接対策をS3キャッシュ付きで返す。
  * @author Virginia Zhang
- * @remarks Server route. Accepts { resumeId, jobId, job_description, phase? } or { resume_text, ... }.
- * @remarks サーバールート。{ resumeId, jobId, job_description, phase? } または { resume_text, ... } を受け付ける。
+ * @remarks Server route. 
+ * @remarks サーバールート。
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -38,6 +38,7 @@ interface DetailsData {
     title: string;
     detail: string;
   }>;
+  overview: string;
 }
 
 interface Envelope {
@@ -46,7 +47,7 @@ interface Envelope {
     resumeHash: string;
     source: "cache" | "dify";
     timestamp: string;
-    version: "v1";
+    version: "v1" | "v2";
   };
   data: DetailsData;
 }
@@ -88,7 +89,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     const resumeHash = await sha256Hex(resumeText);
 
-    // 必须提供 Dify 配置
+    // Dify configuration is required
     // Dify 設定は必須
     const difyUrl = process.env.DIFY_WORKFLOW_URL || "";
     const apiKey = process.env.DIFY_API_KEY || "";
@@ -96,20 +97,20 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: "Missing Dify env" }, { status: 500 });
     }
 
-    // 检查缓存（生产环境）
+    // Check cache (production environment)
     // キャッシュをチェック（本番環境）
     const key = cacheKey(jobId, "details", resumeHash);
     if (isS3Configured()) {
       const cached = await getJson<Envelope>(key);
-      if (cached) {
+      // Version check: only use v2 cached data (data structure changed for summary and details APIs, v1 cache invalidated)
+      // バージョンチェック：v2 バージョンのキャッシュのみを使用
+      if (cached && cached.meta?.version === "v2") {
         return NextResponse.json(cached);
       }
     }
 
     // Call Dify Workflow (non-streaming)
     // Difyワークフローを呼び出す（非ストリーミング）
-    console.log("🚀 Calling Dify API for details analysis...");
-
     const res = await fetch(difyUrl, {
       method: "POST",
       headers: {
@@ -148,7 +149,11 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         detail: String(it.detail ?? ""),
       }))
       .filter(it => it.title || it.detail);
-    const data: DetailsData = { advantages, disadvantages, advice };
+    
+    // overview text
+    const overview = (outputs.overview as string) || "";
+    
+    const data: DetailsData = { advantages, disadvantages, advice, overview };
 
     const envelope: Envelope = {
       meta: {
@@ -156,7 +161,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         resumeHash,
         source: "dify",
         timestamp: new Date().toISOString(),
-        version: "v1",
+        version: "v2",
       },
       data,
     };
