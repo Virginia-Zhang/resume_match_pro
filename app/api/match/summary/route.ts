@@ -86,6 +86,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     // Dify 設定は必須
     const difyUrl = process.env.DIFY_WORKFLOW_URL || "";
     const apiKey = process.env.DIFY_API_KEY || "";
+    const difyUser = process.env.DIFY_USER || "ResumeMatch Pro User";
+
     if (!difyUrl || !apiKey) {
       return NextResponse.json({ error: "Missing Dify env" }, { status: 500 });
     }
@@ -116,7 +118,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           job_description: jobDesc,
         },
         response_mode: "blocking",
-        user: "Virginia Zhang",
+        user: difyUser,
       }),
     });
 

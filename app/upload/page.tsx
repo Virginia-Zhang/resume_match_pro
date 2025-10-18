@@ -20,7 +20,7 @@ import {
   CardContent,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { resumePointer } from "@/lib/storage";
+import { resumePointer, clearBatchMatchingResults } from "@/lib/storage";
 import {
   API_RESUME,
   API_RESUME_TEXT,
@@ -304,6 +304,10 @@ export default function UploadPage(): React.JSX.Element {
       resumeHash: string;
       resumeText?: string; // Development mode may include resume text
     };
+
+    // Clear previous batch matching results from sessionStorage
+    // 以前のバッチマッチング結果を sessionStorage からクリア
+    clearBatchMatchingResults();
 
     // Save pointer to localStorage for future sessions (non-sensitive)
     // localStorageに将来のセッション用のポインタを保存（非機密情報）

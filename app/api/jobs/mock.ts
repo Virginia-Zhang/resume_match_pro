@@ -5,10 +5,6 @@
  */
 import { JobDetailV2 } from "@/types/jobs_v2";
 
-const now = Date.now();
-const daysAgo = (d: number) =>
-  new Date(now - d * 24 * 3600 * 1000).toISOString();
-
 export const jobsMock: JobDetailV2[] = [
   // 1. フロントエンドエンジニア（メルカリ）
   {
@@ -449,7 +445,7 @@ export const jobsMock: JobDetailV2[] = [
     company: "Sansan",
     category: "Full Stack Engineer",
     location: "東京都",
-    tags: ["fullstack"],
+    tags: ["fullstack", "frontend"],
     postedAt: new Date("2025-10-07").toISOString(),
     logoUrl: "/file.svg",
     salary: "年収 650万〜1100万円",

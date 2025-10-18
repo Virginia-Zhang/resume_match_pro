@@ -1,52 +1,65 @@
 /**
- * @file client-detail-view.tsx
- * @description Client-side detail view that hydrates JobDetailV2 from sessionStorage and renders.
- * @description クライアント側詳細ビュー。sessionStorage から JobDetailV2 を読み込み描画します。
+ * @file JobDetailClient.tsx
+ * @description Client-side job detail view that fetches JobDetailV2 from mock data and renders with match results
+ * @description モックデータから JobDetailV2 を取得し、マッチング結果と共に描画するクライアント側求人詳細ビュー
+ * @author Virginia Zhang
+ * @remarks Client component for job detail page with AI matching results
+ * @remarks AI マッチング結果付きの求人詳細ページ用クライアントコンポーネント
  */
 "use client";
 
-import Skeleton from "@/components/ui/skeleton";
 import type { JobDetailV2 } from "@/types/jobs_v2";
+import type { MatchResultItem } from "@/types/matching";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ROUTE_JOBS } from "@/app/constants/constants";
 import React from "react";
-import BreadcrumbsProvider from "@/components/common/BreadcrumbsProvider";
-import ClientCharts from "./charts";
+import Charts from "./charts";
 import { serializeJDForBatchMatching } from "@/lib/jobs";
+import { findJobById } from "@/app/api/jobs/mock";
+import JobDetailSkeleton from "@/components/skeleton/JobDetailSkeleton";
+
+interface JobDetailClientProps {
+  jobId: string;
+  resumeId?: string;
+}
 
 /**
- * Client component that renders job details from sessionStorage with skeletons
- * sessionStorageから求人詳細を読み込み、スケルトン付きで描画するクライアントコンポーネント
+ * @component JobDetailClient
+ * @description Client component that renders job details from mock data with skeletons
+ * @description モックデータから求人詳細を読み込み、スケルトン付きで描画するクライアントコンポーネント
  */
-export default function ClientDetailView({
+export default function JobDetailClient({
   jobId,
   resumeId,
-}: {
-  jobId: string;
-  resumeId: string;
-}): React.ReactElement {
+}: JobDetailClientProps): React.ReactElement {
   const [detail, setDetail] = React.useState<JobDetailV2 | null>(null);
+  const [matchResult, setMatchResult] = React.useState<MatchResultItem | null>(null);
   const [loading, setLoading] = React.useState(true);
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   React.useEffect(() => {
-    // Use setTimeout to defer sessionStorage read and not block initial render
-    // 初期レンダーをブロックしないよう、sessionStorage読み取りを遅延実行
-    setTimeout(() => {
+    // Get matchResult from URL query params
+    // URL クエリパラメータから matchResult を取得
+    const matchResultParam = searchParams.get('matchResult');
+    if (matchResultParam) {
       try {
-        const cached = sessionStorage.getItem(`job:${jobId}`);
-        if (cached) {
-          const v2 = JSON.parse(cached) as JobDetailV2;
-          setDetail(v2);
-        }
-      } catch {
-        // ignore
-      } finally {
-        setLoading(false);
+        const parsed = JSON.parse(matchResultParam) as MatchResultItem;
+        setMatchResult(parsed);
+      } catch (error) {
+        console.error('Failed to parse matchResult:', error);
       }
-    }, 0);
-  }, [jobId]);
+    }
+
+    // Fetch job detail from mock data
+    // モックデータから求人詳細を取得
+    const jobDetail = findJobById(jobId);
+    if (jobDetail) {
+      setDetail(jobDetail);
+    }
+    setLoading(false);
+  }, [jobId, searchParams]);
 
   React.useEffect(() => {
     if (!loading && !detail) {
@@ -60,91 +73,13 @@ export default function ClientDetailView({
   }, [loading, detail, resumeId, router]);
 
   if (loading) {
-    return (
-      <div className="mx-auto max-w-4xl 2xl:max-w-[75vw] p-6 space-y-8">
-        <header className="flex items-center gap-4">
-          <Skeleton className="h-12 w-12 rounded" />
-          <div className="flex-1 space-y-2">
-            <Skeleton className="h-6 w-2/3" />
-            <Skeleton className="h-4 w-1/3" />
-            <div className="mt-2 flex gap-2">
-              <Skeleton className="h-5 w-14" />
-              <Skeleton className="h-5 w-14" />
-              <Skeleton className="h-5 w-14" />
-            </div>
-          </div>
-        </header>
-
-        <section className="space-y-2">
-          <Skeleton className="h-5 w-20" />
-          <div className="space-y-2">
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-11/12" />
-            <Skeleton className="h-4 w-10/12" />
-            <Skeleton className="h-4 w-9/12" />
-            <Skeleton className="h-4 w-8/12" />
-          </div>
-        </section>
-
-        <section className="space-y-2">
-          <Skeleton className="h-5 w-20" />
-          <div className="space-y-2">
-            <Skeleton className="h-4 w-9/12" />
-            <Skeleton className="h-4 w-10/12" />
-            <Skeleton className="h-4 w-8/12" />
-          </div>
-        </section>
-
-        <section className="space-y-2">
-          <Skeleton className="h-5 w-24" />
-          <div className="grid md:grid-cols-2 gap-4 text-sm">
-            <Skeleton className="h-4 w-7/12" />
-            <Skeleton className="h-4 w-7/12" />
-            <Skeleton className="h-4 w-7/12" />
-            <Skeleton className="h-4 w-7/12" />
-          </div>
-        </section>
-
-        <section className="space-y-2">
-          <Skeleton className="h-5 w-16" />
-          <div className="space-y-2">
-            <Skeleton className="h-4 w-10/12" />
-            <Skeleton className="h-4 w-9/12" />
-            <Skeleton className="h-4 w-9/12" />
-          </div>
-        </section>
-
-        <section className="space-y-6">
-          <div className="text-center">
-            <Skeleton className="h-7 w-64 mx-auto" />
-            <Skeleton className="h-4 w-80 mx-auto mt-2" />
-          </div>
-          {/* charts skeleton is already inside charts.tsx when loading */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Skeleton className="h-80 w-full" />
-            <Skeleton className="h-80 w-full" />
-          </div>
-        </section>
-      </div>
-    );
+    return <JobDetailSkeleton />;
   }
 
   if (!detail) return <></>;
 
   return (
-    <BreadcrumbsProvider
-      items={
-        detail
-          ? [
-              { href: "/", label: "ホーム" },
-              { href: "/upload", label: "アップロード" },
-              { href: "/jobs", label: "求人一覧" },
-              { href: `/jobs/${jobId}`, label: detail.title },
-            ]
-          : undefined
-      }
-    >
-      <div className="mx-auto max-w-4xl 2xl:max-w-[75vw] p-6 space-y-8">
+    <div className="mx-auto max-w-4xl 2xl:max-w-[75vw] p-6 space-y-8">
       <header className="flex items-center gap-4">
         <Image
           src={detail.logoUrl}
@@ -171,6 +106,7 @@ export default function ClientDetailView({
         </div>
       </header>
 
+      {/* Employment & Work Style */}
       {/* 雇用・働き方 */}
       <section className="space-y-2">
         <h2 className="text-lg font-medium">雇用・働き方</h2>
@@ -199,6 +135,7 @@ export default function ClientDetailView({
         </div>
       </section>
 
+      {/* Description (Important Information) */}
       {/* 説明（重要情報） */}
       <section className="space-y-2">
         <h2 className="text-lg font-medium">説明</h2>
@@ -246,6 +183,7 @@ export default function ClientDetailView({
         )}
       </section>
 
+      {/* Job Responsibilities */}
       {/* 職務内容 */}
       <section className="space-y-2">
         <h2 className="text-lg font-medium">職務内容</h2>
@@ -256,6 +194,7 @@ export default function ClientDetailView({
         </ul>
       </section>
 
+      {/* Development Information (Full Version) */}
       {/* 開発情報（完全版） */}
       {detail.devInfo && (
         <section className="space-y-2">
@@ -395,6 +334,7 @@ export default function ClientDetailView({
         </section>
       )}
 
+      {/* Application Requirements */}
       {/* 応募要件 */}
       {detail.requirements && (
         <section className="space-y-2">
@@ -422,6 +362,7 @@ export default function ClientDetailView({
         </section>
       )}
 
+      {/* Ideal Candidate Profile */}
       {/* 求める人物像 */}
       {detail.candidateRequirements?.length && (
         <section className="space-y-2">
@@ -434,6 +375,7 @@ export default function ClientDetailView({
         </section>
       )}
 
+      {/* Working Conditions */}
       {/* 勤務条件 */}
       {detail.workingConditions && (
         <section className="space-y-2">
@@ -493,6 +435,7 @@ export default function ClientDetailView({
         </section>
       )}
 
+      {/* Portfolio Submission */}
       {/* ポートフォリオ提出 */}
       {detail.portfolioNote?.length && (
         <section className="space-y-2">
@@ -505,6 +448,7 @@ export default function ClientDetailView({
         </section>
       )}
 
+      {/* Selection Process */}
       {/* 選考プロセス */}
       {detail.selectionProcess?.length && (
         <section className="space-y-2">
@@ -520,6 +464,7 @@ export default function ClientDetailView({
         </section>
       )}
 
+      {/* AI Analysis Results Area */}
       {/* AI分析結果エリア */}
       <section className="space-y-6">
         <div className="text-center">
@@ -531,13 +476,15 @@ export default function ClientDetailView({
           </p>
         </div>
 
-        <ClientCharts
-          resumeId={resumeId}
+        <Charts
+          resumeId={resumeId || ""}
           jobId={jobId}
           jobDescription={serializeJDForBatchMatching(detail)}
+          overallScore={matchResult?.overall}
+          scores={matchResult?.scores}
         />
       </section>
-      </div>
-    </BreadcrumbsProvider>
+    </div>
   );
 }
+

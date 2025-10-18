@@ -5,7 +5,7 @@
  */
 
 import React from "react";
-import ClientDetailView from "./client-detail-view";
+import JobDetailClient from "./JobDetailClient";
 import ResumeGate from "@/components/guards/ResumeGate";
 
 /**
@@ -29,8 +29,12 @@ export default async function JobDetailPage({
   // we can extend to read from localStorage, but current flow relies on APIs using resumeId passed along.
 
   return (
-    <ResumeGate variant="detail" injectResumeId>
-      <ClientDetailView jobId={jobId} resumeId={""} />
+    // Use ResumeGate to block requests when resume is not present
+    // レジュメがない場合はリクエストをブロック
+    // The actual value of resumeId is injected by ResumeGate into the child component
+    // 実際の resumeId は ResumeGate によって子コンポーネントに注入されます
+    <ResumeGate>
+      <JobDetailClient jobId={jobId} />
     </ResumeGate>
   );
 }

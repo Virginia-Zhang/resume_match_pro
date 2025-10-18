@@ -1,17 +1,26 @@
 /**
  * @file storage.ts
- * @description Client storage helpers for non-sensitive pointers (resumeId only).
- * @description 機微情報ではないポインタ（resumeId のみ）を扱うクライアントストレージヘルパー。
+ * @description Client storage helpers for non-sensitive data (resumeId pointer and batch matching results).
+ * @description 機微情報ではないデータ（レジュメIDポインタとバッチマッチング結果）を扱うクライアントストレージヘルパー。
  * @author Virginia Zhang
  * @remarks Browser-only. Never store resume_text or secrets.
  * @remarks ブラウザ専用。resume_text や機密情報は保存しない。
  */
 
 /**
- * Helper to persist and retrieve current resume pointer.
- * 現在のレジュメポインタを保存・取得するヘルパー。
+ * Helper to persist and retrieve current resume pointer and manage batch matching session data.
+ * 現在のレジュメポインタを保存・取得し、バッチマッチングセッションデータを管理するヘルパー。
  */
 import { STORAGE_RESUME_POINTER_KEY } from "@/app/constants/constants";
+
+/**
+ * @description Session storage keys for batch matching results
+ * @description バッチマッチング結果用のセッションストレージキー
+ */
+const STORAGE_BATCH_RESULTS_KEY = 'batch-matching-results';
+const STORAGE_BATCH_COMPLETE_KEY = 'batch-matching-complete';
+const STORAGE_BATCH_PROCESSED_KEY = 'batch-matching-processed';
+const STORAGE_BATCH_TOTAL_KEY = 'batch-matching-total';
 
 export const resumePointer = {
   key: STORAGE_RESUME_POINTER_KEY,
@@ -76,3 +85,21 @@ export const resumePointer = {
     }
   },
 };
+
+/**
+ * @description Clear all batch matching results from sessionStorage
+ * @description セッションストレージからすべてのバッチマッチング結果をクリア
+ * @remarks Called when uploading a new resume to ensure fresh matching results
+ * @remarks 新しいレジュメをアップロードする際に呼び出し、新しいマッチング結果を保証
+ */
+export function clearBatchMatchingResults(): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.sessionStorage.removeItem(STORAGE_BATCH_RESULTS_KEY);
+    window.sessionStorage.removeItem(STORAGE_BATCH_COMPLETE_KEY);
+    window.sessionStorage.removeItem(STORAGE_BATCH_PROCESSED_KEY);
+    window.sessionStorage.removeItem(STORAGE_BATCH_TOTAL_KEY);
+  } catch (error) {
+    console.warn('Failed to clear sessionStorage:', error);
+  }
+}
