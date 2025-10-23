@@ -16,6 +16,7 @@ import { getApiBase } from '@/lib/runtime-config';
 import type { JobDetailV2, JobListItem } from '@/types/jobs_v2';
 import { serializeJDForBatchMatching } from '@/lib/jobs';
 import { findJobById } from '@/app/api/jobs/mock';
+import { loadBatchMatchingResults, saveBatchMatchingResults, clearBatchMatchingResults } from '@/lib/storage';
 
 import type { MatchResultItem } from '@/types/matching';
 
@@ -26,13 +27,8 @@ interface UseBatchMatchingResult {
   errorInfo: FriendlyErrorMessage | null;
   processedJobs: number;
   totalJobs: number;
-  startMatchingFromListItems: (resumeText: string, jobListItems: JobListItem[]) => Promise<void>;
+  startMatchingFromListItems: (resumeText: string, jobListItems: JobListItem[], incremental?: boolean, totalJobsCount?: number) => Promise<void>;
 }
-
-const STORAGE_RESULTS_KEY = 'batch-matching-results';
-const STORAGE_COMPLETE_KEY = 'batch-matching-complete';
-const STORAGE_PROCESSED_KEY = 'batch-matching-processed';
-const STORAGE_TOTAL_KEY = 'batch-matching-total';
 
 /**
  * @description Custom hook for batch matching with progressive results display
@@ -46,6 +42,15 @@ export function useBatchMatching(): UseBatchMatchingResult {
   const [processedJobs, setProcessedJobs] = useState(0);
   const [totalJobs, setTotalJobs] = useState(0);
   const abortControllerRef = useRef<AbortController | null>(null);
+  // Use ref to always access latest results value
+  // 最新の results 値に常にアクセスするために ref を使用
+  const resultsRef = useRef<MatchResultItem[]>([]);
+  
+  // Keep resultsRef in sync with results
+  // resultsRef を results と同期させる
+  useEffect(() => {
+    resultsRef.current = results;
+  }, [results]);
   
   /**
    * @description Load saved results from sessionStorage on mount (synchronously)
@@ -54,20 +59,12 @@ export function useBatchMatching(): UseBatchMatchingResult {
    * @remarks 視覚的な空白状態のフラッシュを防ぐため useLayoutEffect を使用
    */
   useLayoutEffect(() => {
-    try {
-      const savedResults = sessionStorage.getItem(STORAGE_RESULTS_KEY);
-      const isComplete = sessionStorage.getItem(STORAGE_COMPLETE_KEY) === 'true';
-      const savedProcessed = sessionStorage.getItem(STORAGE_PROCESSED_KEY);
-      const savedTotal = sessionStorage.getItem(STORAGE_TOTAL_KEY);
-      
-      if (savedResults) {
-        setResults(JSON.parse(savedResults));
-        setIsMatchingComplete(isComplete);
-        if (savedProcessed) setProcessedJobs(parseInt(savedProcessed, 10));
-        if (savedTotal) setTotalJobs(parseInt(savedTotal, 10));
-      }
-    } catch (error) {
-      console.error('Failed to load saved results:', error);
+    const saved = loadBatchMatchingResults();
+    if (saved) {
+      setResults(saved.results as MatchResultItem[]);
+      setIsMatchingComplete(saved.isComplete);
+      setProcessedJobs(saved.processedJobs);
+      setTotalJobs(saved.totalJobs);
     }
   }, []);
   
@@ -76,15 +73,8 @@ export function useBatchMatching(): UseBatchMatchingResult {
    * @description 結果が変更されるたびに sessionStorage に保存
    */
   useEffect(() => {
-    try {
-      if (results.length > 0) {
-        sessionStorage.setItem(STORAGE_RESULTS_KEY, JSON.stringify(results));
-        sessionStorage.setItem(STORAGE_COMPLETE_KEY, isMatchingComplete.toString());
-        sessionStorage.setItem(STORAGE_PROCESSED_KEY, processedJobs.toString());
-        sessionStorage.setItem(STORAGE_TOTAL_KEY, totalJobs.toString());
-      }
-    } catch (error) {
-      console.error('Failed to save results:', error);
+    if (results.length > 0) {
+      saveBatchMatchingResults(results, isMatchingComplete, processedJobs, totalJobs);
     }
   }, [results, isMatchingComplete, processedJobs, totalJobs]);
   
@@ -115,23 +105,45 @@ export function useBatchMatching(): UseBatchMatchingResult {
   /**
    * @description Start batch matching process from JobListItem array
    * @description JobListItem 配列からバッチマッチング処理を開始
+   * @param resumeText - Resume text for matching
+   * @param resumeText マッチング用のレジュメテキスト
+   * @param jobListItems - List of jobs to match
+   * @param jobListItems マッチングする求人のリスト
+   * @param incremental - Whether to merge new results with existing ones (default: false)
+   * @param incremental 新しい結果を既存の結果とマージするかどうか（デフォルト：false）
+   * @param totalJobsCount - Total number of jobs (for incremental mode, includes already analyzed jobs)
+   * @param totalJobsCount 求人の総数（インクリメンタルモードの場合、すでに分析された求人を含む）
    */
-  const startMatchingFromListItems = useCallback(async (resumeText: string, jobListItems: JobListItem[]) => {
-    // Reset state
-    // 状態をリセット
-    setResults([]);
-    setIsMatchingComplete(false);
+  const startMatchingFromListItems = useCallback(async (
+    resumeText: string, 
+    jobListItems: JobListItem[],
+    incremental: boolean = false,
+    totalJobsCount?: number
+  ) => {
+    // Reset state only if not incremental matching
+    // インクリメンタルマッチングでない場合のみ状態をリセット
+    if (!incremental) {
+      setResults([]);
+      setIsMatchingComplete(false);
+      setProcessedJobs(0);
+      
+      // Clear previous saved results
+      // 以前の保存結果をクリア
+      clearBatchMatchingResults();
+    }
+    
     setIsMatching(true);
     setErrorInfo(null);
-    setTotalJobs(jobListItems.length);
-    setProcessedJobs(0);
+    // Use totalJobsCount if provided (for incremental mode), otherwise use jobListItems.length
+    // totalJobsCountが提供されている場合（インクリメンタルモード）、それを使用、そうでなければjobListItems.lengthを使用
+    setTotalJobs(totalJobsCount ?? jobListItems.length);
     
-    // Clear previous saved results
-    // 以前の保存結果をクリア
-    sessionStorage.removeItem(STORAGE_RESULTS_KEY);
-    sessionStorage.removeItem(STORAGE_COMPLETE_KEY);
-    sessionStorage.removeItem(STORAGE_PROCESSED_KEY);
-    sessionStorage.removeItem(STORAGE_TOTAL_KEY);
+    // For incremental mode, set processedJobs to the number of already analyzed jobs
+    // インクリメンタルモードの場合、processedJobs をすでに分析された求人の数に設定
+    if (incremental && totalJobsCount !== undefined) {
+      const alreadyProcessed = totalJobsCount - jobListItems.length;
+      setProcessedJobs(alreadyProcessed);
+    }
     
     // Create new AbortController for this matching session
     // このマッチングセッション用の新しい AbortController を作成
@@ -162,9 +174,9 @@ export function useBatchMatching(): UseBatchMatchingResult {
       
       console.log(`✅ Fetched ${jobDetails.length} job details`);
       
-      // Start matching with full job details
-      // 完全な求人詳細でマッチングを開始
-      await startMatchingInternal(resumeText, jobDetails);
+      // Start matching with full job details (incremental mode)
+      // 完全な求人詳細でマッチングを開始（インクリメンタルモード）
+      await startMatchingInternal(resumeText, jobDetails, incremental, resultsRef.current);
       
     } catch (error) {
       // Check if it was aborted
@@ -185,15 +197,26 @@ export function useBatchMatching(): UseBatchMatchingResult {
   /**
    * @description Internal batch matching process
    * @description 内部バッチマッチング処理
+   * @param resumeText - Resume text for matching
+   * @param resumeText マッチング用のレジュメテキスト
+   * @param jobs - Jobs to match
+   * @param jobs マッチングする求人
+   * @param incremental - Whether to merge new results with existing ones
+   * @param incremental 新しい結果を既存の結果とマージするかどうか
    */
-  const startMatchingInternal = useCallback(async (resumeText: string, jobs: JobDetailV2[]) => {
+  const startMatchingInternal = useCallback(async (
+    resumeText: string, 
+    jobs: JobDetailV2[],
+    incremental: boolean = false,
+    existingResults: MatchResultItem[] = []
+  ) => {
     // Split jobs into batches
     // ジョブをバッチに分割
     const batches = chunkArray(jobs, BATCH_SIZE);
     
     try {
       const apiUrl = `${getApiBase()}${API_MATCH_BATCH}`;
-      const accumulatedResults: MatchResultItem[] = [];
+      const accumulatedResults: MatchResultItem[] = incremental ? [...existingResults] : [];
       
       // Process each batch sequentially
       // 各バッチを順次処理
@@ -227,10 +250,16 @@ export function useBatchMatching(): UseBatchMatchingResult {
           // Immediately update results with new batch
           // 新しいバッチで結果を即座に更新
           if (batchData.match_results && Array.isArray(batchData.match_results)) {
-            accumulatedResults.push(...batchData.match_results);
+            // Merge new results with existing ones (avoid duplicates)
+            // 新しい結果を既存の結果とマージ（重複を避ける）
+            const newResults = batchData.match_results.filter(
+              (newResult: MatchResultItem) => 
+                !accumulatedResults.some(existing => existing.job_id === newResult.job_id)
+            );
+            accumulatedResults.push(...newResults);
             setResults([...accumulatedResults]);
             setProcessedJobs(accumulatedResults.length);
-            console.log(`✅ Batch ${i + 1} completed: ${batchData.match_results.length} results`);
+            console.log(`✅ Batch ${i + 1} completed: ${newResults.length} new results (${batchData.match_results.length} total in batch)`);
           }
           
         } catch (batchError) {

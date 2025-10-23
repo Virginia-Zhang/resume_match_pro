@@ -16,6 +16,7 @@ export function toListItem(detail: JobDetailV2): JobListItem {
     tags: detail.tags,
     postedAt: detail.postedAt,
     logoUrl: detail.logoUrl,
+    recruitFromOverseas: detail.recruitFromOverseas,
   };
 }
 

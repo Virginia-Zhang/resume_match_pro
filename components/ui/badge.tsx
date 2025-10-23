@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 
 /**
  * @file badge.tsx
- * @description Minimal shadcn-like Badge component with variants.
+ * @description Minimal Badge component with variants.
  * @description シンプルな Badge コンポーネント（バリアント対応）。
  */
 

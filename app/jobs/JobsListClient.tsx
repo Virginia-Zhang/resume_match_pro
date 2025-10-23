@@ -9,85 +9,24 @@
 
 "use client";
 
-import { useState, useEffect } from 'react';
-import Image from 'next/image';
-import Link from 'next/link';
-import { Star, StarHalf } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useBatchMatching } from './useBatchMatching';
 import { Progress } from '@/components/ui/progress';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
 import ErrorDisplay from '@/components/common/ErrorDisplay';
 import { ROUTE_JOBS, API_RESUME_TEXT } from '@/app/constants/constants';
 import { getApiBase } from '@/lib/runtime-config';
 import { fetchJson } from '@/lib/fetcher';
+import JobFilters from '@/components/jobs/JobFilters';
+import JobItem from '@/components/jobs/JobItem';
 
 import type { JobListItem } from '@/types/jobs_v2';
-import type { MatchResultItem, RecommendationLevel } from '@/types/matching';
+import type { MatchResultItem } from '@/types/matching';
 import { toast } from "sonner"
-import { PrimaryCtaButton } from '@/components/common/buttons/CtaButtons';
 
 interface JobsListClientProps {
   initialJobs: JobListItem[];
   resumeId?: string;
-}
-/**
- * @description Compact relative time (weeks) for job postedAt
- * @description 求人の掲載からの経過時間（週）を簡易表示
- */
-function timeAgo(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
-  const weeks = Math.floor(diff / (7 * 24 * 3600 * 1000));
-  return `${weeks} 週間前`;
-}
-
-/**
- * @description Get star rating from overall score (0.5 to 5.0)
- * @description 総合スコアから星評価を取得（0.5～5.0）
- */
-function getStarRating(overall: number): number {
-  if (overall >= 85) return 5.0;
-  if (overall >= 75) return 4.5;
-  if (overall >= 65) return 4.0;
-  if (overall >= 55) return 3.5;
-  if (overall >= 45) return 3.0;
-  if (overall >= 35) return 2.5;
-  if (overall >= 25) return 2.0;
-  if (overall >= 15) return 1.5;
-  if (overall >= 5) return 1.0;
-  return 0.5;
-}
-
-/**
- * @description Get recommendation level from overall score
- * @description 総合スコアから推薦レベルを取得
- */
-function getRecommendationLevel(overall: number): RecommendationLevel {
-  if (overall >= 80) return "高い";
-  if (overall >= 60) return "中程度";
-  return "低い";
-}
-
-/**
- * @description Render star rating component
- * @description 星評価コンポーネントをレンダリング
- */
-function StarRating({ rating }: { rating: number }) {
-  const fullStars = Math.floor(rating);
-  const hasHalfStar = rating % 1 >= 0.5;
-  const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
-
-  return (
-    <div className="flex items-center gap-0.5">
-      {Array.from({ length: fullStars }).map((_, i) => (
-        <Star key={`full-${i}`} className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-      ))}
-      {hasHalfStar && <StarHalf className="h-4 w-4 fill-yellow-400 text-yellow-400" />}
-      {Array.from({ length: emptyStars }).map((_, i) => (
-        <Star key={`empty-${i}`} className="h-4 w-4 text-gray-300" />
-      ))}
-    </div>
-  );
 }
 
 /**
@@ -96,6 +35,9 @@ function StarRating({ rating }: { rating: number }) {
  * @description AI マッチング付きの求人一覧クライアントコンポーネント
  */
 export default function JobsListClient({ initialJobs, resumeId }: JobsListClientProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  
   const {
     results,
     isMatchingComplete,
@@ -106,10 +48,64 @@ export default function JobsListClient({ initialJobs, resumeId }: JobsListClient
     startMatchingFromListItems
   } = useBatchMatching();
   
+  // Initialize filter states from URL params
+  // URL パラメータからフィルター状態を初期化
+  const [selectedCategories, setSelectedCategories] = useState<string[]>(() => {
+    const categoriesParam = searchParams.get('categories');
+    return categoriesParam ? categoriesParam.split(',') : [];
+  });
+  const [selectedResidence, setSelectedResidence] = useState<string>(() => {
+    return searchParams.get('residence') || '';
+  });
+  const [selectedLocations, setSelectedLocations] = useState<string[]>(() => {
+    const locationsParam = searchParams.get('locations');
+    return locationsParam ? locationsParam.split(',') : [];
+  });
+  
   const [jobs, setJobs] = useState<JobListItem[]>(initialJobs);
   const [hasStartedMatching, setHasStartedMatching] = useState(false);
   const [resumeText, setResumeText] = useState('');
-  const [isLoadingResume, setIsLoadingResume] = useState(true);
+  // Track if filters have changed since last matching
+  // 最後のマッチング以降にフィルターが変更されたかを追跡
+  const [filtersChanged, setFiltersChanged] = useState(false);
+  
+  /**
+   * @description Filter jobs based on selected filters
+   * @description 選択されたフィルターに基づいて求人をフィルタリング
+   */
+  const filteredJobs = useMemo(() => {
+    let filtered = [...initialJobs];
+
+    // Filter by category (tags must include any selected category)
+    // 職種でフィルタリング（タグに選択された職種が含まれている必要がある）
+    if (selectedCategories.length > 0) {
+      filtered = filtered.filter(job => 
+        job.tags.some(tag => selectedCategories.includes(tag))
+      );
+    }
+
+    // Filter by residence (recruitFromOverseas)
+    // お住まいでフィルタリング（recruitFromOverseas）
+    if (selectedResidence === 'overseas') {
+      filtered = filtered.filter(job => job.recruitFromOverseas === true);
+    }
+    // If residence is "japan", no filtering needed
+    // お住まいが「japan」の場合、フィルタリング不要
+
+    // Filter by work location
+    // 勤務地でフィルタリング
+    if (selectedLocations.length > 0 && selectedLocations.length < 2) {
+      if (selectedLocations.includes('tokyo') && !selectedLocations.includes('other')) {
+        filtered = filtered.filter(job => job.location === '東京都');
+      } else if (selectedLocations.includes('other') && !selectedLocations.includes('tokyo')) {
+        filtered = filtered.filter(job => job.location !== '東京都');
+      }
+      // If both are selected, no filtering needed
+      // 両方が選択されている場合、フィルタリング不要
+    }
+
+    return filtered;
+  }, [initialJobs, selectedCategories, selectedResidence, selectedLocations]);
   
   /**
    * @description Calculate progress percentage
@@ -125,7 +121,6 @@ export default function JobsListClient({ initialJobs, resumeId }: JobsListClient
     const loadResumeText = async () => {
       if (!resumeId) {
         console.warn('No resume ID provided');
-        setIsLoadingResume(false);
         return;
       }
 
@@ -143,8 +138,6 @@ export default function JobsListClient({ initialJobs, resumeId }: JobsListClient
         }
       } catch (error) {
         console.error('❌ Failed to load resume text:', error);
-      } finally {
-        setIsLoadingResume(false);
       }
     };
     
@@ -152,12 +145,12 @@ export default function JobsListClient({ initialJobs, resumeId }: JobsListClient
   }, [resumeId]);
   
   /**
-   * @description Handle AI matching start
-   * @description AI マッチング開始処理
+   * @description Handle AI matching start with filtered jobs
+   * @description フィルターされた求人でAIマッチングを開始
    */
   const handleStartMatching = () => {
-    if (jobs.length === 0) {
-      toast.error('求人が見つかりません');
+    if (filteredJobs.length === 0) {
+      toast.error('フィルター条件に合う求人が見つかりません');
       return;
     }
     if (!resumeText.trim()) {
@@ -166,9 +159,108 @@ export default function JobsListClient({ initialJobs, resumeId }: JobsListClient
     }
     
     setHasStartedMatching(true);
-    console.log(`🚀 Starting matching with ${jobs.length} jobs`);
-    startMatchingFromListItems(resumeText, jobs);
+    setFiltersChanged(false); // Reset filter change flag when starting new matching
+    
+    // Filter out jobs that have already been analyzed
+    // すでに分析された求人をフィルターで除外
+    const alreadyAnalyzedJobIds = new Set(results.map(r => r.job_id));
+    const jobsToMatch = filteredJobs.filter(job => !alreadyAnalyzedJobIds.has(job.id));
+    
+    // Check if all jobs have already been analyzed
+    // すべての求人がすでに分析されているかチェック
+    if (jobsToMatch.length === 0) {
+      toast.info('すべての求人は既に分析済みです。');
+      // Don't reset hasStartedMatching to false, keep it true so sorted jobs are displayed
+      // hasStartedMatching を false にリセットしない、ソートされた求人が表示されるように true のままにする
+      return;
+    }
+    
+    const incremental = jobsToMatch.length < filteredJobs.length;
+    
+    if (incremental) {
+      console.log(`🚀 Starting incremental matching: ${jobsToMatch.length} new jobs (${alreadyAnalyzedJobIds.size} already analyzed)`);
+      toast.info(`${processedJobs} 件の求人は既に分析済みです。新しい ${jobsToMatch.length} 件のみを分析します。`);
+      // Pass total number of filtered jobs (including already analyzed ones)
+      // フィルターされた求人の総数（すでに分析されたものを含む）を渡す
+      startMatchingFromListItems(resumeText, jobsToMatch, incremental, filteredJobs.length);
+    } else {
+      console.log(`🚀 Starting matching with ${filteredJobs.length} jobs`);
+      startMatchingFromListItems(resumeText, jobsToMatch, incremental);
+    }
   };
+
+  /**
+   * @description Track filter changes
+   * @description フィルター変更を追跡
+   */
+  useEffect(() => {
+    // Mark filters as changed when any filter value changes
+    // フィルター値が変更されたときにフィルターが変更されたことをマーク
+    setFiltersChanged(true);
+  }, [selectedCategories, selectedResidence, selectedLocations]);
+
+  /**
+   * @description Update URL query params when filters change
+   * @description フィルター変更時に URL クエリパラメータを更新
+   */
+  useEffect(() => {
+    const params = new URLSearchParams();
+    
+    // Preserve resumeId if it exists
+    // resumeId が存在する場合は保持
+    if (resumeId) {
+      params.set('resumeId', resumeId);
+    }
+    
+    // Add filter params
+    // フィルターパラメータを追加
+    if (selectedCategories.length > 0) {
+      params.set('categories', selectedCategories.join(','));
+    }
+    if (selectedResidence) {
+      params.set('residence', selectedResidence);
+    }
+    if (selectedLocations.length > 0) {
+      params.set('locations', selectedLocations.join(','));
+    }
+    
+    // Update URL without triggering navigation
+    // ナビゲーションをトリガーせずに URL を更新
+    const newUrl = `${ROUTE_JOBS}${params.toString() ? `?${params.toString()}` : ''}`;
+    router.replace(newUrl, { scroll: false });
+  }, [selectedCategories, selectedResidence, selectedLocations, resumeId, router]);
+
+  /**
+   * @description Update displayed jobs when filters change or matching completes
+   * @description フィルター変更時またはマッチング完了時に表示する求人を更新
+   */
+  useEffect(() => {
+    // If matching is complete, show all filtered jobs sorted by overall score
+    // マッチングが完了している場合、すべてのフィルターされた求人を総合スコアでソートして表示
+    if (isMatchingComplete && results.length > 0) {
+      // Auto-set hasStartedMatching to true when we have match results
+      // マッチ結果がある場合、hasStartedMatching を自動的に true に設定
+      if (!hasStartedMatching) {
+        setHasStartedMatching(true);
+      }
+      
+      // Sort all filtered jobs by overall score in descending order
+      // すべてのフィルターされた求人を総合スコアで降順ソート
+      // Jobs without match results will have score 0 and appear at the end
+      // マッチ結果がない求人はスコア0となり、最後に表示される
+      const sortedJobs = [...filteredJobs].sort((a, b) => {
+        const scoreA = results.find(r => r.job_id === a.id)?.overall || 0;
+        const scoreB = results.find(r => r.job_id === b.id)?.overall || 0;
+        return scoreB - scoreA; // Descending order / 降順
+      });
+      
+      setJobs(sortedJobs);
+    } else if (!isMatching) {
+      // If not matching, show filtered jobs without sorting
+      // マッチングしていない場合、ソートなしでフィルターされた求人を表示
+      setJobs(filteredJobs);
+    }
+  }, [filteredJobs, isMatchingComplete, isMatching, results, hasStartedMatching]);
   
   /**
    * @description Get match result for a specific job
@@ -177,21 +269,31 @@ export default function JobsListClient({ initialJobs, resumeId }: JobsListClient
   const getMatchResult = (jobId: string): MatchResultItem | null => {
     return results.find(r => r.job_id === jobId) || null;
   };
+
+  
   
   return (
     <div className="mx-auto max-w-4xl 2xl:max-w-[75vw] p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">求人一覧</h1>
-        
-        {/* AI Matching Button */}
-        {/* AI マッチングボタン */}
-        <PrimaryCtaButton
-          onClick={handleStartMatching}
-          disabled={isMatching || jobs.length === 0 || isLoadingResume || !resumeText.trim()}
-        >
-          {isLoadingResume ? 'レジュメ読み込み中...' : isMatching ? '分析中...' : 'AIマッチング'}
-        </PrimaryCtaButton>
+      {/* Job Filters */}
+      {/* 求人フィルター */}
+      <JobFilters
+        selectedCategories={selectedCategories}
+        onCategoriesChange={setSelectedCategories}
+        selectedResidence={selectedResidence}
+        onResidenceChange={setSelectedResidence}
+        selectedLocations={selectedLocations}
+        onLocationsChange={setSelectedLocations}
+        onMatch={handleStartMatching}
+        isMatching={isMatching}
+      />
+
+      {/* Match Count Display */}
+      {/* マッチ数表示 */}
+      {(selectedCategories.length > 0 || selectedResidence || selectedLocations.length > 0) && (
+        <div className="text-sm text-muted-foreground">
+          {filteredJobs.length} 件の適合する求人が見つかりました
       </div>
+      )}
       
       {/* Progress Display (shown during matching) */}
       {/* 進捗表示（マッチング中に表示） */}
@@ -214,9 +316,9 @@ export default function JobsListClient({ initialJobs, resumeId }: JobsListClient
         </div>
       )}
       
-      {/* Completion Message (shown after matching completes) */}
-      {/* 完了メッセージ（マッチング完了後に表示） */}
-      {isMatchingComplete && results.length > 0 && (
+      {/* Completion Message (shown only when no filter changes since last matching) */}
+      {/* 完了メッセージ（最後のマッチング以降にフィルターが変更されていない場合のみ表示） */}
+      {isMatchingComplete && !filtersChanged && !isMatching && (
         <div className="p-4 bg-green-50 dark:bg-green-950 rounded-lg border border-green-200 dark:border-green-800">
           <div className="text-sm text-green-700 dark:text-green-300">
             ✅ AIマッチング分析が完了しました。{results.length} 件の求人を分析しました。
@@ -236,76 +338,19 @@ export default function JobsListClient({ initialJobs, resumeId }: JobsListClient
       {/* Job List */}
       {/* 求人一覧 */}
       <ul className="divide-y">
-        {jobs.map(job => {
+        {(hasStartedMatching && isMatchingComplete ? jobs : filteredJobs).map((job) => {
           const matchResult = getMatchResult(job.id);
           const isLoading = isMatching && !matchResult;
           const jobUrl = `${ROUTE_JOBS}/${encodeURIComponent(job.id)}`;
           
           return (
-            <li key={job.id}>
-              <Link 
-                href={{
-                  pathname: jobUrl,
-                  query: matchResult ? { matchResult: JSON.stringify(matchResult) } : {}
-                }}
-                className="py-4 flex items-center gap-4 hover:bg-accent/50 transition-colors cursor-pointer rounded-lg px-2"
-              >
-                <Image
-                  src={job.logoUrl}
-                  alt={job.company}
-                  width={40}
-                  height={40}
-                  className="h-10 w-10 rounded shrink-0"
-                />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h2 className="text-lg font-medium truncate">{job.title}</h2>
-                    {job.tags.map(tag => (
-                      <Badge variant="tertiary" className="text-xs" key={tag}>
-                        {tag}
-                      </Badge>
-                    ))}
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    {job.company} ・ {job.location}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {timeAgo(job.postedAt)}
-                  </p>
-                </div>
-                
-                {/* Match Result Display */}
-                {/* マッチング結果表示 */}
-                {matchResult ? (
-                  <div className="flex flex-col items-end gap-2 shrink-0">
-                    <StarRating rating={getStarRating(matchResult.overall)} />
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-semibold text-blue-600 dark:text-blue-400">
-                        {matchResult.overall.toFixed(1)}%
-                      </span>
-                      <Badge 
-                        variant={matchResult.overall >= 80 ? "default" : matchResult.overall >= 60 ? "secondary" : "outline"}
-                        className="text-xs"
-                      >
-                        {getRecommendationLevel(matchResult.overall)}
-                      </Badge>
-                    </div>
-                  </div>
-                ) : isLoading ? (
-                  <div className="flex flex-col items-end gap-2 shrink-0">
-                    <div className="flex items-center gap-0.5">
-                      {Array.from({ length: 5 }).map((_, i) => (
-                        <Star key={i} className="h-4 w-4 text-gray-300" />
-                      ))}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Skeleton className="h-4 w-12" />
-                      <Skeleton className="h-5 w-16" />
-                    </div>
-                  </div>
-                ) : null}
-              </Link>
-            </li>
+            <JobItem
+              key={job.id}
+              job={job}
+              matchResult={matchResult}
+              isLoading={isLoading}
+              jobUrl={jobUrl}
+            />
           );
         })}
       </ul>

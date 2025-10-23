@@ -19,6 +19,7 @@ export interface JobListItem {
   tags: string[]; // e.g., ["frontend"]
   postedAt: string; // ISO date; UI renders relative time
   logoUrl: string; // required
+  recruitFromOverseas: boolean; // Whether overseas candidates can apply / 海外からの応募可否
 }
 
 /**
