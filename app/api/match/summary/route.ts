@@ -1,10 +1,10 @@
 /**
  * @file route.ts
- * @description Match summary API: resolves overall score, five-dimension scores, and overview with S3 cache.
- * @description マッチ要約API：総合スコア、5次元スコア、概要をS3キャッシュ付きで返す。
+ * @description Match summary API: returns overall score, and five-dimension scores with S3 cache.
+ * @description マッチ要約API：総合スコア、5次元スコアをS3キャッシュ付きで返す。
  * @author Virginia Zhang
- * @remarks Server route. Accepts { resumeId, jobId, job_description, phase? } or { resume_text, ... }.
- * @remarks サーバールート。{ resumeId, jobId, job_description, phase? } または { resume_text, ... } を受け付ける。
+ * @remarks Server route.
+ * @remarks サーバールート。
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -33,7 +33,6 @@ interface DifyRequestBody {
 interface SummaryData {
   overall: number;
   scores: Record<string, number>;
-  overview: string;
 }
 
 interface Envelope {
@@ -42,7 +41,7 @@ interface Envelope {
     resumeHash: string;
     source: "cache" | "dify";
     timestamp: string;
-    version: "v1";
+    version: "v1" | "v2";
   };
   data: SummaryData;
 }
@@ -83,28 +82,30 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     const resumeHash = await sha256Hex(resumeText);
 
-    // 必须提供 Dify 配置
+    // Dify configuration is required
     // Dify 設定は必須
     const difyUrl = process.env.DIFY_WORKFLOW_URL || "";
     const apiKey = process.env.DIFY_API_KEY || "";
+    const difyUser = process.env.DIFY_USER || "ResumeMatch Pro User";
+
     if (!difyUrl || !apiKey) {
       return NextResponse.json({ error: "Missing Dify env" }, { status: 500 });
     }
 
-    // 检查缓存（生产环境）
+    // Check cache (production environment)
     // キャッシュをチェック（本番環境）
     const key = cacheKey(jobId, "summary", resumeHash);
     if (isS3Configured()) {
       const cached = await getJson<Envelope>(key);
-      if (cached) {
+      // Version check: only use v2 cached data (data structure changed for summary and details APIs, v1 cache invalidated)
+      // バージョンチェック：v2 バージョンのキャッシュのみを使用
+      if (cached && cached.meta?.version === "v2") {
         return NextResponse.json(cached);
       }
     }
 
     // Call Dify Workflow (non-streaming)
     // Difyワークフローを呼び出す（非ストリーミング）
-    console.log("🚀 Calling Dify API for summary analysis...");
-
     const res = await fetch(difyUrl, {
       method: "POST",
       headers: {
@@ -117,7 +118,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           job_description: jobDesc,
         },
         response_mode: "blocking",
-        user: "Virginia Zhang",
+        user: difyUser,
       }),
     });
 
@@ -149,13 +150,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       }
     }
 
-    // overview text
-    const overview =
-      ((outputs as { overview?: unknown }).overview as string) ||
-      ((outputs as { summary?: unknown }).summary as string) ||
-      "";
-
-    const data: SummaryData = { overall, scores, overview };
+    const data: SummaryData = { overall, scores };
 
     const envelope: Envelope = {
       meta: {
@@ -163,7 +158,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         resumeHash,
         source: "dify",
         timestamp: new Date().toISOString(),
-        version: "v1",
+        version: "v2",
       },
       data,
     };
@@ -173,7 +168,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     }
     return NextResponse.json(envelope);
   } catch (error) {
-    console.error("❌ Match summary API error:", error);
+    console.error("Match summary API error:", error);
     return NextResponse.json(
       {
         error: "Match summary failed",

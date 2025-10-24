@@ -5,10 +5,6 @@
  */
 import { JobDetailV2 } from "@/types/jobs_v2";
 
-const now = Date.now();
-const daysAgo = (d: number) =>
-  new Date(now - d * 24 * 3600 * 1000).toISOString();
-
 export const jobsMock: JobDetailV2[] = [
   // 1. フロントエンドエンジニア（メルカリ）
   {
@@ -18,12 +14,14 @@ export const jobsMock: JobDetailV2[] = [
     category: "Frontend Engineer",
     location: "東京都",
     tags: ["frontend"],
-    postedAt: daysAgo(7),
+    postedAt: new Date("2025-10-01").toISOString(),
     logoUrl: "/file.svg",
     salary: "年収 600万〜1000万円",
     employmentType: "正社員",
     interviewType: "オンライン面接",
     remotePolicy: { fromOverseas: true, fromJapan: true },
+    languageRequirements: { ja: "N2+", en: "Daily Conversation" },
+    recruitFromOverseas: true,
     description: {
       whoWeAre:
         "私たちはフリマアプリを中心に、誰もが価値を簡単に循環させられる世界の実現を目指すプロダクトチームです。数千万ユーザーが利用する大規模サービスを支える技術力と、ユーザー体験を最優先に考えるプロダクトマインドを持ったエンジニアが集まっています。チームでは技術的な挑戦とビジネス成果の両立を重視し、継続的な学習と改善を通じて成長し続けています。",
@@ -43,7 +41,6 @@ export const jobsMock: JobDetailV2[] = [
       frontEnd: {
         languages: ["TypeScript"],
         frameworks: ["React", "Next.js"],
-        designTools: ["Figma", "Storybook"],
       },
       backEnd: {
         languages: ["Go", "TypeScript"],
@@ -104,12 +101,14 @@ export const jobsMock: JobDetailV2[] = [
     category: "Backend Engineer",
     location: "東京都",
     tags: ["backend"],
-    postedAt: daysAgo(10),
+    postedAt: new Date("2025-10-04").toISOString(),
     logoUrl: "/globe.svg",
     salary: "年収 650万〜1100万円",
     employmentType: "正社員",
     interviewType: "オンライン面接",
     remotePolicy: { fromOverseas: false, fromJapan: true },
+    languageRequirements: { ja: "N1", en: "Business" },
+    recruitFromOverseas: true,
     description: {
       whoWeAre:
         "EC/金融/通信など多事業で拡大を続けるグローバルテックカンパニーです。楽天グループは日本を代表するインターネットサービス企業として、EC、金融、通信、スポーツ、エンターテイメントなど多岐にわたる事業を展開しています。私たちのバックエンドチームは、これらの多様な事業を支える共通基盤の開発・運用を担当し、数千万ユーザーが利用する大規模システムの安定稼働を実現しています。",
@@ -129,7 +128,6 @@ export const jobsMock: JobDetailV2[] = [
       frontEnd: {
         languages: ["TypeScript"],
         frameworks: ["Next.js"],
-        designTools: ["Figma"],
       },
       backEnd: {
         languages: ["Java", "Kotlin"],
@@ -189,13 +187,15 @@ export const jobsMock: JobDetailV2[] = [
     company: "LINEヤフー",
     category: "DevOps Engineer",
     location: "東京都",
-    tags: ["devops"],
-    postedAt: daysAgo(14),
+    tags: ["sre/devops/infra"],
+    postedAt: new Date("2025-10-05").toISOString(),
     logoUrl: "/next.svg",
     salary: "年収 650万〜1000万円",
     employmentType: "正社員",
     interviewType: "オンライン面接",
     remotePolicy: { fromOverseas: false, fromJapan: true },
+    languageRequirements: { ja: "N2+", en: "Daily Conversation" },
+    recruitFromOverseas: true,
     description: {
       whoWeAre:
         "巨大トラフィック環境で信頼性と提供速度を両立するための基盤開発組織です。LINEヤフーは日本最大級のメッセージングアプリ「LINE」と検索・ポータルサービス「Yahoo!」を運営し、数億ユーザーが利用する大規模システムを支えています。私たちのDevOpsチームは、これらのサービスが24時間365日安定稼働するためのインフラ基盤の設計・構築・運用を担当し、開発チームの生産性向上とサービスの高可用性実現を両立しています。",
@@ -215,7 +215,6 @@ export const jobsMock: JobDetailV2[] = [
       frontEnd: {
         languages: ["TypeScript"],
         frameworks: ["Next.js"],
-        designTools: ["Figma"],
       },
       backEnd: { languages: ["Go", "Python"], frameworks: ["gRPC", "FastAPI"] },
       database: ["MySQL", "ElastiCache"],
@@ -273,12 +272,14 @@ export const jobsMock: JobDetailV2[] = [
     category: "QA Engineer",
     location: "東京都",
     tags: ["qa"],
-    postedAt: daysAgo(18),
+    postedAt: new Date("2025-09-06").toISOString(),
     logoUrl: "/vercel.svg",
     salary: "年収 500万〜850万円",
     employmentType: "正社員",
     interviewType: "オンライン面接",
     remotePolicy: { fromOverseas: false, fromJapan: true },
+    languageRequirements: { ja: "N3+", en: "Greetings/None" },
+    recruitFromOverseas: true,
     description: {
       whoWeAre:
         "多様なサービスの品質を横断的に高め、ユーザー体験の底上げを図るQA組織です。DeNAはゲーム、モバイル、ヘルスケア、スポーツなど多岐にわたる事業を展開し、それぞれのサービスが高い品質を維持することが重要です。私たちのQAチームは、これらの多様なサービスに対して一貫した品質基準を適用し、ユーザーが安心して利用できるサービスを提供するための品質保証活動を担当しています。",
@@ -298,7 +299,6 @@ export const jobsMock: JobDetailV2[] = [
       frontEnd: {
         languages: ["TypeScript"],
         frameworks: ["React"],
-        designTools: ["Figma"],
       },
       backEnd: {
         languages: ["Python", "TypeScript"],
@@ -359,12 +359,14 @@ export const jobsMock: JobDetailV2[] = [
     category: "Frontend Engineer",
     location: "東京都",
     tags: ["frontend"],
-    postedAt: daysAgo(12),
+    postedAt: new Date("2025-09-16").toISOString(),
     logoUrl: "/window.svg",
     salary: "年収 600万〜1000万円",
     employmentType: "正社員",
     interviewType: "オンライン面接",
     remotePolicy: { fromOverseas: true, fromJapan: true },
+    languageRequirements: { ja: "N2+", en: "Daily Conversation" },
+    recruitFromOverseas: true,
     description: {
       whoWeAre:
         "Vue.js を中心としたモダンフロントエンド開発で、ユーザー体験の向上に取り組むチームです。サイボウズは「チームワークあふれる社会を創る」というミッションのもと、kintone、Garoon、Officeなどのコラボレーションツールを提供し、企業の働き方改革を支援しています。私たちのフロントエンドチームは、Vue.js エコシステムを活用し、直感的で使いやすいユーザーインターフェースの開発を通じて、顧客の生産性向上に貢献することを目指しています。",
@@ -384,7 +386,6 @@ export const jobsMock: JobDetailV2[] = [
       frontEnd: {
         languages: ["TypeScript", "JavaScript"],
         frameworks: ["Vue.js", "Vite"],
-        designTools: ["Figma", "Storybook"],
       },
       backEnd: {
         languages: ["Go", "TypeScript"],
@@ -444,13 +445,15 @@ export const jobsMock: JobDetailV2[] = [
     company: "Sansan",
     category: "Full Stack Engineer",
     location: "東京都",
-    tags: ["fullstack"],
-    postedAt: daysAgo(9),
+    tags: ["fullstack", "frontend"],
+    postedAt: new Date("2025-10-07").toISOString(),
     logoUrl: "/file.svg",
     salary: "年収 650万〜1100万円",
     employmentType: "正社員",
     interviewType: "オンライン面接",
     remotePolicy: { fromOverseas: false, fromJapan: true },
+    languageRequirements: { ja: "N1", en: "Business" },
+    recruitFromOverseas: false,
     description: {
       whoWeAre:
         "フロントエンドとバックエンドの両方を扱い、特にフロントエンドに重点を置いた開発で、法人向けSaaSの価値向上に取り組むチームです。Sansanは「出会いからイノベーションを生み出す」というミッションのもと、名刺管理サービス「Sansan」、請求書管理サービス「Bill One」、契約管理サービス「Contract One」など、法人向けの業務効率化SaaSを提供しています。私たちの全栈チームは、フロントエンドの技術力を活かしながら、バックエンドの理解も深く、エンドツーエンドでプロダクトの価値向上に貢献することを目指しています。",
@@ -470,7 +473,6 @@ export const jobsMock: JobDetailV2[] = [
       frontEnd: {
         languages: ["TypeScript", "JavaScript"],
         frameworks: ["React", "Next.js"],
-        designTools: ["Figma", "Storybook"],
       },
       backEnd: {
         languages: ["Node.js", "TypeScript"],
@@ -531,12 +533,14 @@ export const jobsMock: JobDetailV2[] = [
     category: "Data Engineer",
     location: "東京都",
     tags: ["data"],
-    postedAt: daysAgo(15),
+    postedAt: new Date("2025-09-05").toISOString(),
     logoUrl: "/globe.svg",
     salary: "年収 650万〜1100万円",
     employmentType: "正社員",
     interviewType: "オンライン面接",
     remotePolicy: { fromOverseas: true, fromJapan: true },
+    languageRequirements: { ja: "N2+", en: "Business" },
+    recruitFromOverseas: true,
     description: {
       whoWeAre:
         "世界の良質な情報を必要な人に届けるためのデータ基盤を提供しています。SmartNewsは「世界の良質な情報を必要な人に届ける」というミッションのもと、ニュースアプリ「SmartNews」を運営し、ユーザーに最適な情報を配信しています。私たちのデータエンジニアリングチームは、数千万ユーザーの行動データ、コンテンツデータ、広告データなどを効率的に処理・分析し、レコメンデーションエンジンや広告配信システムの精度向上に貢献するデータ基盤の構築・運用を担当しています。",
@@ -556,7 +560,6 @@ export const jobsMock: JobDetailV2[] = [
       frontEnd: {
         languages: ["TypeScript"],
         frameworks: ["Next.js"],
-        designTools: ["Figma"],
       },
       backEnd: {
         languages: ["Python", "Go"],
@@ -616,13 +619,15 @@ export const jobsMock: JobDetailV2[] = [
     company: "PKSHA Technology",
     category: "ML Engineer",
     location: "東京都",
-    tags: ["ml"],
-    postedAt: daysAgo(6),
+    tags: ["ai"],
+    postedAt: new Date("2025-09-15").toISOString(),
     logoUrl: "/next.svg",
     salary: "年収 700万〜1200万円",
     employmentType: "正社員",
     interviewType: "オンライン面接",
     remotePolicy: { fromOverseas: false, fromJapan: true },
+    languageRequirements: { ja: "N1", en: "Business" },
+    recruitFromOverseas: false,
     description: {
       whoWeAre:
         "ML/LLM を社会実装するためのアルゴリズムとプラットフォームを提供しています。PKSHA Technologyは「AIで社会を豊かにする」というミッションのもと、機械学習と大規模言語モデル（LLM）を活用したAIソリューションを提供しています。私たちの機械学習エンジニアリングチームは、レコメンデーション、検索、対話システムなどのAI機能をモジュール化し、様々な企業のビジネス課題解決に貢献するAIプラットフォームの開発・運用を担当しています。",
@@ -642,7 +647,6 @@ export const jobsMock: JobDetailV2[] = [
       frontEnd: {
         languages: ["TypeScript"],
         frameworks: ["Next.js"],
-        designTools: ["Figma"],
       },
       backEnd: { languages: ["Python", "Go"], frameworks: ["FastAPI", "Ray"] },
       database: ["PostgreSQL", "Redis"],
@@ -699,13 +703,15 @@ export const jobsMock: JobDetailV2[] = [
     company: "リクルート",
     category: "Site Reliability Engineer",
     location: "東京都",
-    tags: ["sre"],
-    postedAt: daysAgo(11),
+    tags: ["sre/devops/infra"],
+    postedAt: new Date("2025-09-20").toISOString(),
     logoUrl: "/vercel.svg",
     salary: "年収 700万〜1200万円",
     employmentType: "正社員",
     interviewType: "オンライン面接",
     remotePolicy: { fromOverseas: false, fromJapan: true },
+    languageRequirements: { ja: "N2+", en: "Daily Conversation" },
+    recruitFromOverseas: false,
     description: {
       whoWeAre:
         "多事業を支えるプラットフォームの信頼性向上に取り組む横断SREチームです。リクルートは「みんなで働く、みんなで生きる」というミッションのもと、求人、教育、住宅、結婚、旅行など多岐にわたる事業を展開し、数千万ユーザーにサービスを提供しています。私たちのSREチームは、これらの多様な事業を支える共通プラットフォームの信頼性向上に取り組み、ユーザーが安心してサービスを利用できる環境の構築・維持を担当しています。",
@@ -725,7 +731,6 @@ export const jobsMock: JobDetailV2[] = [
       frontEnd: {
         languages: ["TypeScript"],
         frameworks: ["Next.js"],
-        designTools: ["Figma"],
       },
       backEnd: { languages: ["Go", "Ruby"], frameworks: ["gRPC", "Rails"] },
       database: ["MySQL", "Redis"],
@@ -783,12 +788,14 @@ export const jobsMock: JobDetailV2[] = [
     category: "Mobile Engineer",
     location: "東京都",
     tags: ["mobile"],
-    postedAt: daysAgo(8),
+    postedAt: new Date("2025-09-28").toISOString(),
     logoUrl: "/window.svg",
     salary: "年収 600万〜1000万円",
     employmentType: "正社員",
     interviewType: "オンライン面接",
     remotePolicy: { fromOverseas: false, fromJapan: true },
+    languageRequirements: { ja: "N2+", en: "Daily Conversation" },
+    recruitFromOverseas: false,
     description: {
       whoWeAre:
         "数千万MAUのモバイルサービスで、体験価値を最大化する開発チームです。LINEヤフーは日本最大級のメッセージングアプリ「LINE」と検索・ポータルサービス「Yahoo!」を運営し、数億ユーザーが利用する大規模モバイルサービスを提供しています。私たちのモバイルアプリエンジニアリングチームは、これらのサービスが提供するメッセージング、決済、コンテンツ配信、検索などの機能を、ユーザーにとって使いやすく、信頼性の高いモバイルアプリとして実現することを目指しています。",
@@ -808,7 +815,6 @@ export const jobsMock: JobDetailV2[] = [
       frontEnd: {
         languages: ["Dart", "TypeScript"],
         frameworks: ["Flutter", "React Native"],
-        designTools: ["Figma"],
       },
       backEnd: { languages: ["Kotlin", "Go"], frameworks: ["Ktor", "gRPC"] },
       database: ["SQLite", "PostgreSQL"],

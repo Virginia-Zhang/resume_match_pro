@@ -33,7 +33,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     }
     return NextResponse.json({ resumeId, resumeKey: key, resumeText: text });
   } catch (err: unknown) {
-    console.error("❌ Failed to read resume text:", err);
+    console.error("Failed to read resume text:", err);
     return NextResponse.json(
       { error: "Failed to read resume text" },
       { status: 500 }

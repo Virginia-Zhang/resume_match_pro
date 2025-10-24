@@ -17,7 +17,7 @@ type ButtonProps = React.ComponentProps<typeof Button>;
  * @description Blue pill-shaped button used for primary actions.
  * @description 主要アクション向けの青いピル型ボタン。
  */
-export function PrimaryCtaButton({ className, ...props }: ButtonProps): JSX.Element {
+export function PrimaryCtaButton({ className, ...props }: ButtonProps): React.JSX.Element {
   return (
     <Button
       className={cn(
@@ -34,7 +34,7 @@ export function PrimaryCtaButton({ className, ...props }: ButtonProps): JSX.Elem
  * @description Neutral pill-shaped button for secondary actions.
  * @description 二次アクション用のニュートラルなピル型ボタン。
  */
-export function SecondaryCtaButton({ className, ...props }: ButtonProps): JSX.Element {
+export function SecondaryCtaButton({ className, ...props }: ButtonProps): React.JSX.Element {
   return (
     <Button
       className={cn(

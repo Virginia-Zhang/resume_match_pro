@@ -1,10 +1,10 @@
 /**
  * @file page.tsx
- * @description Upload page: parse PDF on client via pdfjs-dist, fallback to textarea, POST to /api/resume.
- * @description アップロードページ：pdfjs-distでクライアント側PDF解析、テキストエリアにフォールバックし、/api/resumeへPOST。
+ * @description Upload page: parse PDF on server via pdf-parse, fallback to textarea, POST to /api/resume.
+ * @description アップロードページ：pdf-parseでサーバー側PDF解析、テキストエリアにフォールバックし、/api/resumeへPOST。
  * @author Virginia Zhang
- * @remarks Client component. Never store resume_text in localStorage; only transient state.
- * @remarks クライアントコンポーネント。localStorageに保存しない。状態は一時的のみ。
+ * @remarks Client component. Never store resume_text in localStorage; 
+ * @remarks クライアントコンポーネント。localStorageに保存しない。
  */
 "use client";
 
@@ -20,7 +20,7 @@ import {
   CardContent,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { resumePointer } from "@/lib/storage";
+import { resumePointer, clearBatchMatchingResults } from "@/lib/storage";
 import {
   API_RESUME,
   API_RESUME_TEXT,
@@ -32,13 +32,14 @@ import {
   UPLOAD_FILE_SIZE_ERROR_JA,
 } from "@/app/constants/constants";
 import { fetchJson } from "@/lib/fetcher";
+import { getFriendlyErrorMessage } from "@/lib/errorHandling";
+import ErrorDisplay from "@/components/common/ErrorDisplay";
 import { useRouter } from "next/navigation";
 
 import { Progress } from "@/components/ui/progress";
 import {
   Tooltip,
   TooltipContent,
-  TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
@@ -61,6 +62,9 @@ export default function UploadPage(): React.JSX.Element {
   const dropRef = React.useRef<HTMLDivElement | null>(null);
   const [uploadError, setUploadError] = React.useState<string | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+  // Track if user has uploaded a new file or modified the text
+  // ユーザーが新しいファイルをアップロードしたか、テキストを変更したかを追跡
+  const [hasNewUpload, setHasNewUpload] = React.useState(false);
 
   /**
    * @description Validates whether the uploaded file is in PDF format for both PC and mobile platforms.
@@ -196,6 +200,7 @@ export default function UploadPage(): React.JSX.Element {
     setText("");
     setError(null);
     setUploadError(null);
+    setHasNewUpload(true); // Mark as new upload
   }, [isPdfFile, resetFileInput]);
 
   /**
@@ -228,6 +233,7 @@ export default function UploadPage(): React.JSX.Element {
     setText("");
     setError(null);
     setUploadError(null);
+    setHasNewUpload(true); // Mark as new upload
   }, [isPdfFile]);
 
   /**
@@ -267,8 +273,9 @@ export default function UploadPage(): React.JSX.Element {
         throw new Error("Empty parse result");
       }
       setText(t);
+      setHasNewUpload(true); // Mark as new upload after parsing
     } catch (error) {
-      console.error("❌ PDF parsing error:", error);
+      console.error("PDF parsing error:", error);
       setError(
         "PDFの解析に失敗しました。再試行するか、テキストを手動で貼り付けてください。"
       );
@@ -303,6 +310,12 @@ export default function UploadPage(): React.JSX.Element {
       resumeHash: string;
       resumeText?: string; // Development mode may include resume text
     };
+
+    // Clear previous batch matching results only if user uploaded a new resume
+    // ユーザーが新しいレジュメをアップロードした場合のみ、以前のバッチマッチング結果をクリア
+    if (hasNewUpload) {
+      clearBatchMatchingResults();
+    }
 
     // Save pointer to localStorage for future sessions (non-sensitive)
     // localStorageに将来のセッション用のポインタを保存（非機密情報）
@@ -340,7 +353,7 @@ export default function UploadPage(): React.JSX.Element {
           setText(data.resumeText);
         }
       } catch (error) {
-        console.error("❌ Prefilling error:", error);
+        console.error("Prefilling error:", error);
         // Silent failure; user can still paste manually
         // サイレント失敗；ユーザーは手動で貼り付け可能
       } finally {
@@ -438,10 +451,14 @@ export default function UploadPage(): React.JSX.Element {
           </div>
         </div>
         {uploadError && (
-          <div className="mt-3 flex justify-center">
-            <p className="text-sm text-red-600 text-center" role="alert" aria-live="assertive">
-              {uploadError}
-            </p>
+          <div className="mt-3">
+            <ErrorDisplay
+              title="アップロードエラー"
+              errorInfo={{
+                message: "ファイルのアップロードに問題があります。ファイル形式（PDF）とサイズ（5MB以下）を確認して、正しいファイルを選択してください。",
+                isRetryable: false,
+              }}
+            />
           </div>
         )}
       </div>
@@ -489,13 +506,19 @@ export default function UploadPage(): React.JSX.Element {
             <textarea
               className="w-full min-h-[440px] rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 text-sm leading-7"
               value={text}
-              onChange={e => setText(e.target.value)}
+              onChange={e => {
+                setText(e.target.value);
+                setHasNewUpload(true); // Mark as modified
+              }}
               placeholder="レジュメテキストを貼り付け..."
             />
           )}
           {error && (
-            <div className="mt-4 flex justify-center">
-              <p className="text-red-600 text-sm text-center">{error}</p>
+            <div className="mt-4">
+              <ErrorDisplay
+                title="処理エラー"
+                errorInfo={getFriendlyErrorMessage(error)}
+              />
             </div>
           )}
         </CardContent>

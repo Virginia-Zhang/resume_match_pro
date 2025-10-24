@@ -10,6 +10,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import SiteHeader from "@/components/common/SiteHeader";
 import PageFrame from "@/components/common/PageFrame";
+import { Toaster } from "@/components/ui/sonner"
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -69,6 +70,9 @@ export default function RootLayout({
         >
           <SiteHeader />
           <PageFrame>{children}</PageFrame>
+          {/* Toast window to display notifications */}
+          {/* 通知を表示するトーストウィンドウ */}
+          <Toaster />
         </ThemeProvider>
       </body>
     </html>

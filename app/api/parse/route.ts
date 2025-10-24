@@ -1,8 +1,18 @@
+/**
+ * @file route.ts
+ * @description API route to parse a PDF file and return the text content.
+ * @description PDFファイルを解析し、テキスト内容を返すAPIルート。
+ * @author Virginia Zhang
+ * @remarks Server route (App Router). Accepts a file upload and returns the text content.
+ * @remarks サーバールート（App Router）。ファイルアップロードを受け付け、テキスト内容を返す。
+ * @remarks The file is expected to be a PDF file.
+ * @remarks ファイルはPDFファイルとして期待されています。
+ */
+
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
 export async function POST(req: Request): Promise<Response> {
   try {
     const form = await req.formData();
@@ -19,7 +29,6 @@ export async function POST(req: Request): Promise<Response> {
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
-    // Use pdf-parse via explicit entry to avoid Turbopack pulling test assets
     const { default: pdfParse } = (await import("pdf-parse/lib/pdf-parse.js")) as {
       default: (b: Buffer) => Promise<{ text?: string }>;
     };
