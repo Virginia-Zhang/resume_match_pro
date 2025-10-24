@@ -9,6 +9,7 @@ import React from "react";
 import Skeleton from "@/components/ui/skeleton";
 import { resumePointer } from "@/lib/storage";
 import { ROUTE_UPLOAD } from "@/app/constants/constants";
+import { toast, Toaster } from "sonner";
 
 /**
  * Minimal client-only gate component that blocks requests when resumeId is not present
@@ -29,10 +30,22 @@ export default function ResumeGate({
   React.useEffect(() => {
     const p = resumePointer.load();
     if (!p?.resumeId) {
+      // Set state to false first to render GateSkeleton with Toaster
+      // まず状態をfalseに設定してToaster付きのGateSkeletonをレンダリング
       setOk(false);
+      
+      // Use setTimeout to ensure GateSkeleton is rendered before showing toast
+      // GateSkeletonがレンダリングされた後にtoastを表示するためsetTimeoutを使用
+      setTimeout(() => {
+        toast.warning('あなたはまだレジュメをアップロードしていないか、レジュメが保存されていません。', {
+          description: 'アップロードページに移動し、レジュメをアップロードしてください。',
+          duration: 3000,
+        });
+      }, 100);
+      
       // Redirect to upload page if resume is not present
       // レジュメがない場合はアップロードページへリダイレクト
-      const t = setTimeout(() => window.location.replace(ROUTE_UPLOAD), 300);
+      const t = setTimeout(() => window.location.replace(ROUTE_UPLOAD), 3000);
       return () => clearTimeout(t);
     }
     setResumeId(p.resumeId);
@@ -57,13 +70,18 @@ export default function ResumeGate({
  */
 function GateSkeleton() {
   return (
-    <div className="mx-auto max-w-4xl p-6 space-y-6">
-      <Skeleton className="h-8 w-40" />
-      <div className="space-y-3">
-        {Array.from({ length: 5 }).map((_, index) => (
-          <Skeleton key={index} className="h-30 w-full" />
-        ))}
+    <>
+      {/* Ensure Toaster is available in this component tree */}
+      {/* このコンポーネントツリーでToasterが利用可能であることを保証 */}
+      <Toaster />
+      <div className="mx-auto max-w-4xl p-6 space-y-6">
+        <Skeleton className="h-8 w-40" />
+        <div className="space-y-3">
+          {Array.from({ length: 5 }).map((_, index) => (
+            <Skeleton key={index} className="h-30 w-full" />
+          ))}
+        </div>
       </div>
-    </div>
+    </>
   );
 }

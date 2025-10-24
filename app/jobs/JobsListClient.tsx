@@ -9,20 +9,20 @@
 
 "use client";
 
-import { useState, useEffect, useMemo } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { useBatchMatching } from './useBatchMatching';
-import { Progress } from '@/components/ui/progress';
+import { API_RESUME_TEXT, ROUTE_JOBS } from '@/app/constants/constants';
 import ErrorDisplay from '@/components/common/ErrorDisplay';
-import { ROUTE_JOBS, API_RESUME_TEXT } from '@/app/constants/constants';
-import { getApiBase } from '@/lib/runtime-config';
-import { fetchJson } from '@/lib/fetcher';
 import JobFilters from '@/components/jobs/JobFilters';
 import JobItem from '@/components/jobs/JobItem';
+import { Progress } from '@/components/ui/progress';
+import { fetchJson } from '@/lib/fetcher';
+import { getApiBase } from '@/lib/runtime-config';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useEffect, useMemo, useState } from 'react';
+import { useBatchMatching } from './useBatchMatching';
 
 import type { JobListItem } from '@/types/jobs_v2';
 import type { MatchResultItem } from '@/types/matching';
-import { toast } from "sonner"
+import { toast } from "sonner";
 
 interface JobsListClientProps {
   initialJobs: JobListItem[];
@@ -132,12 +132,11 @@ export default function JobsListClient({ initialJobs, resumeId }: JobsListClient
         
         if (data?.resumeText) {
           setResumeText(data.resumeText);
-          console.log('✅ Resume text loaded successfully');
         } else {
           console.warn('No resume text found');
         }
       } catch (error) {
-        console.error('❌ Failed to load resume text:', error);
+        console.error('Failed to load resume text:', error);
       }
     };
     
@@ -178,13 +177,11 @@ export default function JobsListClient({ initialJobs, resumeId }: JobsListClient
     const incremental = jobsToMatch.length < filteredJobs.length;
     
     if (incremental) {
-      console.log(`🚀 Starting incremental matching: ${jobsToMatch.length} new jobs (${alreadyAnalyzedJobIds.size} already analyzed)`);
       toast.info(`${processedJobs} 件の求人は既に分析済みです。新しい ${jobsToMatch.length} 件のみを分析します。`);
       // Pass total number of filtered jobs (including already analyzed ones)
       // フィルターされた求人の総数（すでに分析されたものを含む）を渡す
       startMatchingFromListItems(resumeText, jobsToMatch, incremental, filteredJobs.length);
     } else {
-      console.log(`🚀 Starting matching with ${filteredJobs.length} jobs`);
       startMatchingFromListItems(resumeText, jobsToMatch, incremental);
     }
   };

@@ -275,7 +275,7 @@ export default function UploadPage(): React.JSX.Element {
       setText(t);
       setHasNewUpload(true); // Mark as new upload after parsing
     } catch (error) {
-      console.error("❌ PDF parsing error:", error);
+      console.error("PDF parsing error:", error);
       setError(
         "PDFの解析に失敗しました。再試行するか、テキストを手動で貼り付けてください。"
       );
@@ -353,7 +353,7 @@ export default function UploadPage(): React.JSX.Element {
           setText(data.resumeText);
         }
       } catch (error) {
-        console.error("❌ Prefilling error:", error);
+        console.error("Prefilling error:", error);
         // Silent failure; user can still paste manually
         // サイレント失敗；ユーザーは手動で貼り付け可能
       } finally {

@@ -152,7 +152,6 @@ export function useBatchMatching(): UseBatchMatchingResult {
     try {
       // Fetch full job details for each JobListItem
       // 各 JobListItem の完全な求人詳細を取得
-      console.log(`📋 Fetching job details for ${jobListItems.length} jobs...`);
       const jobDetails: JobDetailV2[] = [];
       
       for (const jobItem of jobListItems) {
@@ -161,10 +160,10 @@ export function useBatchMatching(): UseBatchMatchingResult {
           if (jobDetail) {
             jobDetails.push(jobDetail);
           } else {
-            console.warn(`⚠️ Job not found: ${jobItem.id}`);
+            console.warn(`Job not found: ${jobItem.id}`);
           }
         } catch (error) {
-          console.error(`❌ Error finding job ${jobItem.id}:`, error);
+          console.error(`Error finding job ${jobItem.id}:`, error);
         }
       }
       
@@ -172,7 +171,6 @@ export function useBatchMatching(): UseBatchMatchingResult {
         throw new Error('No job details could be fetched');
       }
       
-      console.log(`✅ Fetched ${jobDetails.length} job details`);
       
       // Start matching with full job details (incremental mode)
       // 完全な求人詳細でマッチングを開始（インクリメンタルモード）
@@ -182,13 +180,13 @@ export function useBatchMatching(): UseBatchMatchingResult {
       // Check if it was aborted
       // 中断されたかチェック
       if (error instanceof Error && error.name === 'AbortError') {
-        console.log('🛑 Matching cancelled by user navigation');
+
         return;
       }
       
       const friendlyError = getFriendlyErrorMessage(error);
       setErrorInfo(friendlyError);
-      console.error('❌ Matching process error:', error);
+      console.error('Matching process error:', error);
     } finally {
       setIsMatching(false);
     }
@@ -221,7 +219,6 @@ export function useBatchMatching(): UseBatchMatchingResult {
       // Process each batch sequentially
       // 各バッチを順次処理
       for (let i = 0; i < batches.length; i++) {
-        console.log(`📦 Processing batch ${i + 1}/${batches.length}`);
         
         try {
           // Serialize JobDetailV2 objects to optimized text for AI analysis
@@ -259,18 +256,16 @@ export function useBatchMatching(): UseBatchMatchingResult {
             accumulatedResults.push(...newResults);
             setResults([...accumulatedResults]);
             setProcessedJobs(accumulatedResults.length);
-            console.log(`✅ Batch ${i + 1} completed: ${newResults.length} new results (${batchData.match_results.length} total in batch)`);
           }
           
         } catch (batchError) {
           // Check if it was aborted by user navigation
           // ユーザーのナビゲーションによって中断されたかチェック
           if (batchError instanceof Error && batchError.name === 'AbortError') {
-            console.log('🛑 Matching cancelled by user navigation');
             return;
           }
           
-          console.error(`❌ Batch ${i + 1} failed:`, batchError);
+          console.error(`Batch ${i + 1} failed:`, batchError);
           // Continue with next batch instead of stopping
           // 停止せずに次のバッチを続行
           continue;
@@ -280,19 +275,17 @@ export function useBatchMatching(): UseBatchMatchingResult {
       // Mark matching as complete
       // マッチング完了をマーク
       setIsMatchingComplete(true);
-      console.log(`✅ All batches completed: ${accumulatedResults.length} total results`);
       
     } catch (error) {
       // Check if it was aborted
       // 中断されたかチェック
       if (error instanceof Error && error.name === 'AbortError') {
-        console.log('🛑 Matching cancelled by user navigation');
         return;
       }
       
       const friendlyError = getFriendlyErrorMessage(error);
       setErrorInfo(friendlyError);
-      console.error('❌ Matching process error:', error);
+      console.error('Matching process error:', error);
     } finally {
       setIsMatching(false);
     }

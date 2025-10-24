@@ -86,9 +86,6 @@ async function callDifyAPI(
   // Dify API 用に jobs 配列を JSON 文字列に変換
   const jobListJson = JSON.stringify(jobs);
 
-  console.log(`🚀 Calling Dify API with ${jobs.length} jobs`);
-  console.log(`📄 Resume text length: ${resumeText.length} chars`);
-  console.log(`📋 Job list JSON length: ${jobListJson.length} chars`);
 
   // Call Dify API using fetchJson with timeout(default 15 seconds)
   // タイムアウト付き(デフォルトの15秒)で fetchJson を使用して Dify API を呼び出し
@@ -107,7 +104,6 @@ async function callDifyAPI(
     })
   });
 
-  console.log(`✅ Dify API completed in ${data.data.elapsed_time}s`);
 
   if (data.data.status !== "succeeded") {
     throw new Error(`Dify workflow failed: ${data.data.error}`);
@@ -140,7 +136,6 @@ async function callDifyAPIWithRetry(
     } catch (error) {
       lastError = error as Error;
       if (attempt < MAX_BATCH_RETRIES) {
-        console.log(`⚠️ Batch failed, retrying (${attempt + 1}/${MAX_BATCH_RETRIES})...`);
         await new Promise(resolve => setTimeout(resolve, 1000));
       }
     }
@@ -193,14 +188,12 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    console.log(`🎯 Processing single batch with ${body.jobs.length} jobs`);
 
     // Process single batch with retry mechanism
     // リトライ機能付きで単一バッチを処理
     const difyResponse = await callDifyAPIWithRetry(body.resume_text, body.jobs);
     const matchResults = difyResponse.data.outputs.match_results;
 
-    console.log(`✅ Batch processing completed: ${matchResults.length} results`);
 
     // Return results in expected format
     // 期待される形式で結果を返す
@@ -211,7 +204,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(response);
 
   } catch (error) {
-    console.error("❌ Batch matching API error:", error);
+    console.error("Batch matching API error:", error);
     
     // Handle timeout errors specifically
     // タイムアウトエラーを特別に処理

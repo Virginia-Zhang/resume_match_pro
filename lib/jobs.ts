@@ -21,6 +21,13 @@ export function toListItem(detail: JobDetailV2): JobListItem {
 }
 
 export async function fetchJobs(apiBase = ""): Promise<JobDetailV2[]> {
+  // During build time, use mock data to avoid network requests
+  // ビルド時はネットワークリクエストを避けるためモックデータを使用
+  if (typeof window === "undefined" && process.env.NODE_ENV === "production") {
+    const { jobsMock } = await import("@/app/api/jobs/mock");
+    return jobsMock;
+  }
+  
   const base = getApiBase(apiBase);
   const url = `${base}/api/jobs`;
   return fetchJson<JobDetailV2[]>(url);

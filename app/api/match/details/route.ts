@@ -173,7 +173,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     }
     return NextResponse.json(envelope);
   } catch (error) {
-    console.error("❌ Match details API error:", error);
+    console.error("Match details API error:", error);
     return NextResponse.json(
       {
         error: "Match details failed",
