@@ -5,76 +5,83 @@
  */
 "use client";
 
-import React from "react";
+import { ROUTE_UPLOAD } from "@/app/constants/constants";
 import Skeleton from "@/components/ui/skeleton";
 import { resumePointer } from "@/lib/storage";
-import { ROUTE_UPLOAD } from "@/app/constants/constants";
+import { cloneElement, isValidElement, useEffect, useState } from "react";
+import { toast, Toaster } from "sonner";
 
 /**
- * Minimal client-only gate component.
- * 最小のクライアントゲートコンポーネント。
+ * Minimal client-only gate component that blocks requests when resumeId is not present
+ * 最小のクライアントゲートコンポーネント。`resume:current` がない場合、リクエストをブロック。
  */
-type ResumeGatePropsBase = {
-  variant: "list" | "detail";
-  children: React.ReactNode;
-  injectResumeId?: false;
+type ResumeGateProps = {
+  children: React.ReactElement<{ resumeId?: string }>;
 };
-
-type ResumeGatePropsWithInject = {
-  variant: "list" | "detail";
-  children: React.ReactElement<{ resumeId: string }>;
-  injectResumeId: true;
-};
-
-type ResumeGateProps = ResumeGatePropsBase | ResumeGatePropsWithInject;
 
 export default function ResumeGate({
-  variant,
   children,
-  injectResumeId = false,
 }: ResumeGateProps): React.ReactElement {
-  const [ok, setOk] = React.useState<boolean | null>(null);
-  const [resumeId, setResumeId] = React.useState<string | null>(null);
+  const [ok, setOk] = useState<boolean | null>(null);
+  const [resumeId, setResumeId] = useState<string | null>(null);
 
-  React.useEffect(() => {
+  // Check if resume is present
+  // レジュメが存在するか確認
+  useEffect(() => {
     const p = resumePointer.load();
     if (!p?.resumeId) {
+      // Set state to false first to render GateSkeleton with Toaster
+      // まず状態をfalseに設定してToaster付きのGateSkeletonをレンダリング
       setOk(false);
-      const t = setTimeout(() => window.location.replace(ROUTE_UPLOAD), 300);
+      
+      // Use setTimeout to ensure GateSkeleton is rendered before showing toast
+      // GateSkeletonがレンダリングされた後にtoastを表示するためsetTimeoutを使用
+      setTimeout(() => {
+        toast.warning('あなたはまだレジュメをアップロードしていないか、レジュメが保存されていません。', {
+          description: 'アップロードページに移動し、レジュメをアップロードしてください。',
+          duration: 3000,
+        });
+      }, 100);
+      
+      // Redirect to upload page if resume is not present
+      // レジュメがない場合はアップロードページへリダイレクト
+      const t = setTimeout(() => window.location.replace(ROUTE_UPLOAD), 3000);
       return () => clearTimeout(t);
     }
     setResumeId(p.resumeId);
     setOk(true);
   }, []);
 
-  if (ok !== true) return <GateSkeleton variant={variant} />;
-  if (injectResumeId && React.isValidElement(children) && resumeId) {
-    const child = children as React.ReactElement<{ resumeId: string }>;
-    return React.cloneElement(child, { resumeId });
+  if (ok !== true) return <GateSkeleton />;
+  
+  // Always inject resumeId to children
+  // 常に子コンポーネントに resumeId を注入
+  if (isValidElement(children) && resumeId) {
+    const child = children as React.ReactElement<{ resumeId?: string }>;
+    return cloneElement(child, { resumeId });
   }
+  
   return <>{children}</>;
 }
 
-function GateSkeleton({ variant }: { variant: "list" | "detail" }) {
-  if (variant === "detail") {
-    return (
+/**
+ * @description Loading skeleton for gate component
+ * @description ゲートコンポーネントのローディングスケルトン
+ */
+function GateSkeleton() {
+  return (
+    <>
+      {/* Ensure Toaster is available in this component tree */}
+      {/* このコンポーネントツリーでToasterが利用可能であることを保証 */}
+      <Toaster />
       <div className="mx-auto max-w-4xl p-6 space-y-6">
-        <Skeleton className="h-10 w-2/3" />
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <Skeleton className="h-80 w-full" />
-          <Skeleton className="h-80 w-full" />
+        <Skeleton className="h-8 w-40" />
+        <div className="space-y-3">
+          {Array.from({ length: 5 }).map((_, index) => (
+            <Skeleton key={index} className="h-30 w-full" />
+          ))}
         </div>
       </div>
-    );
-  }
-  return (
-    <div className="mx-auto max-w-4xl p-6 space-y-6">
-      <Skeleton className="h-8 w-40" />
-      <div className="space-y-3">
-        <Skeleton className="h-16 w-full" />
-        <Skeleton className="h-16 w-full" />
-        <Skeleton className="h-16 w-full" />
-      </div>
-    </div>
+    </>
   );
 }

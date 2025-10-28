@@ -8,14 +8,15 @@
  */
 "use client";
 
-import Skeleton from "@/components/ui/skeleton";
-import { fetchJson } from "@/lib/fetcher";
+import { ROUTE_UPLOAD } from "@/app/constants/constants";
+import ErrorDisplay from "@/components/common/ErrorDisplay";
+import ChartsDetailsSkeleton from "@/components/skeleton/ChartsDetailsSkeleton";
+import ChartsSummarySkeleton from "@/components/skeleton/ChartsSummarySkeleton";
+import { useMatchData } from "@/hooks/useMatchData";
+import { handleRadarChartMouseMove, normalizeScores, renderOverviewText } from "@/lib/chart-utils";
+import { getFriendlyErrorMessage } from "@/lib/errorHandling";
+import type { ChartsProps } from "@/types/matching";
 import React from "react";
-import {
-  API_MATCH_SUMMARY,
-  API_MATCH_DETAILS,
-  ROUTE_UPLOAD,
-} from "@/app/constants/constants";
 import {
   Cell,
   Pie,
@@ -27,221 +28,35 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
-interface SummaryEnvelope {
-  meta: { resumeHash: string };
-  data: {
-    overall: number;
-    scores: Record<string, number>;
-    overview: string;
-  };
-}
 
-interface DetailsEnvelope {
-  meta: { resumeHash: string };
-  data: {
-    advantages: string[];
-    disadvantages: string[];
-    advice: Array<{
-      title: string;
-      detail: string;
-    }>;
-  };
-}
 
-export default function ClientCharts({
-  resumeId,
-  jobId,
-  jobDescription,
-}: {
-  resumeId: string;
-  jobId: string;
-  jobDescription: string;
-}): React.JSX.Element {
-  const [summary, setSummary] = React.useState<SummaryEnvelope | null>(null);
-  const [details, setDetails] = React.useState<DetailsEnvelope | null>(null);
-  const [summaryLoading, setSummaryLoading] = React.useState(true);
-  const [detailsLoading, setDetailsLoading] = React.useState(true);
-  const [summaryError, setSummaryError] = React.useState<string | null>(null);
-  const [detailsError, setDetailsError] = React.useState<string | null>(null);
-  const [hover, setHover] = React.useState<{
-    name: string;
-    value: number;
-  } | null>(null);
+export default function Charts(props: ChartsProps): React.JSX.Element {
+  const {
+    summary,
+    details,
+    summaryLoading,
+    detailsLoading,
+    summaryError,
+    detailsError,
+    hover,
+    setHover,
+  } = useMatchData(props);
 
-  // With Strict Mode disabled, we can simplify effects without dedupe keys
-  // Strict Mode を無効化したため、重複防止キーは不要
-
-  function isGatewayTimeoutMessage(msg: string | null): boolean {
-    if (!msg) return false;
-    return /\b504\b|gateway\s*time-?out|dify\s*http\s*504/i.test(msg);
-  }
-
-  // Fetch summary data independently
-  // サマリーデータを独立して取得
-  React.useEffect(() => {
-    async function fetchSummary() {
-      // Prevent duplicate requests in development mode
-      // 開発モードでの重複リクエストを防ぐ
-      try {
-        setSummaryLoading(true);
-        setSummaryError(null);
-
-        // Resume text is now always retrieved from S3
-        // レジュメテキストは常にS3から取得される
-
-        const summaryUrl = `${window.location.origin}${API_MATCH_SUMMARY}`;
-        const summaryData = await fetchJson<SummaryEnvelope>(summaryUrl, {
-          method: "POST",
-          body: JSON.stringify({
-            inputs: {
-              job_description: jobDescription,
-            },
-            response_mode: "blocking",
-            user: "Virginia Zhang",
-            jobId,
-            resumeId,
-          }),
-          timeoutMs: 90000, // 90 seconds for Dify API processing
-        });
-        setSummary(summaryData);
-        console.log("✅ Summary analysis completed successfully");
-      } catch (err) {
-        setSummaryError(err instanceof Error ? err.message : "Unknown error");
-        console.error("❌ Summary analysis failed:", err);
-      } finally {
-        setSummaryLoading(false);
-      }
-    }
-
-    fetchSummary();
-  }, [resumeId, jobId, jobDescription]);
-
-  // Fetch details data only after summary is completed
-  // サマリー完了後にのみ詳細データを取得
-  React.useEffect(() => {
-    async function fetchDetails() {
-      // Only proceed if summary is completed
-      // サマリーが完了している場合のみ続行
-      if (!summary) {
-        console.log(
-          "⏳ Waiting for summary to complete before fetching details..."
-        );
-        return;
-      }
-
-      // Prevent duplicate requests in development mode
-      // 開発モードでの重複リクエストを防ぐ
-      try {
-        setDetailsLoading(true);
-        setDetailsError(null);
-
-        // Resume text is now always retrieved from S3
-        // レジュメテキストは常にS3から取得される
-
-        // Get overall score from current summary state
-        // 現在のサマリー状態から総合スコアを取得
-        if (!summary) {
-          console.error("❌ Summary data not available for details analysis");
-          setDetailsError("Summary data not available for details analysis");
-          setDetailsLoading(false);
-          return;
-        }
-        const overallFromSummary = summary.data.overall;
-
-        const detailsUrl = `${window.location.origin}${API_MATCH_DETAILS}`;
-        const detailsData = await fetchJson<DetailsEnvelope>(detailsUrl, {
-          method: "POST",
-          body: JSON.stringify({
-            inputs: {
-              job_description: jobDescription,
-              overall_from_summary: overallFromSummary,
-            },
-            response_mode: "blocking",
-            user: "Virginia Zhang",
-            jobId,
-            resumeId,
-          }),
-          timeoutMs: 90000, // 90 seconds for Dify API processing
-        });
-        setDetails(detailsData);
-        console.log("✅ Details analysis completed successfully");
-      } catch (err) {
-        setDetailsError(err instanceof Error ? err.message : "Unknown error");
-        console.error("❌ Details analysis failed:", err);
-      } finally {
-        setDetailsLoading(false);
-      }
-    }
-
-    fetchDetails();
-  }, [resumeId, jobId, jobDescription, summary]);
 
   // Render summary section independently
   // サマリーセクションを独立してレンダリング
   const renderSummarySection = () => {
     if (summaryLoading) {
-      return (
-        <div>
-          <h3 className="text-lg font-semibold mb-4 text-center">マッチ度</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="p-4 border rounded-md">
-              <h4 className="font-medium mb-3">全体スコア</h4>
-              <div className="flex flex-col items-center">
-                <Skeleton className="h-56 w-56 rounded-full" />
-                <Skeleton className="mt-4 h-6 w-16" />
-                <div className="mt-3 w-full space-y-2">
-                  <Skeleton className="h-4 w-full" />
-                  <Skeleton className="h-4 w-11/12" />
-                  <Skeleton className="h-4 w-10/12" />
-                  <Skeleton className="h-4 w-9/12" />
-                  <Skeleton className="h-4 w-8/12" />
-                </div>
-              </div>
-            </div>
-            <div className="p-4 border rounded-md">
-              <h4 className="font-medium mb-3">5次元スコア</h4>
-              <div className="h-64 flex items-center justify-center">
-                <Skeleton className="h-60 w-full" />
-              </div>
-              <div className="mt-3 p-3 rounded-md border bg-white/40 dark:bg-slate-900/30">
-                <div className="text-sm text-muted-foreground">
-                  ヒント：頂点にホバー/タップしてください
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      );
+      return <ChartsSummarySkeleton />;
     }
 
     if (summaryError) {
-      const is504 = isGatewayTimeoutMessage(summaryError);
       return (
-        <div className="p-4 border border-red-200 bg-red-50 rounded-md">
-          <h3 className="text-red-800 font-medium">サマリー分析エラー</h3>
-          <p className="text-red-600 mt-1">
-            {is504
-              ? "分析処理がタイムアウトしました（504）。ページを更新して再試行してください。"
-              : summaryError}
-          </p>
-          {is504 && (
-            <div className="mt-2">
-              <button
-                className="px-3 py-1.5 text-xs rounded border bg-white hover:bg-gray-50 dark:bg-slate-900 dark:hover:bg-slate-800"
-                onClick={() => window.location.reload()}
-              >
-                ページを更新して再試行
-              </button>
-            </div>
-          )}
-          <p className="text-xs text-muted-foreground mt-2">
-            レジュメが見つからない場合は、
-            <a href={ROUTE_UPLOAD} className="underline">
-              アップロードページ
-            </a>
-            から再度アップロードしてください。
-          </p>
-        </div>
+        <ErrorDisplay
+          title="サマリー分析エラー"
+          errorInfo={getFriendlyErrorMessage(summaryError)}
+          uploadRoute={ROUTE_UPLOAD}
+        />
       );
     }
 
@@ -293,28 +108,7 @@ export default function ClientCharts({
               <RadarChart
                 data={scores}
                 onMouseLeave={() => setHover(null)}
-                onMouseMove={state => {
-                  const payload = (
-                    state as unknown as {
-                      isTooltipActive?: boolean;
-                      activePayload?: Array<{
-                        payload?: { name?: string; value?: number };
-                      }>;
-                    }
-                  )?.activePayload;
-                  const p = payload && payload[0] && payload[0].payload;
-                  const name = (p?.name as string) || "";
-                  const value = Number(p?.value);
-                  if (!name || Number.isNaN(value)) {
-                    if (hover !== null) setHover(null);
-                    return;
-                  }
-                  setHover(prev =>
-                    prev && prev.name === name && prev.value === value
-                      ? prev
-                      : { name, value }
-                  );
-                }}
+                onMouseMove={state => handleRadarChartMouseMove(state, setHover, hover)}
               >
                 <PolarGrid />
                 <PolarAngleAxis dataKey="name" />
@@ -343,28 +137,6 @@ export default function ClientCharts({
           </div>
         </div>
 
-        {/* Overview text section - extracted from overall score section */}
-        {/* 概要テキストセクション - 全体スコアセクションから抽出 */}
-        {summary?.data?.overview && (
-          <div className="mt-6 p-4 border rounded-md bg-gray-50 dark:bg-gray-900/50">
-            <h4 className="font-medium mb-3">分析概要</h4>
-            <div className="text-sm text-muted-foreground">
-              {summary.data.overview
-                .split(/[。！？]/)
-                .filter(sentence => sentence.trim())
-                .map((sentence, index) => (
-                  <div key={index} className="mb-2">
-                    {sentence.trim()}
-                    {sentence.trim() &&
-                      !sentence.endsWith("。") &&
-                      !sentence.endsWith("！") &&
-                      !sentence.endsWith("？") &&
-                      "。"}
-                  </div>
-                ))}
-            </div>
-          </div>
-        )}
       </div>
     );
   };
@@ -373,70 +145,16 @@ export default function ClientCharts({
   // 詳細セクションを独立してレンダリング
   const renderDetailsSection = () => {
     if (detailsLoading) {
-      return (
-        <div>
-          <h3 className="text-lg font-semibold mb-4 text-center">
-            面接アドバイス
-          </h3>
-          <div className="p-4 border rounded-md">
-            <div className="space-y-6 text-sm">
-              <section>
-                <h4 className="font-medium mb-3">強み</h4>
-                <div className="space-y-2">
-                  <Skeleton className="h-4 w-10/12" />
-                  <Skeleton className="h-4 w-9/12" />
-                  <Skeleton className="h-4 w-8/12" />
-                </div>
-              </section>
-              <section>
-                <h4 className="font-medium mb-3">弱み</h4>
-                <div className="space-y-2">
-                  <Skeleton className="h-4 w-10/12" />
-                  <Skeleton className="h-4 w-9/12" />
-                </div>
-              </section>
-              <section>
-                <h4 className="font-medium mb-3">面接対策</h4>
-                <div className="space-y-2">
-                  <Skeleton className="h-4 w-11/12" />
-                  <Skeleton className="h-4 w-10/12" />
-                  <Skeleton className="h-4 w-9/12" />
-                </div>
-              </section>
-            </div>
-          </div>
-        </div>
-      );
+      return <ChartsDetailsSkeleton />;
     }
 
     if (detailsError) {
-      const is504 = isGatewayTimeoutMessage(detailsError);
       return (
-        <div className="p-4 border border-red-200 bg-red-50 rounded-md">
-          <h3 className="text-red-800 font-medium">詳細分析エラー</h3>
-          <p className="text-red-600 mt-1">
-            {is504
-              ? "分析処理がタイムアウトしました（504）。ページを更新して再試行してください。"
-              : detailsError}
-          </p>
-          {is504 && (
-            <div className="mt-2">
-              <button
-                className="px-3 py-1.5 text-xs rounded border bg-white hover:bg-gray-50 dark:bg-slate-900 dark:hover:bg-slate-800"
-                onClick={() => window.location.reload()}
-              >
-                ページを更新して再試行
-              </button>
-            </div>
-          )}
-          <p className="text-xs text-muted-foreground mt-2">
-            レジュメが見つからない場合は、
-            <a href={ROUTE_UPLOAD} className="underline">
-              アップロードページ
-            </a>
-            から再度アップロードしてください。
-          </p>
-        </div>
+        <ErrorDisplay
+          title="詳細分析エラー"
+          errorInfo={getFriendlyErrorMessage(detailsError)}
+          uploadRoute={ROUTE_UPLOAD}
+        />
       );
     }
 
@@ -444,6 +162,18 @@ export default function ClientCharts({
 
     return (
       <div>
+        {/* Overview text section */}
+        {/* 概要テキストセクション */}
+        {details.data.overview && (
+          <div className="my-6 p-4 border rounded-md bg-gray-50 dark:bg-gray-900/50">
+            <h4 className="font-medium mb-3">分析概要</h4>
+            <div className="text-sm text-muted-foreground">
+              {renderOverviewText(details.data.overview)}
+            </div>
+          </div>
+        )}
+        {/* Advice section */}
+        {/* 面接アドバイスセクション */}
         <h3 className="text-lg font-semibold mb-4 text-center">
           面接アドバイス
         </h3>
@@ -469,7 +199,7 @@ export default function ClientCharts({
               <h4 className="font-medium mb-3">面接対策</h4>
               <ul className="list-disc pl-5 space-y-2">
                 {details.data.advice?.map((item, i) => (
-                  <li key={`advv-${i}`}>
+                  <li key={`adv-${i}`}>
                     <div className="font-medium">{item.title}</div>
                     <div className="text-xs text-muted-foreground mt-1 whitespace-pre-wrap">
                       {item.detail}
@@ -490,25 +220,4 @@ export default function ClientCharts({
       {renderDetailsSection()}
     </div>
   );
-}
-
-function normalizeScores(scores: Record<string, number> | undefined) {
-  // Map English keys to Japanese labels for display
-  const labelMap: Record<string, string> = {
-    skills: "技術スキル",
-    experience: "経験",
-    projects: "プロジェクト",
-    education: "学歴",
-    soft: "ソフトスキル",
-  };
-
-  const fallback = Object.values(labelMap).map(name => ({ name, value: 0 }));
-  if (!scores) return fallback;
-
-  // Object: map each key to JP label if available
-  const items = Object.entries(scores).map(([rawName, value]) => {
-    const name = labelMap[rawName] || rawName;
-    return { name, value: Number(value) };
-  });
-  return items;
 }

@@ -5,11 +5,11 @@ import { cn } from "@/lib/utils";
 
 /**
  * @file badge.tsx
- * @description Minimal shadcn-like Badge component with variants.
+ * @description Minimal Badge component with variants.
  * @description シンプルな Badge コンポーネント（バリアント対応）。
  */
 
-type BadgeVariant = "default" | "secondary" | "destructive" | "outline";
+type BadgeVariant = "default" | "secondary" | "tertiary" | "destructive" | "outline";
 
 export function Badge({
   className,
@@ -17,8 +17,9 @@ export function Badge({
   ...props
 }: React.HTMLAttributes<HTMLSpanElement> & { variant?: BadgeVariant }) {
   const stylesByVariant: Record<BadgeVariant, string> = {
-    default: "bg-primary text-primary-foreground",
-    secondary: "bg-secondary text-secondary-foreground",
+    default: "bg-green-600 text-white hover:bg-green-700",
+    secondary: "bg-primary text-primary-foreground",
+    tertiary: "bg-secondary text-secondary-foreground",
     destructive: "bg-destructive text-destructive-foreground",
     outline: "border border-border",
   };

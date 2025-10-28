@@ -27,8 +27,10 @@ export const ROUTE_JOBS = "/jobs" as const;
 
 export const API_RESUME = "/api/resume" as const;
 export const API_RESUME_TEXT = "/api/resume-text" as const;
-export const API_MATCH_SUMMARY = "/api/match/summary" as const;
-export const API_MATCH_DETAILS = "/api/match/details" as const;
+export const API_MATCH = "/api/match" as const;
+export const API_MATCH_SUMMARY = `${API_MATCH}?type=summary` as const;
+export const API_MATCH_DETAILS = `${API_MATCH}?type=details` as const;
+export const API_MATCH_BATCH = `${API_MATCH}/batch` as const;
 
 /**
  * API route path union.
@@ -38,7 +40,21 @@ export type ApiPath =
   | typeof API_RESUME
   | typeof API_RESUME_TEXT
   | typeof API_MATCH_SUMMARY
-  | typeof API_MATCH_DETAILS;
+  | typeof API_MATCH_DETAILS
+  | typeof API_MATCH_BATCH;
+
+// ---------- AI Matching Configuration ----------
+/**
+ * Number of jobs per batch for AI matching.
+ * AI マッチングのバッチあたりの求人数。
+ */
+export const BATCH_SIZE = 3 as const;
+
+/**
+ * Maximum retry attempts for failed batch matching requests.
+ * 失敗したバッチマッチングリクエストの最大再試行回数。
+ */
+export const MAX_BATCH_RETRIES = 1 as const;
 
 // ---------- Storage Keys ----------
 export const STORAGE_RESUME_POINTER_KEY = "resume:current" as const;

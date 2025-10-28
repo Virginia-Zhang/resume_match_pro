@@ -18,7 +18,7 @@ import { PRODUCT_MARK } from "@/app/constants/constants";
  * @description 右寄せでブランド表記とテーマ切替を表示します。
  * @returns {JSX.Element} JSX element | JSX要素
  */
-export default function BrandBar({ inline = false }: { inline?: boolean }): JSX.Element {
+export default function BrandBar({ inline = false }: { inline?: boolean }): React.JSX.Element {
   const Inner = (
     <div className="flex items-center justify-end gap-4">
       <div className="text-sm md:text-base font-semibold tracking-wide text-foreground select-none">

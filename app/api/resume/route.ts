@@ -41,31 +41,27 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const resumeHash = await sha256Hex(resumeText);
     const resumeId = `${Date.now().toString(36)}-${resumeHash.slice(0, 12)}`;
 
-    console.log("💾 Resume ID:", resumeId);
-    console.log("🔑 Resume Hash:", resumeHash);
-    console.log("Resume Key:", resumeKey(resumeId));
 
     await putText(resumeKey(resumeId), resumeText);
-    console.log("✅ Resume stored to S3 successfully!");
 
     return NextResponse.json({ resumeId, resumeHash });
   } catch (error: unknown) {
     // Log detailed error for debugging
     // デバッグ用の詳細エラーログ
-    console.error("❌ S3 storage error:", error);
+    console.error("S3 storage error:", error);
 
     if (error instanceof Error) {
-      console.error("❌ Error type:", error.constructor.name);
-      console.error("❌ Error message:", error.message);
+      console.error("Error type:", error.constructor.name);
+      console.error("Error message:", error.message);
     }
 
     if (error && typeof error === "object") {
       const errorObj = error as Record<string, unknown>;
       if ("code" in errorObj) {
-        console.error("❌ Error code:", errorObj.code);
+        console.error("Error code:", errorObj.code);
       }
       if ("$metadata" in errorObj) {
-        console.error("❌ AWS metadata:", errorObj.$metadata);
+        console.error("AWS metadata:", errorObj.$metadata);
       }
     }
 

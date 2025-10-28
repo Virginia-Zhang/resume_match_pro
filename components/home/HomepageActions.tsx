@@ -8,16 +8,16 @@
  */
 "use client";
 
-import React from "react";
-import { PrimaryCtaButton, SecondaryCtaButton } from "@/components/common/buttons/CtaButtons";
-import { useRouter } from "next/navigation";
-import { resumePointer } from "@/lib/storage";
 import {
-  ROUTE_UPLOAD,
-  ROUTE_JOBS,
   CTA_UPLOAD_JA,
   CTA_UPLOADED_JA,
+  ROUTE_JOBS,
+  ROUTE_UPLOAD,
 } from "@/app/constants/constants";
+import { PrimaryCtaButton, SecondaryCtaButton } from "@/components/common/buttons/CtaButtons";
+import { resumePointer } from "@/lib/storage";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
 /**
  * @component HomepageActions
@@ -26,9 +26,9 @@ import {
  */
 export default function HomepageActions(): React.ReactElement {
   const router = useRouter();
-  const [hasResume, setHasResume] = React.useState<boolean>(false);
+  const [hasResume, setHasResume] = useState<boolean>(false);
 
-  React.useEffect(() => {
+  useEffect(() => {
     // Check presence of resume pointer in localStorage on mount
     // マウント時に localStorage のポインタ有無を確認
     const p = resumePointer.load();

@@ -1,10 +1,11 @@
 "use client";
 
-import React from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { findJobById } from "@/app/api/jobs/mock";
 import BrandBar from "@/components/common/BrandBar";
 import Breadcrumbs, { CrumbItem } from "@/components/common/Breadcrumbs";
 import BackButton from "@/components/common/buttons/BackButton";
+import { usePathname, useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 /**
  * @file SiteHeader.tsx
@@ -17,10 +18,30 @@ import BackButton from "@/components/common/buttons/BackButton";
 export default function SiteHeader(): React.ReactElement {
   const pathname = usePathname() ?? "/";
   const router = useRouter();
+  const [jobTitle, setJobTitle] = useState<string>("詳細");
+
+  // Extract job ID from pathname and fetch job title
+  // パス名から求人IDを抽出し、求人タイトルを取得
+  useEffect(() => {
+    if (pathname.startsWith("/jobs/")) {
+      const jobId = pathname.split("/")[2];
+      if (jobId) {
+        try {
+          const job = findJobById(jobId);
+          if (job) {
+            setJobTitle(job.title);
+          }
+        } catch (error) {
+          console.error("Failed to fetch job title:", error);
+          setJobTitle("詳細");
+        }
+      }
+    }
+  }, [pathname]);
 
   // Build explicit items to avoid client path timing issues and to support jobs/[id]
   // クライアントのタイミング問題を避けつつ、jobs/[id] に対応するため明示的に生成
-  const items: CrumbItem[] = React.useMemo(() => {
+  const items: CrumbItem[] = useMemo(() => {
     if (pathname === "/") return [{ href: "/", label: "ホーム" }];
     if (pathname === "/upload")
       return [
@@ -38,11 +59,11 @@ export default function SiteHeader(): React.ReactElement {
         { href: "/", label: "ホーム" },
         { href: "/upload", label: "アップロード" },
         { href: "/jobs", label: "求人" },
-        { href: pathname, label: "詳細" },
+        { href: pathname, label: jobTitle },
       ];
     // Fallback: generic segmentation handled inside Breadcrumbs
     return undefined as unknown as CrumbItem[];
-  }, [pathname]);
+  }, [pathname, jobTitle]);
 
   const isHomePage = pathname === "/";
 
@@ -50,7 +71,7 @@ export default function SiteHeader(): React.ReactElement {
    * Handle back navigation
    * 戻るナビゲーションを処理
    */
-  const handleBack = React.useCallback(() => {
+  const handleBack = useCallback(() => {
     router.back();
   }, [router]);
 
@@ -65,7 +86,7 @@ export default function SiteHeader(): React.ReactElement {
               {/* Mobile devices: BackButton shown; Large screen: BreadCrumbs shown */}
               {/* モバイルデバイス: BackButton表示；大画面: BreadCrumbs表示 */}
               <BackButton onClick={handleBack} className="lg:hidden shrink-0 h-8 w-8 -ml-2" />
-              <Breadcrumbs items={items} pathname={pathname} />
+              <Breadcrumbs items={items} />
             </>
           )}
         </div>
