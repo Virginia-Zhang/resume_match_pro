@@ -1,23 +1,23 @@
 "use client";
 
-import * as React from "react";
-import { Check, ChevronsUpDown, X } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
+    Command,
+    CommandEmpty,
+    CommandGroup,
+    CommandInput,
+    CommandItem,
+    CommandList,
 } from "@/components/ui/command";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
 } from "@/components/ui/popover";
-import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
+import { Check, ChevronsUpDown, X } from "lucide-react";
+import { useState } from "react";
 
 /**
  * @file multi-select.tsx
@@ -57,7 +57,7 @@ export function MultiSelect({
   placeholder = "選択してください",
   className,
 }: MultiSelectProps) {
-  const [open, setOpen] = React.useState(false);
+  const [open, setOpen] = useState(false);
 
   /**
    * @description Handle option selection/deselection

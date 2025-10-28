@@ -27,9 +27,10 @@ export const ROUTE_JOBS = "/jobs" as const;
 
 export const API_RESUME = "/api/resume" as const;
 export const API_RESUME_TEXT = "/api/resume-text" as const;
-export const API_MATCH_SUMMARY = "/api/match/summary" as const;
-export const API_MATCH_DETAILS = "/api/match/details" as const;
-export const API_MATCH_BATCH = "/api/match/batch" as const;
+export const API_MATCH = "/api/match" as const;
+export const API_MATCH_SUMMARY = `${API_MATCH}?type=summary` as const;
+export const API_MATCH_DETAILS = `${API_MATCH}?type=details` as const;
+export const API_MATCH_BATCH = `${API_MATCH}/batch` as const;
 
 /**
  * API route path union.

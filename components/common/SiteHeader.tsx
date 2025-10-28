@@ -1,11 +1,11 @@
 "use client";
 
-import React from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { findJobById } from "@/app/api/jobs/mock";
 import BrandBar from "@/components/common/BrandBar";
 import Breadcrumbs, { CrumbItem } from "@/components/common/Breadcrumbs";
 import BackButton from "@/components/common/buttons/BackButton";
-import { findJobById } from "@/app/api/jobs/mock";
+import { usePathname, useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 /**
  * @file SiteHeader.tsx
@@ -18,11 +18,11 @@ import { findJobById } from "@/app/api/jobs/mock";
 export default function SiteHeader(): React.ReactElement {
   const pathname = usePathname() ?? "/";
   const router = useRouter();
-  const [jobTitle, setJobTitle] = React.useState<string>("詳細");
+  const [jobTitle, setJobTitle] = useState<string>("詳細");
 
   // Extract job ID from pathname and fetch job title
   // パス名から求人IDを抽出し、求人タイトルを取得
-  React.useEffect(() => {
+  useEffect(() => {
     if (pathname.startsWith("/jobs/")) {
       const jobId = pathname.split("/")[2];
       if (jobId) {
@@ -41,7 +41,7 @@ export default function SiteHeader(): React.ReactElement {
 
   // Build explicit items to avoid client path timing issues and to support jobs/[id]
   // クライアントのタイミング問題を避けつつ、jobs/[id] に対応するため明示的に生成
-  const items: CrumbItem[] = React.useMemo(() => {
+  const items: CrumbItem[] = useMemo(() => {
     if (pathname === "/") return [{ href: "/", label: "ホーム" }];
     if (pathname === "/upload")
       return [
@@ -71,7 +71,7 @@ export default function SiteHeader(): React.ReactElement {
    * Handle back navigation
    * 戻るナビゲーションを処理
    */
-  const handleBack = React.useCallback(() => {
+  const handleBack = useCallback(() => {
     router.back();
   }, [router]);
 

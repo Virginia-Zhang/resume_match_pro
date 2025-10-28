@@ -8,33 +8,33 @@
  */
 "use client";
 
-import React from "react";
-import Image from "next/image";
-import { PrimaryCtaButton, SecondaryCtaButton } from "@/components/common/buttons/CtaButtons";
-import Skeleton from "@/components/ui/skeleton";
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-} from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import { resumePointer, clearBatchMatchingResults } from "@/lib/storage";
 import {
   API_RESUME,
   API_RESUME_TEXT,
   ROUTE_JOBS,
   UPLOAD_FEATURES,
+  UPLOAD_FILE_SIZE_ERROR_JA,
+  UPLOAD_MAX_FILE_SIZE_BYTES,
   UPLOAD_STEPS,
   UPLOAD_TEXTAREA_GUIDELINES,
-  UPLOAD_MAX_FILE_SIZE_BYTES,
-  UPLOAD_FILE_SIZE_ERROR_JA,
 } from "@/app/constants/constants";
-import { fetchJson } from "@/lib/fetcher";
-import { getFriendlyErrorMessage } from "@/lib/errorHandling";
+import { PrimaryCtaButton, SecondaryCtaButton } from "@/components/common/buttons/CtaButtons";
 import ErrorDisplay from "@/components/common/ErrorDisplay";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import Skeleton from "@/components/ui/skeleton";
+import { getFriendlyErrorMessage } from "@/lib/errorHandling";
+import { fetchJson } from "@/lib/fetcher";
+import { clearBatchMatchingResults, resumePointer } from "@/lib/storage";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Progress } from "@/components/ui/progress";
 import {
@@ -51,20 +51,20 @@ import {
  */
 export default function UploadPage(): React.JSX.Element {
   const router = useRouter();
-  const [file, setFile] = React.useState<File | null>(null);
-  const [parsing, setParsing] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
-  const [text, setText] = React.useState("");
+  const [file, setFile] = useState<File | null>(null);
+  const [parsing, setParsing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [text, setText] = useState("");
   // Initialize prefilling state to false to ensure SSR/client consistency
   // prefillingの状態をfalseで初期化し、SSR/クライアントの一貫性を確保
-  const [prefilling, setPrefilling] = React.useState(false);
-  const [dragActive, setDragActive] = React.useState(false);
-  const dropRef = React.useRef<HTMLDivElement | null>(null);
-  const [uploadError, setUploadError] = React.useState<string | null>(null);
-  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+  const [prefilling, setPrefilling] = useState(false);
+  const [dragActive, setDragActive] = useState(false);
+  const dropRef = useRef<HTMLDivElement | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   // Track if user has uploaded a new file or modified the text
   // ユーザーが新しいファイルをアップロードしたか、テキストを変更したかを追跡
-  const [hasNewUpload, setHasNewUpload] = React.useState(false);
+  const [hasNewUpload, setHasNewUpload] = useState(false);
 
   /**
    * @description Validates whether the uploaded file is in PDF format for both PC and mobile platforms.
@@ -74,7 +74,7 @@ export default function UploadPage(): React.JSX.Element {
    * @remarks Prefers MIME type check, falls back to file extension for iOS compatibility (iOS may provide empty MIME type).
    * @remarks MIMEタイプチェックを優先し、iOS互換性のため拡張子にフォールバック（iOSではMIMEタイプが空の場合がある）。
    */
-  const isPdfFile = React.useCallback((f: File): boolean => {
+  const isPdfFile = useCallback((f: File): boolean => {
     if (!f) return false;
     if (f.type === "application/pdf") return true;
     if (!f.type && /\.pdf$/i.test(f.name)) return true;
@@ -88,7 +88,7 @@ export default function UploadPage(): React.JSX.Element {
    * @remarks Prefers `showPicker` for modern UX, reverts to `click` when blocked.
    * @remarks モダンな UX のため `showPicker` を優先し、拒否された場合は `click` に戻します。
    */
-  const openFilePicker = React.useCallback(() => {
+  const openFilePicker = useCallback(() => {
     const input = fileInputRef.current;
     if (!input) return;
     input.click();
@@ -102,7 +102,7 @@ export default function UploadPage(): React.JSX.Element {
    * @remarks Keeps upload error flow consistent across browsers.
    * @remarks ブラウザ間でアップロードエラー時の挙動を統一します。
    */
-  const resetFileInput = React.useCallback(() => {
+  const resetFileInput = useCallback(() => {
     const input = fileInputRef.current;
     if (!input) return;
     input.value = "";
@@ -119,7 +119,7 @@ export default function UploadPage(): React.JSX.Element {
    * @remarks Prevents event bubbling to avoid double trigger.
    * @remarks イベントバブリングを防止し、二重トリガーを回避します。
    */
-  const handleContainerClick = React.useCallback((event: React.MouseEvent) => {
+  const handleContainerClick = useCallback((event: React.MouseEvent) => {
     event.stopPropagation();
     openFilePicker();
   }, [openFilePicker]);
@@ -132,7 +132,7 @@ export default function UploadPage(): React.JSX.Element {
    * @remarks Supports Enter and Space keys.
    * @remarks EnterキーとSpaceキーをサポートします。
    */
-  const handleContainerKeyDown = React.useCallback((event: React.KeyboardEvent) => {
+  const handleContainerKeyDown = useCallback((event: React.KeyboardEvent) => {
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
       event.stopPropagation();
@@ -146,7 +146,7 @@ export default function UploadPage(): React.JSX.Element {
    * @param {React.DragEvent} event - The drag event | ドラッグイベント
    * @returns {void} No return value | 返り値なし
    */
-  const handleDragOver = React.useCallback((event: React.DragEvent) => {
+  const handleDragOver = useCallback((event: React.DragEvent) => {
     event.preventDefault();
     setDragActive(true);
   }, []);
@@ -159,7 +159,7 @@ export default function UploadPage(): React.JSX.Element {
    * @remarks Only deactivates if leaving the actual drop zone container.
    * @remarks 実際のドロップゾーンコンテナを離れた場合のみ無効化します。
    */
-  const handleDragLeave = React.useCallback((event: React.DragEvent) => {
+  const handleDragLeave = useCallback((event: React.DragEvent) => {
     if (!dropRef.current?.contains(event.relatedTarget as Node)) {
       setDragActive(false);
     }
@@ -173,7 +173,7 @@ export default function UploadPage(): React.JSX.Element {
    * @remarks Validates PDF format and file size before setting the file state.
    * @remarks ファイルの状態を設定する前にPDF形式とファイルサイズを検証します。
    */
-  const handleDrop = React.useCallback((event: React.DragEvent) => {
+  const handleDrop = useCallback((event: React.DragEvent) => {
     event.preventDefault();
     setDragActive(false);
     const dropped = event.dataTransfer.files?.[0];
@@ -211,7 +211,7 @@ export default function UploadPage(): React.JSX.Element {
    * @remarks Validates PDF format and file size before setting the file state.
    * @remarks ファイルの状態を設定する前にPDF形式とファイルサイズを検証します。
    */
-  const handleFileInputChange = React.useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileInputChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const selected = event.target.files?.[0];
     if (!selected) return;
     
@@ -242,7 +242,7 @@ export default function UploadPage(): React.JSX.Element {
    * @param {React.MouseEvent} event - The mouse event | マウスイベント
    * @returns {void} No return value | 返り値なし
    */
-  const handleButtonClick = React.useCallback((event: React.MouseEvent) => {
+  const handleButtonClick = useCallback((event: React.MouseEvent) => {
     event.stopPropagation();
     openFilePicker();
   }, [openFilePicker]);
@@ -332,7 +332,7 @@ export default function UploadPage(): React.JSX.Element {
 
   // Prefill from S3 if resume:current exists
   // resume:currentが存在する場合、S3から事前入力
-  React.useEffect(() => {
+  useEffect(() => {
     const p = resumePointer.load();
     if (!p?.resumeId || text) return;
     

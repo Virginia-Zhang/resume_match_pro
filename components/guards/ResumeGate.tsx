@@ -5,10 +5,10 @@
  */
 "use client";
 
-import React from "react";
+import { ROUTE_UPLOAD } from "@/app/constants/constants";
 import Skeleton from "@/components/ui/skeleton";
 import { resumePointer } from "@/lib/storage";
-import { ROUTE_UPLOAD } from "@/app/constants/constants";
+import { cloneElement, isValidElement, useEffect, useState } from "react";
 import { toast, Toaster } from "sonner";
 
 /**
@@ -22,12 +22,12 @@ type ResumeGateProps = {
 export default function ResumeGate({
   children,
 }: ResumeGateProps): React.ReactElement {
-  const [ok, setOk] = React.useState<boolean | null>(null);
-  const [resumeId, setResumeId] = React.useState<string | null>(null);
+  const [ok, setOk] = useState<boolean | null>(null);
+  const [resumeId, setResumeId] = useState<string | null>(null);
 
   // Check if resume is present
   // レジュメが存在するか確認
-  React.useEffect(() => {
+  useEffect(() => {
     const p = resumePointer.load();
     if (!p?.resumeId) {
       // Set state to false first to render GateSkeleton with Toaster
@@ -56,9 +56,9 @@ export default function ResumeGate({
   
   // Always inject resumeId to children
   // 常に子コンポーネントに resumeId を注入
-  if (React.isValidElement(children) && resumeId) {
+  if (isValidElement(children) && resumeId) {
     const child = children as React.ReactElement<{ resumeId?: string }>;
-    return React.cloneElement(child, { resumeId });
+    return cloneElement(child, { resumeId });
   }
   
   return <>{children}</>;

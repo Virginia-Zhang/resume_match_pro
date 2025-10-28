@@ -14,11 +14,11 @@ import ErrorDisplay from '@/components/common/ErrorDisplay';
 import JobFilters from '@/components/jobs/JobFilters';
 import JobItem from '@/components/jobs/JobItem';
 import { Progress } from '@/components/ui/progress';
+import { useBatchMatching } from '@/hooks/useBatchMatching';
 import { fetchJson } from '@/lib/fetcher';
 import { getApiBase } from '@/lib/runtime-config';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
-import { useBatchMatching } from './useBatchMatching';
 
 import type { JobListItem } from '@/types/jobs_v2';
 import type { MatchResultItem } from '@/types/matching';

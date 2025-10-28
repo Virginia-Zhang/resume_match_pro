@@ -9,26 +9,16 @@
 
 "use client";
 
-import { useState, useCallback, useEffect, useLayoutEffect, useRef } from 'react';
-import { getFriendlyErrorMessage, FriendlyErrorMessage } from '@/lib/errorHandling';
-import { API_MATCH_BATCH, BATCH_SIZE } from '@/app/constants/constants';
-import { getApiBase } from '@/lib/runtime-config';
-import type { JobDetailV2, JobListItem } from '@/types/jobs_v2';
-import { serializeJDForBatchMatching } from '@/lib/jobs';
 import { findJobById } from '@/app/api/jobs/mock';
-import { loadBatchMatchingResults, saveBatchMatchingResults, clearBatchMatchingResults } from '@/lib/storage';
+import { API_MATCH_BATCH, BATCH_SIZE } from '@/app/constants/constants';
+import { FriendlyErrorMessage, getFriendlyErrorMessage } from '@/lib/errorHandling';
+import { serializeJDForBatchMatching } from '@/lib/jobs';
+import { getApiBase } from '@/lib/runtime-config';
+import { clearBatchMatchingResults, loadBatchMatchingResults, saveBatchMatchingResults } from '@/lib/storage';
+import type { JobDetailV2, JobListItem } from '@/types/jobs_v2';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
-import type { MatchResultItem } from '@/types/matching';
-
-interface UseBatchMatchingResult {
-  results: MatchResultItem[];
-  isMatchingComplete: boolean;
-  isMatching: boolean;
-  errorInfo: FriendlyErrorMessage | null;
-  processedJobs: number;
-  totalJobs: number;
-  startMatchingFromListItems: (resumeText: string, jobListItems: JobListItem[], incremental?: boolean, totalJobsCount?: number) => Promise<void>;
-}
+import type { MatchResultItem, UseBatchMatchingResult } from '@/types/matching';
 
 /**
  * @description Custom hook for batch matching with progressive results display

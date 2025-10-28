@@ -35,5 +35,9 @@
   },
   "[markdown]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode"
-  }
+  },
+  "cSpell.words": [
+    "Dify",
+    "Retryable"
+  ]
 }

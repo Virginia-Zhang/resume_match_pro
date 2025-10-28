@@ -6,13 +6,13 @@
  */
 "use client";
 
-import React from "react";
 import {
   Card,
+  CardDescription,
   CardHeader,
   CardTitle,
-  CardDescription,
 } from "@/components/ui/card";
+import { useEffect, useRef, useState } from "react";
 
 export interface FeatureCardProps {
   /** Icon node shown in the emblem area | エンブレム領域に表示するアイコン */
@@ -33,12 +33,12 @@ export default function FeatureCard(
   props: FeatureCardProps
 ): React.ReactElement {
   const { icon, title, desc } = props;
-  const [isPressed, setIsPressed] = React.useState<boolean>(false);
-  const timerRef = React.useRef<number | null>(null);
+  const [isPressed, setIsPressed] = useState<boolean>(false);
+  const timerRef = useRef<number | null>(null);
 
   // Clear any pending timer on unmount
   // アンマウント時に保留中タイマーを解除
-  React.useEffect(() => {
+  useEffect(() => {
     return () => {
       if (timerRef.current !== null) {
         window.clearTimeout(timerRef.current);

@@ -8,18 +8,15 @@
  */
 "use client";
 
-import { fetchJson } from "@/lib/fetcher";
-import { getFriendlyErrorMessage } from "@/lib/errorHandling";
+import { ROUTE_UPLOAD } from "@/app/constants/constants";
 import ErrorDisplay from "@/components/common/ErrorDisplay";
-import React from "react";
-import ChartsSummarySkeleton from "@/components/skeleton/ChartsSummarySkeleton";
 import ChartsDetailsSkeleton from "@/components/skeleton/ChartsDetailsSkeleton";
-import {
-  API_MATCH_SUMMARY,
-  API_MATCH_DETAILS,
-  ROUTE_UPLOAD,
-} from "@/app/constants/constants";
-import { getApiBase } from "@/lib/runtime-config";
+import ChartsSummarySkeleton from "@/components/skeleton/ChartsSummarySkeleton";
+import { useMatchData } from "@/hooks/useMatchData";
+import { handleRadarChartMouseMove, normalizeScores, renderOverviewText } from "@/lib/chart-utils";
+import { getFriendlyErrorMessage } from "@/lib/errorHandling";
+import type { ChartsProps } from "@/types/matching";
+import React from "react";
 import {
   Cell,
   Pie,
@@ -31,188 +28,20 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
-interface SummaryEnvelope {
-  meta: { resumeHash: string };
-  data: {
-    overall: number;
-    scores: Record<string, number>;
-  };
-}
 
-interface DetailsEnvelope {
-  meta: { resumeHash: string };
-  data: {
-    advantages: string[];
-    disadvantages: string[];
-    advice: Array<{
-      title: string;
-      detail: string;
-    }>;
-    overview: string;
-  };
-}
 
-/**
- * @description Normalize scores data for radar chart display
- * @description レーダーチャート表示用のスコアデータを正規化
- * @param scores Raw scores object
- * @param scores 生のスコアオブジェクト
- * @returns Normalized scores array for radar chart
- * @returns レーダーチャート用の正規化されたスコア配列
- */
-function normalizeScores(scores: Record<string, number> | undefined) {
-  // Map English keys to Japanese labels for display
-  const labelMap: Record<string, string> = {
-    skills: "技術スキル",
-    experience: "経験",
-    projects: "プロジェクト",
-    education: "学歴",
-    soft: "ソフトスキル",
-  };
+export default function Charts(props: ChartsProps): React.JSX.Element {
+  const {
+    summary,
+    details,
+    summaryLoading,
+    detailsLoading,
+    summaryError,
+    detailsError,
+    hover,
+    setHover,
+  } = useMatchData(props);
 
-  const fallback = Object.values(labelMap).map(name => ({ name, value: 0 }));
-  if (!scores) return fallback;
-
-  // Object: map each key to JP label if available
-  const items = Object.entries(scores).map(([rawName, value]) => {
-    const name = labelMap[rawName] || rawName;
-    return { name, value: Number(value) };
-  });
-  return items;
-}
-
-interface ChartsProps {
-  resumeId: string;
-  jobId: string;
-  jobDescription: string;
-  overallScore?: number;
-  scores?: {
-    skills: number;
-    experience: number;
-    projects: number;
-    education: number;
-    soft: number;
-  };
-}
-
-export default function Charts({
-  resumeId,
-  jobId,
-  jobDescription,
-  overallScore,
-  scores,
-}: ChartsProps): React.JSX.Element {
-  const [summary, setSummary] = React.useState<SummaryEnvelope | null>(null);
-  const [details, setDetails] = React.useState<DetailsEnvelope | null>(null);
-  const [summaryLoading, setSummaryLoading] = React.useState(true);
-  const [detailsLoading, setDetailsLoading] = React.useState(true);
-  const [summaryError, setSummaryError] = React.useState<string | null>(null);
-  const [detailsError, setDetailsError] = React.useState<string | null>(null);
-  const [hover, setHover] = React.useState<{
-    name: string;
-    value: number;
-  } | null>(null);
-
-  // Fetch summary data independently
-  // サマリーデータを独立して取得
-  React.useEffect(() => {
-    async function fetchSummary() {
-      try {
-        setSummaryLoading(true);
-        setSummaryError(null);
-
-        // Use provided overallScore and scores if available
-        // 提供された overallScore と scores が利用可能な場合はそれを使用
-        if (overallScore !== undefined && scores) {
-          setSummary({
-            meta: { resumeHash: "" },
-            data: {
-              overall: overallScore,
-              scores: {
-                skills: scores.skills,
-                experience: scores.experience,
-                projects: scores.projects,
-                education: scores.education,
-                soft: scores.soft,
-              },
-            },
-          });
-          setSummaryLoading(false);
-          return;
-        }
-
-        const summaryUrl = `${getApiBase()}${API_MATCH_SUMMARY}`;
-        const difyUser = process.env.DIFY_USER || "ResumeMatch Pro User";
-        const summaryData = await fetchJson<SummaryEnvelope>(summaryUrl, {
-          method: "POST",
-          body: JSON.stringify({
-            inputs: {
-              job_description: jobDescription,
-            },
-            response_mode: "blocking",
-            user: difyUser,
-            jobId,
-            resumeId,
-          }),
-          timeoutMs: 90000, // 90 seconds for Dify API processing
-        });
-        setSummary(summaryData);
-      } catch (err) {
-        setSummaryError(err instanceof Error ? err.message : "Unknown error");
-      } finally {
-        setSummaryLoading(false);
-      }
-    }
-
-    fetchSummary();
-  }, [resumeId, jobId, jobDescription]);
-
-  // Fetch details data only after summary is completed
-  // サマリー完了後にのみ詳細データを取得
-  React.useEffect(() => {
-    async function fetchDetails() {
-      // Only proceed if summary is completed
-      if (!summary) return;
-
-      try {
-        setDetailsLoading(true);
-        setDetailsError(null);
-
-        // Get overall score from current summary state
-        if (!summary) {
-          setDetailsError("Summary data not available for details analysis");
-          setDetailsLoading(false);
-          return;
-        }
-        const overallFromSummary = summary.data.overall;
-
-        const detailsUrl = `${getApiBase()}${API_MATCH_DETAILS}`;
-        const difyUser = process.env.DIFY_USER || "ResumeMatch Pro User";
-
-        const detailsData = await fetchJson<DetailsEnvelope>(detailsUrl, {
-          method: "POST",
-          body: JSON.stringify({
-            inputs: {
-              job_description: jobDescription,
-              overall_from_summary: overallFromSummary,
-            },
-            response_mode: "blocking",
-            user: difyUser,
-            jobId,
-            resumeId,
-          }),
-          timeoutMs: 90000, // 90 seconds for Dify API processing
-        });
-        setDetails(detailsData);
-      } catch (err) {
-        setDetailsError(err instanceof Error ? err.message : "Unknown error");
-      } finally {
-        setDetailsLoading(false);
-      }
-    }
-
-    fetchDetails();
-  }, [resumeId, jobId, jobDescription, summary]);
 
   // Render summary section independently
   // サマリーセクションを独立してレンダリング
@@ -279,28 +108,7 @@ export default function Charts({
               <RadarChart
                 data={scores}
                 onMouseLeave={() => setHover(null)}
-                onMouseMove={state => {
-                  const payload = (
-                    state as unknown as {
-                      isTooltipActive?: boolean;
-                      activePayload?: Array<{
-                        payload?: { name?: string; value?: number };
-                      }>;
-                    }
-                  )?.activePayload;
-                  const p = payload && payload[0] && payload[0].payload;
-                  const name = (p?.name as string) || "";
-                  const value = Number(p?.value);
-                  if (!name || Number.isNaN(value)) {
-                    if (hover !== null) setHover(null);
-                    return;
-                  }
-                  setHover(prev =>
-                    prev && prev.name === name && prev.value === value
-                      ? prev
-                      : { name, value }
-                  );
-                }}
+                onMouseMove={state => handleRadarChartMouseMove(state, setHover, hover)}
               >
                 <PolarGrid />
                 <PolarAngleAxis dataKey="name" />
@@ -360,19 +168,7 @@ export default function Charts({
           <div className="my-6 p-4 border rounded-md bg-gray-50 dark:bg-gray-900/50">
             <h4 className="font-medium mb-3">分析概要</h4>
             <div className="text-sm text-muted-foreground">
-              {details.data.overview
-                .split(/[。！？]/)
-                .filter(sentence => sentence.trim())
-                .map((sentence, index) => (
-                  <div key={index} className="mb-2">
-                    {sentence.trim()}
-                    {sentence.trim() &&
-                      !sentence.endsWith("。") &&
-                      !sentence.endsWith("！") &&
-                      !sentence.endsWith("？") &&
-                      "。"}
-                  </div>
-                ))}
+              {renderOverviewText(details.data.overview)}
             </div>
           </div>
         )}

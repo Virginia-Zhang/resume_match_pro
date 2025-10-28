@@ -8,16 +8,16 @@
  */
 "use client";
 
+import { findJobById } from "@/app/api/jobs/mock";
+import { ROUTE_JOBS } from "@/app/constants/constants";
+import JobDetailSkeleton from "@/components/skeleton/JobDetailSkeleton";
+import { serializeJDForBatchMatching } from "@/lib/jobs";
 import type { JobDetailV2 } from "@/types/jobs_v2";
 import type { MatchResultItem } from "@/types/matching";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ROUTE_JOBS } from "@/app/constants/constants";
-import React from "react";
+import { useEffect, useState } from "react";
 import Charts from "./charts";
-import { serializeJDForBatchMatching } from "@/lib/jobs";
-import { findJobById } from "@/app/api/jobs/mock";
-import JobDetailSkeleton from "@/components/skeleton/JobDetailSkeleton";
 
 interface JobDetailClientProps {
   jobId: string;
@@ -33,13 +33,13 @@ export default function JobDetailClient({
   jobId,
   resumeId,
 }: JobDetailClientProps): React.ReactElement {
-  const [detail, setDetail] = React.useState<JobDetailV2 | null>(null);
-  const [matchResult, setMatchResult] = React.useState<MatchResultItem | null>(null);
-  const [loading, setLoading] = React.useState(true);
+  const [detail, setDetail] = useState<JobDetailV2 | null>(null);
+  const [matchResult, setMatchResult] = useState<MatchResultItem | null>(null);
+  const [loading, setLoading] = useState(true);
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  React.useEffect(() => {
+  useEffect(() => {
     // Get matchResult from URL query params
     // URL クエリパラメータから matchResult を取得
     const matchResultParam = searchParams.get('matchResult');
@@ -61,7 +61,7 @@ export default function JobDetailClient({
     setLoading(false);
   }, [jobId, searchParams]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (!loading && !detail) {
       // Missing data -> redirect to jobs list while preserving resume context
       // データがない場合はレジュメコンテキストを保持したまま一覧へ遷移
