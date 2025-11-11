@@ -88,15 +88,35 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     // Store resume text in S3 using UUID-based key
     // UUIDベースのキーを使用してレジュメテキストをS3に保存
     const finalStorageKey = resumeKey(newResume.id);
-    await putText(finalStorageKey, resumeText);
+    try {
+      await putText(finalStorageKey, resumeText);
+    } catch (s3Error) {
+      // If S3 upload fails, rollback database insert to avoid orphaned records
+      // S3アップロードが失敗した場合、孤立レコードを避けるためにデータベース挿入をロールバック
+      console.error("S3 upload failed, rolling back database insert:", s3Error);
+      await supabase
+        .from("resumes")
+        .delete()
+        .eq("id", newResume.id);
+      
+      // Re-throw the error to be caught by outer catch block
+      // 外側のcatchブロックでキャッチされるようにエラーを再スロー
+      throw s3Error;
+    }
 
     // Update storage_key in database to use UUID
     // UUIDを使用するようにデータベースのstorage_keyを更新
     if (tempStorageKey !== finalStorageKey) {
-      await supabase
+      const { error: updateError } = await supabase
         .from("resumes")
         .update({ storage_key: finalStorageKey })
         .eq("id", newResume.id);
+      
+      // If update fails, log error but don't fail the request (S3 upload succeeded)
+      // 更新が失敗した場合、エラーをログに記録するがリクエストは失敗させない（S3アップロードは成功）
+      if (updateError) {
+        console.error("Failed to update storage_key in database:", updateError);
+      }
     }
 
     return NextResponse.json({
