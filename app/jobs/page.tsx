@@ -7,9 +7,9 @@
  * @remarks 求人を取得してクライアントコンポーネントに渡し、AI マッチングを実行するサーバーコンポーネント
  */
 
-import React from "react";
-import { fetchJobs, toListItem } from "@/lib/jobs";
 import ResumeGate from "@/components/guards/ResumeGate";
+import { fetchJobs, toListItem } from "@/lib/jobs";
+import React from "react";
 import JobsListClient from "./JobsListClient";
 
 /**
@@ -31,7 +31,9 @@ export default async function JobsPage(): Promise<React.JSX.Element> {
     // The actual value of resumeId is injected by ResumeGate into the child component
     // 実際の resumeId は ResumeGate によって子コンポーネントに注入されます
     <ResumeGate>
-      <JobsListClient initialJobs={jobs} />
+      {/* Pass both list items and full details: list items for display, full details for batch matching */}
+      {/* リストアイテムと完全な詳細の両方を渡す：リストアイテムは表示用、完全な詳細はバッチマッチング用 */}
+      <JobsListClient initialJobs={jobs} jobDetailsMap={jobDetails} />
     </ResumeGate>
   );
 }

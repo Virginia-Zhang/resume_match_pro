@@ -54,9 +54,13 @@ export default function ResumeGate({
 
   if (ok !== true) return <GateSkeleton />;
   
+  // Only render children when resumeId is available to avoid warnings
+  // resumeId が利用可能な場合のみ子コンポーネントをレンダリングして警告を回避
+  if (!resumeId) return <GateSkeleton />;
+  
   // Always inject resumeId to children
   // 常に子コンポーネントに resumeId を注入
-  if (isValidElement(children) && resumeId) {
+  if (isValidElement(children)) {
     const child = children as React.ReactElement<{ resumeId?: string }>;
     return cloneElement(child, { resumeId });
   }

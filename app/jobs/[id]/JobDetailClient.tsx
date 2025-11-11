@@ -1,17 +1,16 @@
 /**
  * @file JobDetailClient.tsx
- * @description Client-side job detail view that fetches JobDetailV2 from mock data and renders with match results
- * @description モックデータから JobDetailV2 を取得し、マッチング結果と共に描画するクライアント側求人詳細ビュー
+ * @description Client-side job detail view that fetches JobDetailV2 from API and renders with match results
+ * @description APIから JobDetailV2 を取得し、マッチング結果と共に描画するクライアント側求人詳細ビュー
  * @author Virginia Zhang
  * @remarks Client component for job detail page with AI matching results
  * @remarks AI マッチング結果付きの求人詳細ページ用クライアントコンポーネント
  */
 "use client";
 
-import { findJobById } from "@/app/api/jobs/mock";
 import { ROUTE_JOBS } from "@/app/constants/constants";
 import JobDetailSkeleton from "@/components/skeleton/JobDetailSkeleton";
-import { serializeJDForBatchMatching } from "@/lib/jobs";
+import { fetchJobById, serializeJDForBatchMatching } from "@/lib/jobs";
 import type { JobDetailV2 } from "@/types/jobs_v2";
 import type { MatchResultItem } from "@/types/matching";
 import Image from "next/image";
@@ -26,8 +25,8 @@ interface JobDetailClientProps {
 
 /**
  * @component JobDetailClient
- * @description Client component that renders job details from mock data with skeletons
- * @description モックデータから求人詳細を読み込み、スケルトン付きで描画するクライアントコンポーネント
+ * @description Client component that renders job details from API with skeletons
+ * @description APIから求人詳細を読み込み、スケルトン付きで描画するクライアントコンポーネント
  */
 export default function JobDetailClient({
   jobId,
@@ -36,6 +35,7 @@ export default function JobDetailClient({
   const [detail, setDetail] = useState<JobDetailV2 | null>(null);
   const [matchResult, setMatchResult] = useState<MatchResultItem | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -52,25 +52,36 @@ export default function JobDetailClient({
       }
     }
 
-    // Fetch job detail from mock data
-    // モックデータから求人詳細を取得
-    const jobDetail = findJobById(jobId);
-    if (jobDetail) {
-      setDetail(jobDetail);
-    }
-    setLoading(false);
+    // Fetch job detail from API
+    // APIから求人詳細を取得
+    const fetchJobDetail = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const jobDetail = await fetchJobById(jobId);
+        setDetail(jobDetail);
+      } catch (err) {
+        console.error('Failed to fetch job detail:', err);
+        setError(err instanceof Error ? err.message : 'Failed to fetch job detail');
+        setDetail(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchJobDetail();
   }, [jobId, searchParams]);
 
   useEffect(() => {
-    if (!loading && !detail) {
-      // Missing data -> redirect to jobs list while preserving resume context
-      // データがない場合はレジュメコンテキストを保持したまま一覧へ遷移
+    if (!loading && (!detail || error)) {
+      // Missing data or error -> redirect to jobs list while preserving resume context
+      // データがないかエラーの場合、レジュメコンテキストを保持したまま一覧へ遷移
       const params = new URLSearchParams();
       if (resumeId) params.set("resumeId", resumeId);
       const query = params.toString();
       router.push(`${ROUTE_JOBS}${query ? `?${query}` : ""}`);
     }
-  }, [loading, detail, resumeId, router]);
+  }, [loading, detail, error, resumeId, router]);
 
   if (loading) {
     return <JobDetailSkeleton />;

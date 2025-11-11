@@ -3,9 +3,9 @@
  * @description Utilities to derive list items from JobDetailV2 and fetch helpers.
  * @description JobDetailV2 から一覧用データを導出するユーティリティと取得ヘルパー。
  */
-import type { JobListItem, JobDetailV2 } from "@/types/jobs_v2";
 import { fetchJson } from "@/lib/fetcher";
 import { getApiBase } from "@/lib/runtime-config";
+import type { JobDetailV2, JobListItem } from "@/types/jobs_v2";
 
 export function toListItem(detail: JobDetailV2): JobListItem {
   return {
@@ -20,30 +20,35 @@ export function toListItem(detail: JobDetailV2): JobListItem {
   };
 }
 
+/**
+ * @description Fetch all jobs from API
+ * @description APIからすべての求人を取得
+ * @param apiBase Optional API base URL override
+ * @param apiBase オプションのAPIベースURLオーバーライド
+ * @returns Promise resolving to JobDetailV2[]
+ * @returns JobDetailV2[] を解決するプロミス
+ */
 export async function fetchJobs(apiBase = ""): Promise<JobDetailV2[]> {
-  // During build time, use mock data to avoid network requests
-  // ビルド時はネットワークリクエストを避けるためモックデータを使用
-  if (typeof window === "undefined" && process.env.NODE_ENV === "production") {
-    const { jobsMock } = await import("@/app/api/jobs/mock");
-    return jobsMock;
-  }
-  
   const base = getApiBase(apiBase);
   const url = `${base}/api/jobs`;
   return fetchJson<JobDetailV2[]>(url);
 }
 
-export async function fetchJobById(
-  id: string,
-  apiBase = ""
-): Promise<JobDetailV2 | null> {
+/**
+ * @description Fetch a single job by ID from API
+ * @description APIからIDで単一の求人を取得
+ * @param jobId Job ID to fetch / 取得する求人ID
+ * @param apiBase Optional API base URL override
+ * @param apiBase オプションのAPIベースURLオーバーライド
+ * @returns Promise resolving to JobDetailV2
+ * @returns JobDetailV2 を解決するプロミス
+ * @throws Error if job not found or API request fails
+ * @throws 求人が見つからないかAPIリクエストが失敗した場合にエラーをスロー
+ */
+export async function fetchJobById(jobId: string, apiBase = ""): Promise<JobDetailV2> {
   const base = getApiBase(apiBase);
-  const url = `${base}/api/jobs/${encodeURIComponent(id)}`;
-  try {
-    return await fetchJson<JobDetailV2>(url);
-  } catch {
-    return null;
-  }
+  const url = `${base}/api/jobs/${encodeURIComponent(jobId)}`;
+  return fetchJson<JobDetailV2>(url);
 }
 
 /**

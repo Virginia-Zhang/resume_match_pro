@@ -1,7 +1,7 @@
 /**
  * @file route.ts
- * @description Unified match API: handles both summary and details requests with S3 cache.
- * @description 統合マッチAPI：S3キャッシュ付きでサマリーと詳細の両方のリクエストを処理。
+ * @description Unified match API: handles both summary and details requests with database cache.
+ * @description 統合マッチAPI：データベースキャッシュ付きでサマリーと詳細の両方のリクエストを処理。
  * @author Virginia Zhang
  * @remarks Server route for unified AI matching. Supports both summary and details analysis.
  * @remarks 統合AIマッチング用サーバールート。サマリーと詳細分析の両方をサポート。
@@ -9,13 +9,10 @@
 
 import { sha256Hex } from "@/lib/hash";
 import {
-  cacheKey,
-  getJson,
   getText,
-  isS3Configured,
-  putJson,
   resumeKey,
 } from "@/lib/s3";
+import { createClient } from "@/lib/supabase/server";
 import type {
   BaseRequestBody,
   DetailsData,
@@ -146,13 +143,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: "Missing resumeId" }, { status: 400 });
     }
 
-    if (!isS3Configured()) {
-      return NextResponse.json(
-        { error: "S3 is not configured" },
-        { status: 500 }
-      );
-    }
-
     const resumeText = await getText(resumeKey(body.resumeId.toString()));
     if (!resumeText) {
       return NextResponse.json(
@@ -173,16 +163,49 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: "Missing Dify env" }, { status: 500 });
     }
 
-    // Check cache
-    // キャッシュをチェック
-    const key = cacheKey(jobId, type, resumeHash);
-    if (isS3Configured()) {
-      const cached = await getJson<MatchEnvelope<any>>(key);
-      // Version check: only use v2 cached data (data structure changed for summary and details APIs, v1 cache invalidated)
-      // バージョンチェック：v2 バージョンのキャッシュのみを使用
-      if (cached && cached.meta?.version === "v2") {
-        return NextResponse.json(cached);
+    // Check cache from database
+    // データベースからキャッシュをチェック
+    try {
+      const supabase = await createClient();
+      const { data: resumeRecord } = await supabase
+        .from("resumes")
+        .select("id")
+        .eq("id", body.resumeId.toString())
+        .single();
+
+      if (resumeRecord) {
+        const { data: matchResult, error: matchError } = await supabase
+          .from("match_results")
+          .select("*")
+          .eq("resume_id", resumeRecord.id)
+          .eq("job_id", jobId)
+          .eq("type", type)
+          .eq("version", "v2")
+          .order("timestamp", { ascending: false })
+          .limit(1)
+          .single();
+
+        if (!matchError && matchResult) {
+          // Return cached result from database
+          // データベースからキャッシュされた結果を返す
+          const cachedEnvelope: MatchEnvelope<SummaryData | DetailsData> = {
+            meta: {
+              jobId: matchResult.job_id,
+              resumeHash: matchResult.resume_hash,
+              source: "cache", // Always mark as cache when retrieved from database
+              timestamp: matchResult.timestamp,
+              version: matchResult.version as "v1" | "v2",
+              type: matchResult.type as MatchType,
+            },
+            data: matchResult.data as SummaryData | DetailsData,
+          };
+          return NextResponse.json(cachedEnvelope);
+        }
       }
+    } catch (dbError) {
+      console.error("Database cache check error:", dbError);
+      // Continue to Dify API call
+      // Dify API呼び出しに続行
     }
 
     // Build Dify request body based on type
@@ -248,10 +271,49 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       data,
     };
 
-    // Cache the result if S3 is configured
-    // S3が設定されている場合は結果をキャッシュ
-    if (isS3Configured()) {
-      await putJson(key, envelope);
+    // Store match result in Supabase match_results table
+    // Supabaseのmatch_resultsテーブルにマッチ結果を保存
+    try {
+      const supabase = await createClient();
+      
+      // Get resume_id from resumes table using resumeId
+      // resumeIdを使用してresumesテーブルからresume_idを取得
+      const { data: resumeRecord, error: resumeError } = await supabase
+        .from("resumes")
+        .select("id")
+        .eq("id", body.resumeId.toString())
+        .single();
+
+      if (resumeError || !resumeRecord) {
+        console.error("Failed to find resume record:", resumeError);
+        // Continue without storing to database, but log error
+        // データベースへの保存を続行せず、エラーをログに記録
+      } else {
+        // Insert match result into match_results table
+        // match_resultsテーブルにマッチ結果を挿入
+        const { error: matchError } = await supabase
+          .from("match_results")
+          .insert({
+            resume_id: resumeRecord.id,
+            job_id: jobId,
+            resume_hash: resumeHash,
+            source: envelope.meta.source,
+            version: envelope.meta.version,
+            type: envelope.meta.type,
+            data: envelope.data,
+            timestamp: envelope.meta.timestamp,
+          });
+
+        if (matchError) {
+          console.error("Failed to store match result in database:", matchError);
+          // Continue without storing to database, but log error
+          // データベースへの保存を続行せず、エラーをログに記録
+        }
+      }
+    } catch (dbError) {
+      console.error("Database operation error:", dbError);
+      // Continue without storing to database, but log error
+      // データベースへの保存を続行せず、エラーをログに記録
     }
     
     return NextResponse.json(envelope);

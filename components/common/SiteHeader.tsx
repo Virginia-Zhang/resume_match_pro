@@ -1,9 +1,9 @@
 "use client";
 
-import { findJobById } from "@/app/api/jobs/mock";
 import BrandBar from "@/components/common/BrandBar";
 import Breadcrumbs, { CrumbItem } from "@/components/common/Breadcrumbs";
 import BackButton from "@/components/common/buttons/BackButton";
+import { fetchJobById } from "@/lib/jobs";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -20,22 +20,34 @@ export default function SiteHeader(): React.ReactElement {
   const router = useRouter();
   const [jobTitle, setJobTitle] = useState<string>("詳細");
 
-  // Extract job ID from pathname and fetch job title
-  // パス名から求人IDを抽出し、求人タイトルを取得
+  // Extract job ID from pathname and fetch job title from API
+  // パス名から求人IDを抽出し、APIから求人タイトルを取得
   useEffect(() => {
     if (pathname.startsWith("/jobs/")) {
       const jobId = pathname.split("/")[2];
       if (jobId) {
-        try {
-          const job = findJobById(jobId);
-          if (job) {
-            setJobTitle(job.title);
+        const fetchJobTitle = async () => {
+          try {
+            const job = await fetchJobById(jobId);
+            if (job?.title) {
+              setJobTitle(job.title);
+            } else {
+              setJobTitle("詳細");
+            }
+          } catch (error) {
+            // Job not found or error, use default title
+            // 求人が見つからないかエラーの場合、デフォルトタイトルを使用
+            console.error("Failed to fetch job title:", error);
+            setJobTitle("詳細");
           }
-        } catch (error) {
-          console.error("Failed to fetch job title:", error);
-          setJobTitle("詳細");
-        }
+        };
+
+        fetchJobTitle();
       }
+    } else {
+      // Reset title when not on job detail page
+      // 求人詳細ページ以外ではタイトルをリセット
+      setJobTitle("詳細");
     }
   }, [pathname]);
 

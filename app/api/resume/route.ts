@@ -1,15 +1,16 @@
 /**
  * @file route.ts
- * @description API route to persist resume_text to S3 and return { resumeId, resumeHash }.
- * @description レジュメテキストをS3に保存し、{ resumeId, resumeHash } を返すAPIルート。
+ * @description API route to persist resume_text to S3, store metadata in resumes table, and return { resumeId, resumeHash }.
+ * @description レジュメテキストをS3に保存し、メタデータをresumesテーブルに保存し、{ resumeId, resumeHash } を返すAPIルート。
  * @author Virginia Zhang
  * @remarks Server route (App Router). Accepts JSON { resume_text } only; no secrets exposed.
  * @remarks サーバールート（App Router）。JSON { resume_text } のみ受け付け、機密情報は公開しない。
  */
 
-import { NextRequest, NextResponse } from "next/server";
-import { putText, resumeKey } from "@/lib/s3";
 import { sha256Hex } from "@/lib/hash";
+import { putText, resumeKey } from "@/lib/s3";
+import { createClient } from "@/lib/supabase/server";
+import { NextRequest, NextResponse } from "next/server";
 
 /**
  * Request body schema for resume upload
@@ -20,15 +21,19 @@ interface ResumePostBody {
 }
 
 /**
- * HTTP POST handler to save resume text. レジュメテキストを保存するHTTP POSTハンドラー。
+ * HTTP POST handler to save resume text to S3 and metadata to Supabase.
+ * レジュメテキストをS3に保存し、メタデータをSupabaseに保存するHTTP POSTハンドラー。
  *
  * @param req NextRequest - Request object / リクエストオブジェクト
  * @returns NextResponse - JSON { resumeId, resumeHash } / JSON { resumeId, resumeHash }
+ * @remarks Uses resume_hash for idempotency: if same hash exists, returns existing record
+ * @remarks 冪等性のために resume_hash を使用：同じハッシュが存在する場合、既存のレコードを返す
  */
 export async function POST(req: NextRequest): Promise<NextResponse> {
   try {
     const body = (await req.json()) as Partial<ResumePostBody>;
     const resumeText = (body?.resume_text || "").toString();
+    
     if (!resumeText || resumeText.trim().length === 0) {
       return NextResponse.json(
         { error: "Missing resume_text" },
@@ -36,19 +41,72 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // Compute hash and generate a simple ID
-    // ハッシュを計算し、簡易IDを生成
+    // Compute hash for idempotency check
+    // 冪等性チェック用にハッシュを計算
     const resumeHash = await sha256Hex(resumeText);
-    const resumeId = `${Date.now().toString(36)}-${resumeHash.slice(0, 12)}`;
 
+    // Check if resume with same hash already exists in database
+    // 同じハッシュのレジュメがデータベースに既に存在するかチェック
+    const supabase = await createClient();
+    const { data: existingResume, error: queryError } = await supabase
+      .from("resumes")
+      .select("id, resume_hash")
+      .eq("resume_hash", resumeHash)
+      .single();
 
-    await putText(resumeKey(resumeId), resumeText);
+    // If resume exists, return existing record
+    // レジュメが存在する場合、既存のレコードを返す
+    if (existingResume && !queryError) {
+      return NextResponse.json({
+        resumeId: existingResume.id,
+        resumeHash: existingResume.resume_hash,
+      });
+    }
 
-    return NextResponse.json({ resumeId, resumeHash });
+    // Insert resume metadata into database first to get UUID
+    // UUIDを取得するためにまずデータベースにレジュメメタデータを挿入
+    // Use temporary storage_key, will update after getting UUID
+    // 一時的なstorage_keyを使用し、UUID取得後に更新
+    const tempStorageKey = `resume/${resumeHash.slice(0, 16)}.txt`;
+    const { data: newResume, error: insertError } = await supabase
+      .from("resumes")
+      .insert({
+        resume_hash: resumeHash,
+        storage_key: tempStorageKey,
+      })
+      .select("id, resume_hash")
+      .single();
+
+    if (insertError || !newResume) {
+      console.error("Failed to insert resume metadata:", insertError);
+      return NextResponse.json(
+        { error: "Failed to store resume metadata" },
+        { status: 500 }
+      );
+    }
+
+    // Store resume text in S3 using UUID-based key
+    // UUIDベースのキーを使用してレジュメテキストをS3に保存
+    const finalStorageKey = resumeKey(newResume.id);
+    await putText(finalStorageKey, resumeText);
+
+    // Update storage_key in database to use UUID
+    // UUIDを使用するようにデータベースのstorage_keyを更新
+    if (tempStorageKey !== finalStorageKey) {
+      await supabase
+        .from("resumes")
+        .update({ storage_key: finalStorageKey })
+        .eq("id", newResume.id);
+    }
+
+    return NextResponse.json({
+      resumeId: newResume.id,
+      resumeHash: newResume.resume_hash,
+    });
   } catch (error: unknown) {
     // Log detailed error for debugging
     // デバッグ用の詳細エラーログ
-    console.error("S3 storage error:", error);
+    console.error("Resume storage error:", error);
 
     if (error instanceof Error) {
       console.error("Error type:", error.constructor.name);

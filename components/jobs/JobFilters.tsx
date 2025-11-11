@@ -1,10 +1,20 @@
 "use client";
 
-import React from "react";
+import { PrimaryCtaButton } from "@/components/common/buttons/CtaButtons";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { PrimaryCtaButton } from "@/components/common/buttons/CtaButtons";
-import { jobCategories } from "@/app/constants/jobCategories";
+import { fetchJson } from "@/lib/fetcher";
+import { getApiBase } from "@/lib/runtime-config";
+import React, { useEffect, useState } from "react";
+
+/**
+ * @description Job category type
+ * @description 求人カテゴリ型
+ */
+interface JobCategory {
+  label: string;
+  value: string;
+}
 
 /**
  * @file JobFilters.tsx
@@ -59,6 +69,31 @@ export default function JobFilters({
   onMatch,
   isMatching,
 }: JobFiltersProps): React.ReactElement {
+  // Fetch job categories from API
+  // APIから求人カテゴリを取得
+  const [jobCategories, setJobCategories] = useState<JobCategory[]>([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
+
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        const apiBase = getApiBase();
+        const url = `${apiBase}/api/job-categories`;
+        const categories = await fetchJson<JobCategory[]>(url);
+        setJobCategories(categories);
+      } catch (error) {
+        console.error("Failed to load job categories:", error);
+        // Fallback to empty array on error
+        // エラー時は空配列にフォールバック
+        setJobCategories([]);
+      } finally {
+        setCategoriesLoading(false);
+      }
+    };
+
+    loadCategories();
+  }, []);
+
   // Check if required filters are selected to enable matching button
   // マッチングボタンを有効にするために必要なフィルターが選択されているかチェック
   const canMatch = selectedCategories.length > 0 && selectedResidence !== "";
@@ -78,7 +113,7 @@ export default function JobFilters({
             options={jobCategories}
             selected={selectedCategories}
             onChange={onCategoriesChange}
-            placeholder="職種を選択"
+            placeholder={categoriesLoading ? "読み込み中..." : "職種を選択"}
             className="w-full"
           />
         </div>
