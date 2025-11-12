@@ -23,9 +23,15 @@ export default function SiteHeader(): React.ReactElement {
   // Extract job ID from pathname and fetch job title from API
   // パス名から求人IDを抽出し、APIから求人タイトルを取得
   useEffect(() => {
+    // Immediately reset jobTitle when pathname changes to avoid stale values in useMemo
+    // pathname が変更されたらすぐに jobTitle をリセットして、useMemo での古い値の使用を回避
     if (pathname.startsWith("/jobs/")) {
       const jobId = pathname.split("/")[2];
       if (jobId) {
+        // Reset to default immediately to ensure useMemo uses fresh value
+        // useMemo が新しい値を使用するように、すぐにデフォルトにリセット
+        setJobTitle("詳細");
+        
         const fetchJobTitle = async () => {
           try {
             const job = await fetchJobById(jobId);
@@ -43,6 +49,8 @@ export default function SiteHeader(): React.ReactElement {
         };
 
         fetchJobTitle();
+      } else {
+        setJobTitle("詳細");
       }
     } else {
       // Reset title when not on job detail page
@@ -53,6 +61,12 @@ export default function SiteHeader(): React.ReactElement {
 
   // Build explicit items to avoid client path timing issues and to support jobs/[id]
   // クライアントのタイミング問題を避けつつ、jobs/[id] に対応するため明示的に生成
+  // Note: jobTitle is included in dependencies. Since useEffect immediately resets jobTitle
+  // when pathname changes, there's no race condition. The useMemo will recompute when
+  // jobTitle updates from the async fetch, which is the desired behavior.
+  // 注意: jobTitle は依存配列に含まれます。useEffect が pathname 変更時にすぐに jobTitle を
+  // リセットするため、競合状態はありません。useMemo は非同期取得で jobTitle が更新されたときに
+  // 再計算されますが、これは期待される動作です。
   const items: CrumbItem[] = useMemo(() => {
     if (pathname === "/") return [{ href: "/", label: "ホーム" }];
     if (pathname === "/upload")
