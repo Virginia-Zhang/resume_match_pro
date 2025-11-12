@@ -20,12 +20,13 @@ import { getApiBase } from '@/lib/runtime-config';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 
-import type { JobListItem } from '@/types/jobs_v2';
+import type { JobDetailV2, JobListItem } from '@/types/jobs_v2';
 import type { MatchResultItem } from '@/types/matching';
 import { toast } from "sonner";
 
 interface JobsListClientProps {
   initialJobs: JobListItem[];
+  jobDetailsMap: JobDetailV2[]; // Full job details for batch matching
   resumeId?: string;
 }
 
@@ -34,9 +35,19 @@ interface JobsListClientProps {
  * @description Client component for jobs list with AI matching
  * @description AI マッチング付きの求人一覧クライアントコンポーネント
  */
-export default function JobsListClient({ initialJobs, resumeId }: JobsListClientProps) {
+export default function JobsListClient({ initialJobs, jobDetailsMap, resumeId }: JobsListClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  
+  // Create a Map for quick lookup of job details by id
+  // IDによる求人詳細の高速検索用のMapを作成
+  const jobDetailsById = useMemo(() => {
+    const map = new Map<string, JobDetailV2>();
+    jobDetailsMap.forEach(job => {
+      map.set(job.id, job);
+    });
+    return map;
+  }, [jobDetailsMap]);
   
   const {
     results,
@@ -46,7 +57,7 @@ export default function JobsListClient({ initialJobs, resumeId }: JobsListClient
     processedJobs,
     totalJobs,
     startMatchingFromListItems
-  } = useBatchMatching();
+  } = useBatchMatching(jobDetailsById);
   
   // Initialize filter states from URL params
   // URL パラメータからフィルター状態を初期化
@@ -119,8 +130,9 @@ export default function JobsListClient({ initialJobs, resumeId }: JobsListClient
    */
   useEffect(() => {
     const loadResumeText = async () => {
+      // ResumeGate ensures resumeId is provided before rendering this component
+      // ResumeGate はこのコンポーネントをレンダリングする前に resumeId が提供されることを保証
       if (!resumeId) {
-        console.warn('No resume ID provided');
         return;
       }
 

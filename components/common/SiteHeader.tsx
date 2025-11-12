@@ -1,9 +1,9 @@
 "use client";
 
-import { findJobById } from "@/app/api/jobs/mock";
 import BrandBar from "@/components/common/BrandBar";
 import Breadcrumbs, { CrumbItem } from "@/components/common/Breadcrumbs";
 import BackButton from "@/components/common/buttons/BackButton";
+import { fetchJobById } from "@/lib/jobs";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -20,27 +20,80 @@ export default function SiteHeader(): React.ReactElement {
   const router = useRouter();
   const [jobTitle, setJobTitle] = useState<string>("詳細");
 
-  // Extract job ID from pathname and fetch job title
-  // パス名から求人IDを抽出し、求人タイトルを取得
+  // Extract job ID from pathname and fetch job title from API
+  // パス名から求人IDを抽出し、APIから求人タイトルを取得
   useEffect(() => {
+    // Immediately reset jobTitle when pathname changes to avoid stale values in useMemo
+    // pathname が変更されたらすぐに jobTitle をリセットして、useMemo での古い値の使用を回避
     if (pathname.startsWith("/jobs/")) {
       const jobId = pathname.split("/")[2];
       if (jobId) {
-        try {
-          const job = findJobById(jobId);
-          if (job) {
-            setJobTitle(job.title);
+        // Reset to default immediately to ensure useMemo uses fresh value
+        // useMemo が新しい値を使用するように、すぐにデフォルトにリセット
+        setJobTitle("詳細");
+        
+        // Use AbortController to cancel previous requests when pathname changes
+        // pathname が変更されたときに以前のリクエストをキャンセルするために AbortController を使用
+        const abortController = new AbortController();
+        let isCancelled = false;
+        
+        const fetchJobTitle = async () => {
+          try {
+            const job = await fetchJobById(jobId, "", abortController.signal);
+            
+            // Only update state if this effect hasn't been cancelled (pathname hasn't changed)
+            // このエフェクトがキャンセルされていない場合（pathname が変更されていない場合）のみ状態を更新
+            if (!isCancelled && pathname.startsWith("/jobs/") && pathname.split("/")[2] === jobId) {
+              if (job?.title) {
+                setJobTitle(job.title);
+              } else {
+                setJobTitle("詳細");
+              }
+            }
+          } catch (error) {
+            // Ignore AbortError - it's expected when navigating away quickly
+            // AbortError は無視 - 素早くナビゲーションする際に期待される動作
+            if (error instanceof Error && error.name === "AbortError") {
+              return;
+            }
+            
+            // Only update state if this effect hasn't been cancelled
+            // このエフェクトがキャンセルされていない場合のみ状態を更新
+            if (!isCancelled && pathname.startsWith("/jobs/") && pathname.split("/")[2] === jobId) {
+              // Job not found or error, use default title
+              // 求人が見つからないかエラーの場合、デフォルトタイトルを使用
+              console.error("Failed to fetch job title:", error);
+              setJobTitle("詳細");
+            }
           }
-        } catch (error) {
-          console.error("Failed to fetch job title:", error);
-          setJobTitle("詳細");
-        }
+        };
+
+        fetchJobTitle();
+        
+        // Cleanup function to cancel the request if pathname changes or component unmounts
+        // pathname が変更されたりコンポーネントがアンマウントされた場合にリクエストをキャンセルするクリーンアップ関数
+        return () => {
+          isCancelled = true;
+          abortController.abort();
+        };
+      } else {
+        setJobTitle("詳細");
       }
+    } else {
+      // Reset title when not on job detail page
+      // 求人詳細ページ以外ではタイトルをリセット
+      setJobTitle("詳細");
     }
   }, [pathname]);
 
   // Build explicit items to avoid client path timing issues and to support jobs/[id]
   // クライアントのタイミング問題を避けつつ、jobs/[id] に対応するため明示的に生成
+  // Note: jobTitle is included in dependencies. Since useEffect immediately resets jobTitle
+  // when pathname changes, there's no race condition. The useMemo will recompute when
+  // jobTitle updates from the async fetch, which is the desired behavior.
+  // 注意: jobTitle は依存配列に含まれます。useEffect が pathname 変更時にすぐに jobTitle を
+  // リセットするため、競合状態はありません。useMemo は非同期取得で jobTitle が更新されたときに
+  // 再計算されますが、これは期待される動作です。
   const items: CrumbItem[] = useMemo(() => {
     if (pathname === "/") return [{ href: "/", label: "ホーム" }];
     if (pathname === "/upload")

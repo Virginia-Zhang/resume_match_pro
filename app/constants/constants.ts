@@ -31,6 +31,7 @@ export const API_MATCH = "/api/match" as const;
 export const API_MATCH_SUMMARY = `${API_MATCH}?type=summary` as const;
 export const API_MATCH_DETAILS = `${API_MATCH}?type=details` as const;
 export const API_MATCH_BATCH = `${API_MATCH}/batch` as const;
+export const API_JOBS = "/api/jobs" as const;
 
 /**
  * API route path union.
@@ -41,7 +42,8 @@ export type ApiPath =
   | typeof API_RESUME_TEXT
   | typeof API_MATCH_SUMMARY
   | typeof API_MATCH_DETAILS
-  | typeof API_MATCH_BATCH;
+  | typeof API_MATCH_BATCH
+  | typeof API_JOBS;
 
 // ---------- AI Matching Configuration ----------
 /**
@@ -217,4 +219,21 @@ export const UPLOAD_TEXTAREA_GUIDELINES = [
 export const UPLOAD_MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 export const UPLOAD_FILE_SIZE_ERROR_JA =
   "アップロードされたファイルがサイズ制限（5MB）を超えています。5MB 以下の PDF を選択してください。" as const;
+
+// ---------- Supabase Error Codes ----------
+/**
+ * PostgREST error code for "no rows returned" (when using .single()).
+ * PostgREST の「行が返されない」エラーコード（.single() 使用時）。
+ * @remarks This is returned when a query with .single() finds no matching rows.
+ * @remarks .single() を使用したクエリで一致する行が見つからない場合に返される。
+ */
+export const SUPABASE_ERROR_NO_ROWS = "PGRST116" as const;
+
+/**
+ * PostgreSQL error code for unique constraint violation.
+ * PostgreSQL の一意制約違反エラーコード。
+ * @remarks This is returned when an insert/update violates a unique constraint (e.g., duplicate key).
+ * @remarks 挿入/更新が一意制約に違反した場合（例：重複キー）に返される。
+ */
+export const SUPABASE_ERROR_UNIQUE_CONSTRAINT = "23505" as const;
 
