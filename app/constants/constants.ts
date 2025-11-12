@@ -229,3 +229,11 @@ export const UPLOAD_FILE_SIZE_ERROR_JA =
  */
 export const SUPABASE_ERROR_NO_ROWS = "PGRST116" as const;
 
+/**
+ * PostgreSQL error code for unique constraint violation.
+ * PostgreSQL の一意制約違反エラーコード。
+ * @remarks This is returned when an insert/update violates a unique constraint (e.g., duplicate key).
+ * @remarks 挿入/更新が一意制約に違反した場合（例：重複キー）に返される。
+ */
+export const SUPABASE_ERROR_UNIQUE_CONSTRAINT = "23505" as const;
+

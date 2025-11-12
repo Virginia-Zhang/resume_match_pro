@@ -7,6 +7,10 @@
  * @remarks サーバールート（App Router）。JSON { resume_text } のみ受け付け、機密情報は公開しない。
  */
 
+import {
+  SUPABASE_ERROR_NO_ROWS,
+  SUPABASE_ERROR_UNIQUE_CONSTRAINT,
+} from "@/app/constants/constants";
 import { sha256Hex } from "@/lib/hash";
 import { putText, resumeKey } from "@/lib/s3";
 import { createClient } from "@/lib/supabase/server";
@@ -54,8 +58,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       .eq("resume_hash", resumeHash)
       .single();
 
-    // If resume exists, return existing record
-    // レジュメが存在する場合、既存のレコードを返す
+    // Handle query result: if resume exists, return it
+    // クエリ結果を処理：レジュメが存在する場合は返す
+    // PGRST116 error means no rows found (expected when resume doesn't exist)
+    // PGRST116 エラーは行が見つからないことを意味する（レジュメが存在しない場合に期待される）
     if (existingResume && !queryError) {
       return NextResponse.json({
         resumeId: existingResume.id,
@@ -63,8 +69,18 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       });
     }
 
-    // Insert resume metadata into database first to get UUID
-    // UUIDを取得するためにまずデータベースにレジュメメタデータを挿入
+    // If error is not PGRST116 (no rows), it's an unexpected error
+    // PGRST116（行なし）以外のエラーは予期しないエラー
+    if (queryError && queryError.code !== SUPABASE_ERROR_NO_ROWS) {
+      console.error("Unexpected error querying resumes:", queryError);
+      return NextResponse.json(
+        { error: "Failed to check existing resume", details: queryError.message },
+        { status: 500 }
+      );
+    }
+
+    // Resume doesn't exist, proceed with insert
+    // レジュメが存在しないため、挿入を続行
     // Use temporary storage_key, will update after getting UUID
     // 一時的なstorage_keyを使用し、UUID取得後に更新
     const tempStorageKey = `resume/${resumeHash.slice(0, 16)}.txt`;
@@ -77,10 +93,50 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       .select("id, resume_hash")
       .single();
 
+    // Handle insert error: if unique constraint violation, another request inserted first
+    // 挿入エラーを処理：一意制約違反の場合、別のリクエストが先に挿入した
     if (insertError || !newResume) {
+      // Check if error is due to unique constraint violation (concurrent insert)
+      // エラーが一意制約違反（同時挿入）によるものかチェック
+      const isUniqueConstraintError =
+        insertError?.code === SUPABASE_ERROR_UNIQUE_CONSTRAINT ||
+        insertError?.message?.includes("duplicate key") ||
+        insertError?.message?.includes("unique constraint");
+
+      if (isUniqueConstraintError) {
+        // Another request inserted the same resume_hash concurrently
+        // 別のリクエストが同じ resume_hash を同時に挿入した
+        // Query again to get the existing record
+        // 既存のレコードを取得するために再度クエリ
+        const { data: concurrentResume, error: retryError } = await supabase
+          .from("resumes")
+          .select("id, resume_hash")
+          .eq("resume_hash", resumeHash)
+          .single();
+
+        if (concurrentResume && !retryError) {
+          // Return the existing record (idempotent behavior)
+          // 既存のレコードを返す（冪等性の動作）
+          return NextResponse.json({
+            resumeId: concurrentResume.id,
+            resumeHash: concurrentResume.resume_hash,
+          });
+        }
+
+        // If retry query also fails, return error
+        // 再試行クエリも失敗した場合、エラーを返す
+        console.error("Failed to retrieve concurrent resume:", retryError);
+        return NextResponse.json(
+          { error: "Failed to store resume metadata" },
+          { status: 500 }
+        );
+      }
+
+      // Other insert errors
+      // その他の挿入エラー
       console.error("Failed to insert resume metadata:", insertError);
       return NextResponse.json(
-        { error: "Failed to store resume metadata" },
+        { error: "Failed to store resume metadata", details: insertError?.message },
         { status: 500 }
       );
     }
