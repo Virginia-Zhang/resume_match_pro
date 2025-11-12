@@ -40,5 +40,8 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# documents
+# documents - ignore all markdown files except important ones
 *.md
+!README.md
+!CONTRIBUTING.md
+!docs/**/*.md
