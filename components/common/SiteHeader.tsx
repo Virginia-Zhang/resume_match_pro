@@ -32,23 +32,50 @@ export default function SiteHeader(): React.ReactElement {
         // useMemo が新しい値を使用するように、すぐにデフォルトにリセット
         setJobTitle("詳細");
         
+        // Use AbortController to cancel previous requests when pathname changes
+        // pathname が変更されたときに以前のリクエストをキャンセルするために AbortController を使用
+        const abortController = new AbortController();
+        let isCancelled = false;
+        
         const fetchJobTitle = async () => {
           try {
-            const job = await fetchJobById(jobId);
-            if (job?.title) {
-              setJobTitle(job.title);
-            } else {
-              setJobTitle("詳細");
+            const job = await fetchJobById(jobId, "", abortController.signal);
+            
+            // Only update state if this effect hasn't been cancelled (pathname hasn't changed)
+            // このエフェクトがキャンセルされていない場合（pathname が変更されていない場合）のみ状態を更新
+            if (!isCancelled && pathname.startsWith("/jobs/") && pathname.split("/")[2] === jobId) {
+              if (job?.title) {
+                setJobTitle(job.title);
+              } else {
+                setJobTitle("詳細");
+              }
             }
           } catch (error) {
-            // Job not found or error, use default title
-            // 求人が見つからないかエラーの場合、デフォルトタイトルを使用
-            console.error("Failed to fetch job title:", error);
-            setJobTitle("詳細");
+            // Ignore AbortError - it's expected when navigating away quickly
+            // AbortError は無視 - 素早くナビゲーションする際に期待される動作
+            if (error instanceof Error && error.name === "AbortError") {
+              return;
+            }
+            
+            // Only update state if this effect hasn't been cancelled
+            // このエフェクトがキャンセルされていない場合のみ状態を更新
+            if (!isCancelled && pathname.startsWith("/jobs/") && pathname.split("/")[2] === jobId) {
+              // Job not found or error, use default title
+              // 求人が見つからないかエラーの場合、デフォルトタイトルを使用
+              console.error("Failed to fetch job title:", error);
+              setJobTitle("詳細");
+            }
           }
         };
 
         fetchJobTitle();
+        
+        // Cleanup function to cancel the request if pathname changes or component unmounts
+        // pathname が変更されたりコンポーネントがアンマウントされた場合にリクエストをキャンセルするクリーンアップ関数
+        return () => {
+          isCancelled = true;
+          abortController.abort();
+        };
       } else {
         setJobTitle("詳細");
       }

@@ -40,15 +40,21 @@ export async function fetchJobs(apiBase = ""): Promise<JobDetailV2[]> {
  * @param jobId Job ID to fetch / 取得する求人ID
  * @param apiBase Optional API base URL override
  * @param apiBase オプションのAPIベースURLオーバーライド
+ * @param signal Optional AbortSignal to cancel the request
+ * @param signal リクエストをキャンセルするためのオプションのAbortSignal
  * @returns Promise resolving to JobDetailV2
  * @returns JobDetailV2 を解決するプロミス
  * @throws Error if job not found or API request fails
  * @throws 求人が見つからないかAPIリクエストが失敗した場合にエラーをスロー
  */
-export async function fetchJobById(jobId: string, apiBase = ""): Promise<JobDetailV2> {
+export async function fetchJobById(
+  jobId: string,
+  apiBase = "",
+  signal?: AbortSignal
+): Promise<JobDetailV2> {
   const base = getApiBase(apiBase);
   const url = `${base}/api/jobs/${encodeURIComponent(jobId)}`;
-  return fetchJson<JobDetailV2>(url);
+  return fetchJson<JobDetailV2>(url, { signal });
 }
 
 /**
