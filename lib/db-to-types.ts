@@ -86,19 +86,30 @@ export interface DbJobRecord {
 /**
  * @description Convert PostgreSQL timestamp to ISO 8601 string
  * @description PostgreSQL タイムスタンプを ISO 8601 文字列に変換
- * @param timestamp PostgreSQL timestamp string (e.g., '2025-10-01 00:00:00')
- * @param timestamp PostgreSQL タイムスタンプ文字列（例：'2025-10-01 00:00:00'）
+ * @param timestamp PostgreSQL timestamp string (e.g., '2025-10-01 00:00:00' or '2025-10-01T00:00:00Z')
+ * @param timestamp PostgreSQL タイムスタンプ文字列（例：'2025-10-01 00:00:00' または '2025-10-01T00:00:00Z'）
  * @returns ISO 8601 string (e.g., '2025-10-01T00:00:00.000Z')
  * @returns ISO 8601 文字列（例：'2025-10-01T00:00:00.000Z'）
- * @remarks Assumes database stores time in JST (UTC+9), converts to UTC
- * @remarks データベースが JST (UTC+9) で時間を保存すると仮定し、UTC に変換
+ * @remarks If timestamp already has timezone info, uses it as-is. Otherwise assumes UTC (PostgreSQL default).
+ * @remarks タイムスタンプに既にタイムゾーン情報がある場合はそのまま使用。それ以外は UTC（PostgreSQL のデフォルト）と仮定。
  */
 function dbTimestampToISO(timestamp: string): string {
-  // PostgreSQL returns format: '2025-10-01 00:00:00' (assumed to be JST)
-  // PostgreSQL の形式：'2025-10-01 00:00:00'（JST と仮定）
-  // Convert to ISO string: '2025-10-01T00:00:00.000Z'
-  // ISO 文字列に変換：'2025-10-01T00:00:00.000Z'
-  return new Date(timestamp + "+09:00").toISOString();
+  // Check if timestamp already has timezone information
+  // タイムスタンプに既にタイムゾーン情報があるかチェック
+  const hasTimezone = /[+-]\d{2}:?\d{2}$|Z$/.test(timestamp);
+  
+  if (hasTimezone) {
+    // Already has timezone info, use as-is
+    // 既にタイムゾーン情報がある場合はそのまま使用
+    return new Date(timestamp).toISOString();
+  }
+  
+  // No timezone info: PostgreSQL typically stores timestamps in UTC
+  // タイムゾーン情報なし：PostgreSQL は通常 UTC でタイムスタンプを保存
+  // Replace space with T and append Z to indicate UTC
+  // スペースを T に置き換え、UTC を示すために Z を追加
+  const isoString = timestamp.replace(" ", "T") + "Z";
+  return new Date(isoString).toISOString();
 }
 
 /**
