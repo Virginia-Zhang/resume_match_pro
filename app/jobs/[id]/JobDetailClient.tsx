@@ -9,9 +9,10 @@
 "use client";
 
 import { ROUTE_JOBS } from "@/app/constants/constants";
+import { useResumeId } from "@/components/guards/ResumeGate";
 import JobDetailSkeleton from "@/components/skeleton/JobDetailSkeleton";
-import { fetchJobById, serializeJDForBatchMatching } from "@/lib/jobs";
-import type { JobDetailV2 } from "@/types/jobs_v2";
+import { useJobById } from "@/hooks/queries/useJobs";
+import { serializeJDForBatchMatching } from "@/lib/jobs";
 import type { MatchResultItem } from "@/types/matching";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -19,8 +20,7 @@ import { useEffect, useState } from "react";
 import Charts from "./charts";
 
 interface JobDetailClientProps {
-  jobId: string;
-  resumeId?: string;
+  readonly jobId: string;
 }
 
 /**
@@ -30,60 +30,43 @@ interface JobDetailClientProps {
  */
 export default function JobDetailClient({
   jobId,
-  resumeId,
 }: JobDetailClientProps): React.ReactElement {
-  const [detail, setDetail] = useState<JobDetailV2 | null>(null);
+  // Get resumeId from ResumeGate context instead of props
+  // props の代わりに ResumeGate コンテキストから resumeId を取得
+  const resumeId = useResumeId();
+  const { data: detail, isLoading, error: jobError } = useJobById(jobId);
   const [matchResult, setMatchResult] = useState<MatchResultItem | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
 
   useEffect(() => {
     // Get matchResult from URL query params
     // URL クエリパラメータから matchResult を取得
-    const matchResultParam = searchParams.get('matchResult');
+    const matchResultParam = searchParams.get("matchResult");
     if (matchResultParam) {
       try {
         const parsed = JSON.parse(matchResultParam) as MatchResultItem;
         setMatchResult(parsed);
       } catch (error) {
-        console.error('Failed to parse matchResult:', error);
+        console.error("Failed to parse matchResult:", error);
       }
     }
-
-    // Fetch job detail from API
-    // APIから求人詳細を取得
-    const fetchJobDetail = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const jobDetail = await fetchJobById(jobId);
-        setDetail(jobDetail);
-      } catch (err) {
-        console.error('Failed to fetch job detail:', err);
-        setError(err instanceof Error ? err.message : 'Failed to fetch job detail');
-        setDetail(null);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchJobDetail();
-  }, [jobId, searchParams]);
+  }, [searchParams]);
 
   useEffect(() => {
-    if (!loading && (!detail || error)) {
-      // Missing data or error -> redirect to jobs list while preserving resume context
-      // データがないかエラーの場合、レジュメコンテキストを保持したまま一覧へ遷移
+    // Only redirect if loading is complete, detail is missing, and there's a real error
+    // ローディングが完了し、詳細がなく、実際のエラーがある場合のみリダイレクト
+    if (!isLoading && !detail && jobError) {
+      console.warn("[JobDetailClient] Redirecting to jobs list due to error:", jobError.message);
       const params = new URLSearchParams();
       if (resumeId) params.set("resumeId", resumeId);
       const query = params.toString();
-      router.push(`${ROUTE_JOBS}${query ? `?${query}` : ""}`);
+      const targetUrl = query ? `${ROUTE_JOBS}?${query}` : ROUTE_JOBS;
+      router.push(targetUrl);
     }
-  }, [loading, detail, error, resumeId, router]);
+  }, [isLoading, detail, jobError, resumeId, router]);
 
-  if (loading) {
+  if (isLoading) {
     return <JobDetailSkeleton />;
   }
 
@@ -175,14 +158,14 @@ export default function JobDetailClient({
             {/* Company/Product Images */}
             {/* 会社・製品画像 */}
             <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
-              {[1, 2, 3].map(index => (
+              {[1, 2, 3].map(imageId => (
                 <div
-                  key={index}
+                  key={`company-image-${imageId}`}
                   className="relative aspect-video rounded-lg overflow-hidden border"
                 >
                   <Image
-                    src={`/company${index}.webp`}
-                    alt={`会社・製品画像${index}`}
+                    src={`/company${imageId}.webp`}
+                    alt={`会社・製品画像${imageId}`}
                     fill
                     sizes="(max-width: 768px) 100vw, (max-width: 1200px) 33vw, 25vw"
                     className="object-cover"
@@ -199,8 +182,8 @@ export default function JobDetailClient({
       <section className="space-y-2">
         <h2 className="text-lg font-medium">職務内容</h2>
         <ul className="list-disc pl-6 space-y-1">
-          {detail.description.responsibilities.map((r, i) => (
-            <li key={i}>{r}</li>
+          {detail.description.responsibilities.map(responsibility => (
+            <li key={`${detail.id}-resp-${responsibility}`}>{responsibility}</li>
           ))}
         </ul>
       </section>
@@ -354,8 +337,8 @@ export default function JobDetailClient({
             <div>
               <div className="text-sm font-medium mt-1">必須</div>
               <ul className="list-disc pl-6 text-sm space-y-1">
-                {detail.requirements.must.map((m, i) => (
-                  <li key={`must-${i}`}>{m}</li>
+                {detail.requirements.must.map(must => (
+                  <li key={`${detail.id}-must-${must}`}>{must}</li>
                 ))}
               </ul>
             </div>
@@ -364,8 +347,8 @@ export default function JobDetailClient({
             <div>
               <div className="text-sm font-medium mt-2">歓迎</div>
               <ul className="list-disc pl-6 text-sm space-y-1">
-                {detail.requirements.want.map((w, i) => (
-                  <li key={`want-${i}`}>{w}</li>
+                {detail.requirements.want.map(want => (
+                  <li key={`${detail.id}-want-${want}`}>{want}</li>
                 ))}
               </ul>
             </div>
@@ -379,8 +362,8 @@ export default function JobDetailClient({
         <section className="space-y-2">
           <h2 className="text-lg font-medium">求める人物像</h2>
           <ul className="list-disc pl-6 space-y-1">
-            {detail.candidateRequirements.map((req, i) => (
-              <li key={i}>{req}</li>
+          {detail.candidateRequirements.map(req => (
+            <li key={`${detail.id}-candidate-${req}`}>{req}</li>
             ))}
           </ul>
         </section>
@@ -402,8 +385,8 @@ export default function JobDetailClient({
               <div>
                 <span className="font-medium">アクセス:</span>
                 <ul className="list-disc pl-6 mt-1">
-                  {detail.workingConditions.access.map((acc, i) => (
-                    <li key={i}>{acc}</li>
+                {detail.workingConditions.access.map(acc => (
+                  <li key={`${detail.id}-access-${acc}`}>{acc}</li>
                   ))}
                 </ul>
               </div>
@@ -430,8 +413,8 @@ export default function JobDetailClient({
               <div>
                 <span className="font-medium">福利厚生:</span>
                 <ul className="list-disc pl-6 mt-1">
-                  {detail.workingConditions.benefits.map((benefit, i) => (
-                    <li key={i}>{benefit}</li>
+                {detail.workingConditions.benefits.map(benefit => (
+                  <li key={`${detail.id}-benefit-${benefit}`}>{benefit}</li>
                   ))}
                 </ul>
               </div>
@@ -452,8 +435,8 @@ export default function JobDetailClient({
         <section className="space-y-2">
           <h2 className="text-lg font-medium">ポートフォリオ提出</h2>
           <ul className="list-disc pl-6 space-y-1">
-            {detail.portfolioNote.map((note, i) => (
-              <li key={i}>{note}</li>
+            {detail.portfolioNote.map(note => (
+              <li key={`${detail.id}-portfolio-${note}`}>{note}</li>
             ))}
           </ul>
         </section>
@@ -465,9 +448,9 @@ export default function JobDetailClient({
         <section className="space-y-2">
           <h2 className="text-lg font-medium">選考プロセス</h2>
           <div className="space-y-2">
-            {detail.selectionProcess.map((step, i) => (
-              <div key={i} className="flex items-center gap-2">
-                <span className="text-sm font-medium w-6">{i + 1}.</span>
+            {detail.selectionProcess.map((step, index) => (
+              <div key={`${detail.id}-selection-${step}`} className="flex items-center gap-2">
+                <span className="text-sm font-medium w-6">{index + 1}.</span>
                 <span>{step}</span>
               </div>
             ))}

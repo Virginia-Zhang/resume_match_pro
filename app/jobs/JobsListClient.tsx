@@ -9,14 +9,16 @@
 
 "use client";
 
-import { API_RESUME_TEXT, ROUTE_JOBS } from '@/app/constants/constants';
+import { ROUTE_JOBS } from '@/app/constants/constants';
 import ErrorDisplay from '@/components/common/ErrorDisplay';
+import { useResumeId } from '@/components/guards/ResumeGate';
 import JobFilters from '@/components/jobs/JobFilters';
 import JobItem from '@/components/jobs/JobItem';
 import { Progress } from '@/components/ui/progress';
+import { useJobs, type JobListFilters } from '@/hooks/queries/useJobs';
+import { useResumeText } from '@/hooks/queries/useResume';
 import { useBatchMatching } from '@/hooks/useBatchMatching';
-import { fetchJson } from '@/lib/fetcher';
-import { getApiBase } from '@/lib/runtime-config';
+import { toListItem } from '@/lib/jobs';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 
@@ -24,40 +26,19 @@ import type { JobDetailV2, JobListItem } from '@/types/jobs_v2';
 import type { MatchResultItem } from '@/types/matching';
 import { toast } from "sonner";
 
-interface JobsListClientProps {
-  initialJobs: JobListItem[];
-  jobDetailsMap: JobDetailV2[]; // Full job details for batch matching
-  resumeId?: string;
-}
-
 /**
  * @component JobsListClient
  * @description Client component for jobs list with AI matching
  * @description AI マッチング付きの求人一覧クライアントコンポーネント
  */
-export default function JobsListClient({ initialJobs, jobDetailsMap, resumeId }: JobsListClientProps) {
+export default function JobsListClient(): React.ReactElement {
   const router = useRouter();
   const searchParams = useSearchParams();
   
-  // Create a Map for quick lookup of job details by id
-  // IDによる求人詳細の高速検索用のMapを作成
-  const jobDetailsById = useMemo(() => {
-    const map = new Map<string, JobDetailV2>();
-    jobDetailsMap.forEach(job => {
-      map.set(job.id, job);
-    });
-    return map;
-  }, [jobDetailsMap]);
+  // Get resumeId from ResumeGate context instead of props
+  // props の代わりに ResumeGate コンテキストから resumeId を取得
+  const resumeId = useResumeId();
   
-  const {
-    results,
-    isMatchingComplete,
-    isMatching,
-    errorInfo,
-    processedJobs,
-    totalJobs,
-    startMatchingFromListItems
-  } = useBatchMatching(jobDetailsById);
   
   // Initialize filter states from URL params
   // URL パラメータからフィルター状態を初期化
@@ -72,51 +53,82 @@ export default function JobsListClient({ initialJobs, jobDetailsMap, resumeId }:
     const locationsParam = searchParams.get('locations');
     return locationsParam ? locationsParam.split(',') : [];
   });
+
+  /**
+   * @description Normalize UI filters into stable TanStack Query parameters.
+   * @description UIフィルターを安定した TanStack Query パラメータに正規化。
+   */
+  const filterParams = useMemo<JobListFilters>(() => {
+    const residenceFilter =
+      selectedResidence === "japan" || selectedResidence === "overseas"
+        ? selectedResidence
+        : undefined;
+
+    const locationFilter = selectedLocations.filter(
+      (loc): loc is "tokyo" | "other" => loc === "tokyo" || loc === "other"
+    );
+
+    return {
+      categories: selectedCategories.length ? selectedCategories : undefined,
+      residence: residenceFilter,
+      locations: locationFilter.length ? locationFilter : undefined,
+    };
+  }, [selectedCategories, selectedResidence, selectedLocations]);
+
+  /**
+   * @description Fetch job details via TanStack Query (hydrated from server prefetch).
+   * @description サーバープリフェッチからハイドレートされた求人詳細を TanStack Query で取得。
+   */
+  const {
+    data: jobDetails = [],
+    isLoading: jobsLoading,
+  } = useJobs(filterParams);
+
+  /**
+   * @description Memoize id → JobDetail map for batch matching lookups.
+   * @description バッチマッチング検索用に ID→JobDetail のマップをメモ化。
+   */
+  const jobDetailsById = useMemo(() => {
+    const map = new Map<string, JobDetailV2>();
+    for (const job of jobDetails) {
+      map.set(job.id, job);
+    }
+    return map;
+  }, [jobDetails]);
+
+  /**
+   * @description Derive lightweight list items for presentation layers.
+   * @description 表示用に軽量なリストアイテムへ変換。
+   */
+  const filteredJobs = useMemo(
+    () => jobDetails.map(job => toListItem(job)),
+    [jobDetails]
+  );
+
+  const {
+    results,
+    isMatchingComplete,
+    isMatching,
+    errorInfo,
+    processedJobs,
+    totalJobs,
+    startMatchingFromListItems,
+  } = useBatchMatching(jobDetailsById);
   
-  const [jobs, setJobs] = useState<JobListItem[]>(initialJobs);
+  const [jobs, setJobs] = useState<JobListItem[]>(filteredJobs);
   const [hasStartedMatching, setHasStartedMatching] = useState(false);
   const [resumeText, setResumeText] = useState('');
   // Track if filters have changed since last matching
   // 最後のマッチング以降にフィルターが変更されたかを追跡
   const [filtersChanged, setFiltersChanged] = useState(false);
-  
   /**
-   * @description Filter jobs based on selected filters
-   * @description 選択されたフィルターに基づいて求人をフィルタリング
+   * @description Query resume text via TanStack Query (hydrates local state for legacy flows).
+   * @description レジュメテキストを TanStack Query で取得し、既存ロジック用にローカル状態へ同期。
    */
-  const filteredJobs = useMemo(() => {
-    let filtered = [...initialJobs];
-
-    // Filter by category (tags must include any selected category)
-    // 職種でフィルタリング（タグに選択された職種が含まれている必要がある）
-    if (selectedCategories.length > 0) {
-      filtered = filtered.filter(job => 
-        job.tags.some(tag => selectedCategories.includes(tag))
-      );
-    }
-
-    // Filter by residence (recruitFromOverseas)
-    // お住まいでフィルタリング（recruitFromOverseas）
-    if (selectedResidence === 'overseas') {
-      filtered = filtered.filter(job => job.recruitFromOverseas === true);
-    }
-    // If residence is "japan", no filtering needed
-    // お住まいが「japan」の場合、フィルタリング不要
-
-    // Filter by work location
-    // 勤務地でフィルタリング
-    if (selectedLocations.length > 0 && selectedLocations.length < 2) {
-      if (selectedLocations.includes('tokyo') && !selectedLocations.includes('other')) {
-        filtered = filtered.filter(job => job.location === '東京都');
-      } else if (selectedLocations.includes('other') && !selectedLocations.includes('tokyo')) {
-        filtered = filtered.filter(job => job.location !== '東京都');
-      }
-      // If both are selected, no filtering needed
-      // 両方が選択されている場合、フィルタリング不要
-    }
-
-    return filtered;
-  }, [initialJobs, selectedCategories, selectedResidence, selectedLocations]);
+  const {
+    data: resumeTextData,
+    error: resumeTextError,
+  } = useResumeText(resumeId, { enabled: Boolean(resumeId) });
   
   /**
    * @description Calculate progress percentage
@@ -124,36 +136,22 @@ export default function JobsListClient({ initialJobs, jobDetailsMap, resumeId }:
    */
   const progressPercent = totalJobs > 0 ? Math.round((processedJobs / totalJobs) * 100) : 0;
   
-  /**
-   * @description Load resume text on component mount using provided resumeId
-   * @description 提供された resumeId を使用してコンポーネントマウント時にレジュメテキストを読み込み
-   */
   useEffect(() => {
-    const loadResumeText = async () => {
-      // ResumeGate ensures resumeId is provided before rendering this component
-      // ResumeGate はこのコンポーネントをレンダリングする前に resumeId が提供されることを保証
-      if (!resumeId) {
-        return;
-      }
+    // Mirror query result into local state once loaded
+    // 取得済みのクエリ結果をローカル状態に反映
+    if (!resumeText && resumeTextData?.resumeText?.trim()) {
+      setResumeText(resumeTextData.resumeText);
+    }
+  }, [resumeText, resumeTextData]);
 
-      try {
-        // Get resume text from S3 by resume ID
-        // レジュメIDによってS3からレジュメテキストを取得
-        const getResumeTextApi = `${getApiBase()}${API_RESUME_TEXT}?resumeId=${encodeURIComponent(resumeId)}`;
-        const data = await fetchJson<{ resumeText: string }>(getResumeTextApi);
-        
-        if (data?.resumeText) {
-          setResumeText(data.resumeText);
-        } else {
-          console.warn('No resume text found');
-        }
-      } catch (error) {
-        console.error('Failed to load resume text:', error);
-      }
-    };
-    
-    loadResumeText();
-  }, [resumeId]);
+  useEffect(() => {
+    if (resumeTextError) {
+      toast.error('レジュメテキストの読み込みに失敗しました。', {
+        description: resumeTextError.message,
+        duration: 5000,
+      });
+    }
+  }, [resumeTextError]);
   
   /**
    * @description Handle AI matching start with filtered jobs
@@ -235,7 +233,8 @@ export default function JobsListClient({ initialJobs, jobDetailsMap, resumeId }:
     
     // Update URL without triggering navigation
     // ナビゲーションをトリガーせずに URL を更新
-    const newUrl = `${ROUTE_JOBS}${params.toString() ? `?${params.toString()}` : ''}`;
+    const queryString = params.toString();
+    const newUrl = queryString ? `${ROUTE_JOBS}?${queryString}` : ROUTE_JOBS;
     router.replace(newUrl, { scroll: false });
   }, [selectedCategories, selectedResidence, selectedLocations, resumeId, router]);
 
@@ -295,6 +294,12 @@ export default function JobsListClient({ initialJobs, jobDetailsMap, resumeId }:
         onMatch={handleStartMatching}
         isMatching={isMatching}
       />
+
+      {jobsLoading && (
+        <div className="text-sm text-muted-foreground">
+          求人情報を読み込み中です...
+        </div>
+      )}
 
       {/* Match Count Display */}
       {/* マッチ数表示 */}

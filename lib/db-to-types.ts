@@ -37,17 +37,17 @@ export interface DbJobRecord {
   } | null;
   recruit_from_overseas: boolean;
   description?: {
-    who_we_are?: string;
+    whoWeAre?: string;
     products?: string;
-    product_intro?: string;
+    productIntro?: string;
     responsibilities: string[];
   } | null;
   dev_info?: {
-    front_end?: {
+    frontEnd?: {
       languages?: string[];
       frameworks?: string[];
     };
-    back_end?: {
+    backEnd?: {
       languages?: string[];
       frameworks?: string[];
     };
@@ -61,7 +61,7 @@ export interface DbJobRecord {
       repository?: string[];
       documentation?: string[];
       communication?: string[];
-      task_management?: string[];
+      taskManagement?: string[];
     };
     methodology?: string;
   } | null;
@@ -71,13 +71,13 @@ export interface DbJobRecord {
   } | null;
   candidate_requirements?: string[] | null;
   working_conditions?: {
-    working_location?: string;
+    workingLocation?: string;
     access?: string[];
-    working_hours?: string;
-    work_system?: string;
+    workingHours?: string;
+    workSystem?: string;
     probation?: string;
     benefits?: string[];
-    remote_note?: string;
+    remoteNote?: string;
   } | null;
   portfolio_note?: string[] | null;
   selection_process?: string[] | null;
@@ -150,25 +150,25 @@ export function dbJobToJobDetailV2(dbRecord: DbJobRecord): JobDetailV2 {
 
     // Description / 説明
     description: {
-      whoWeAre: dbRecord.description?.who_we_are,
+      whoWeAre: dbRecord.description?.whoWeAre,
       products: dbRecord.description?.products,
-      productIntro: dbRecord.description?.product_intro,
+      productIntro: dbRecord.description?.productIntro,
       responsibilities: dbRecord.description?.responsibilities ?? [],
     },
 
     // Development information / 開発情報
     devInfo: dbRecord.dev_info
       ? {
-          frontEnd: dbRecord.dev_info.front_end
+          frontEnd: dbRecord.dev_info.frontEnd
             ? {
-                languages: dbRecord.dev_info.front_end.languages,
-                frameworks: dbRecord.dev_info.front_end.frameworks,
+                languages: dbRecord.dev_info.frontEnd.languages,
+                frameworks: dbRecord.dev_info.frontEnd.frameworks,
               }
             : undefined,
-          backEnd: dbRecord.dev_info.back_end
+          backEnd: dbRecord.dev_info.backEnd
             ? {
-                languages: dbRecord.dev_info.back_end.languages,
-                frameworks: dbRecord.dev_info.back_end.frameworks,
+                languages: dbRecord.dev_info.backEnd.languages,
+                frameworks: dbRecord.dev_info.backEnd.frameworks,
               }
             : undefined,
           database: dbRecord.dev_info.database,
@@ -184,7 +184,7 @@ export function dbJobToJobDetailV2(dbRecord: DbJobRecord): JobDetailV2 {
                 repository: dbRecord.dev_info.tools.repository,
                 documentation: dbRecord.dev_info.tools.documentation,
                 communication: dbRecord.dev_info.tools.communication,
-                taskManagement: dbRecord.dev_info.tools.task_management,
+                taskManagement: dbRecord.dev_info.tools.taskManagement,
               }
             : undefined,
           methodology: dbRecord.dev_info.methodology,
@@ -203,13 +203,13 @@ export function dbJobToJobDetailV2(dbRecord: DbJobRecord): JobDetailV2 {
     // Working conditions / 勤務条件
     workingConditions: dbRecord.working_conditions
       ? {
-          workingLocation: dbRecord.working_conditions.working_location,
+          workingLocation: dbRecord.working_conditions.workingLocation,
           access: dbRecord.working_conditions.access,
-          workingHours: dbRecord.working_conditions.working_hours,
-          workSystem: dbRecord.working_conditions.work_system,
+          workingHours: dbRecord.working_conditions.workingHours,
+          workSystem: dbRecord.working_conditions.workSystem,
           probation: dbRecord.working_conditions.probation,
           benefits: dbRecord.working_conditions.benefits,
-          remoteNote: dbRecord.working_conditions.remote_note,
+          remoteNote: dbRecord.working_conditions.remoteNote,
         }
       : undefined,
 
