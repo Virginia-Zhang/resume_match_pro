@@ -43,5 +43,6 @@ next-env.d.ts
 # documents - ignore all markdown files except important ones
 *.md
 !README.md
+!README.en.md
 !CONTRIBUTING.md
 !docs/**/*.md
