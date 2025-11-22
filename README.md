@@ -3,7 +3,7 @@
 ## プロジェクト概要
 
 ResumeMatch Pro は、**日本での就職を目指す海外エンジニア（外国人開発者）向け**の Web アプリケーションです。候補者が自分のレジュメ（履歴書）をアップロードすると、日本のエンジニア求人と自動的にマッチングし、応募や企業への問い合わせまでを一気通貫でサポートすることを目指しています。  
-このリポジトリは、Next.js（App Router）をベースに、TanStack Query、Zustand、nuqs、Zod、Supabase、AWS S3、Resend などのモダンなフロントエンド / フルスタック技術を組み合わせた、**ポートフォリオ兼ベストプラクティス集**です。
+このリポジトリは、Next.js（App Router）をベースに、TanStack Query、Zustand、nuqs、Zod、Supabase、AWS S3、Resend などのモダンなフロントエンド / フルスタック技術を組み合わせた、**ポートフォリオ集の一環**です。
 
 **重要: 現在の開発状況**  
 このプロジェクトは **現在開発中** です。本 README に記載されている一部の機能は、設計済みまたは実装途中であり、まだ本番レベルではありません。実装が完了していない機能には、機能一覧で **`(開発中 / in progress)`** と明記しています。
@@ -46,25 +46,25 @@ ResumeMatch Pro は、**日本での就職を目指す海外エンジニア（�
 - **マッチ結果のスコア表示・ハイライト** 
   - レジュメと求人の一致度をスコアリング  
   - マッチしているスキルや経験を UI 上でハイライト表示
-- **求人への応募フロー（Apply for Job）**  
-  - 求人詳細ページから応募モーダルを開き、応募者情報を入力 **(開発中 / in progress)**
-  - Zod + React Hook Form によるフォームバリデーション  **(開発中 / in progress)**
-  - 応募内容とレジュメを紐づけて Supabase に保存 **(開発中 / in progress)**  
-  - Resend + React Email による応募完了メール送信（応募者 & 企業）**(開発中 / in progress)**  
-  - AWS S3 上のレジュメファイルへの期限付きアクセス URL（プリサインド URL）**(開発中 / in progress)**
+- **求人への応募フロー（Apply for Job）**  **(開発中 / in progress)**
+  - 求人詳細ページから応募モーダルを開き、応募者情報を入力 
+  - Zod + React Hook Form によるフォームバリデーション 
+  - 応募内容とレジュメを紐づけて Supabase に保存  
+  - Resend + React Email による応募完了メール送信（応募者 & 企業  
+  - AWS S3 上のレジュメファイルへの期限付きアクセス URL（プリサインド URL
 
-### 企業向け機能
+### 企業向け機能　**(開発中 / in progress)**  
 
-- **企業向けランディングページ「求人掲載について」** **(開発中 / in progress)**  
+- **企業向けランディングページ「求人掲載について」** 
   - 企業向けの価値提案・利用フロー・料金イメージの説明  
   - 日本語での分かりやすいコピーと CTA ボタン
-- **求人掲載・問い合わせフォーム（Post a Job）** **(開発中 / in progress)**  
+- **求人掲載・問い合わせフォーム（Post a Job）**  
   - 会社名、担当者名、メール、電話、会社規模、業界、掲載予定職種数、予算感、お問い合わせ内容などの入力  
   - Zod + React Hook Form による厳密なバリデーション  
   - Supabase への問い合わせ保存
-- **企業向けメール通知** **(開発中 / in progress)**  
+- **企業向けメール通知**  
   - 企業からの問い合わせ内容をオーナー宛にメール送信  
-  - 企業向け自動返信メール（受付完了、今後の流れ）**(開発中 / in progress)**
+  - 企業向け自動返信メール（受付完了、今後の流れ）
 
 ### 共通 UX 機能
 
@@ -109,20 +109,20 @@ ResumeMatch Pro は、**日本での就職を目指す海外エンジニア（�
   - Server Components と Client Components を使い分け、データ取得や SEO を最適化
 - **API レイヤー**
   - Next.js Route Handlers (`app/api/**/route.ts`) による REST 風 API
-  - すべてのリクエスト / レスポンスを Zod で検証し、型安全性とエラー整形を行う **(開発中 / in progress)**
+  - すべてのリクエスト / レスポンスを Zod で検証し、型安全性とエラー整形を行う
 - **データアクセス**
   - `lib/db/**` に Supabase への型安全なクエリ関数を配置 
-  - Zod で DB からのレスポンスを検証してからフロントに渡す **(開発中 / in progress)**
+  - Zod で DB からのレスポンスを検証してからフロントに渡す
 - **状態管理レイヤー**
-  - TanStack Query でサーバーサイドのデータ取得・キャッシュ  **(開発中 / in progress)**
-  - Zustand でクライアント側のグローバル状態（レジュメなど）を管理  **(開発中 / in progress)**
-  - nuqs で URL を単一の「真実のソース」として扱うフィルタ状態管理 **(開発中 / in progress)**
+  - TanStack Query でサーバーサイドのデータ取得・キャッシュ 
+  - Zustand でクライアント側のグローバル状態（レジュメなど）を管理 
+  - nuqs で URL を単一の「真実のソース」として扱うフィルタ状態管理
 
 ---
 
 ## 品質とテスト
 
-- **テスト戦略** **(開発中 / in progress)**
+- **テスト戦略**
   - Hooks テスト（例：`useBatchMatching`, Query Hooks）  
   - 主要コンポーネントテスト（求人一覧、フィルタ、応募モーダルなど）  
   - ユニットテスト + 軽い統合テスト
@@ -131,7 +131,7 @@ ResumeMatch Pro は、**日本での就職を目指す海外エンジニア（�
   - 目標: **70%以上**
   - Jest のカバレッジ機能（Istanbul ベース）を利用予定
   - 例: `pnpm test -- --coverage` あるいは専用スクリプト `pnpm test:coverage` を定義 **(開発中 / in progress)**
-- **CI 連携** **(開発中 / in progress)**
+- **CI 連携**
   - GitHub Actions 上で Lint / Type Check / Test / Build を自動実行し、プルリクエスト時に品質を確認
 
 ---
@@ -142,7 +142,6 @@ ResumeMatch Pro は、**日本での就職を目指す海外エンジニア（�
   - `@next/bundle-analyzer` によるバンドルサイズ分析  
   - 動的インポート・コード分割・遅延ロードの活用  
   - `next/image` と `next/font` による画像・フォント最適化  
-  - Lighthouse スコア 90+ を目標としたチューニング
 - **SEO 対応** **(開発中 / in progress)**
   - SSG（Static Site Generation）を活用した高速で SEO フレンドリーなページ  
   - 適切な `<title>` / `<meta name="description">` / Open Graph メタタグ  
@@ -154,7 +153,7 @@ ResumeMatch Pro は、**日本での就職を目指す海外エンジニア（�
 
 ### 前提条件
 
-- Node.js（推奨: LTS バージョン）
+- Node.js（推奨: Node.js 20 LTS バージョン）
 - pnpm（推奨） / npm / yarn のいずれか
 
 ### インストール
@@ -174,11 +173,11 @@ pnpm dev
 ### 代表的な pnpm スクリプト（予定を含む）
 
 - `pnpm dev` : 開発サーバーを起動
-- `pnpm build` : 本番ビルド **(開発中 / in progress)**
-- `pnpm start` : 本番ビルドの起動 **(開発中 / in progress)**
-- `pnpm lint` : ESLint による静的解析 **(開発中 / in progress)**
-- `pnpm test` : Jest + React Testing Library によるテスト実行 **(開発中 / in progress)**
-- `pnpm test:coverage` : カバレッジ付きテスト実行 **(開発中 / in progress)**
+- `pnpm build` : 本番ビルド 
+- `pnpm start` : 本番ビルドの起動 
+- `pnpm lint` : ESLint による静的解析 
+- `pnpm test` : Jest + React Testing Library によるテスト実行 
+- `pnpm test:coverage` : カバレッジ付きテスト実行 
 
 ### 環境変数（例）
 
@@ -316,14 +315,14 @@ tests/                  # Jest + RTL + MSW テストコード (開発中)
 
 ## デプロイ
 
-- 本プロジェクトは **AWS Amplify** でのデプロイを前提としています **(開発中 / in progress)**。  
-- GitHub Actions で Lint / Type Check / Test / Build を実行し、すべて成功した場合のみ AWS Amplify でデプロイする CI/CD パイプラインを構成する予定です **(開発中 / in progress)**。
+- 本プロジェクトは **AWS Amplify** でのデプロイを前提としています
+- GitHub Actions で Lint / Type Check / Test / Build を実行し、すべて成功した場合のみ AWS Amplify でデプロイする CI/CD パイプラインを構成する予定です。
 
 ---
 
 ## 貢献 & ライセンス
 
-- 現時点では主にポートフォリオとして開発中です。今後、外部からのコントリビュートを受け付ける段階になったら `CONTRIBUTING.md` を追加する予定です **(開発中 / in progress)**。  
-- ライセンスは暫定的に **MIT License** を想定しています。実際の公開時には `LICENSE` ファイルを追加します **(開発中 / in progress)**。
+- 現時点では主にポートフォリオとして開発中です。今後、外部からのコントリビュートを受け付ける段階になったら `CONTRIBUTING.md` を追加する予定です。  
+- ライセンスは暫定的に **MIT License** を想定しています。実際の公開時には `LICENSE` ファイルを追加します。
 
 

@@ -3,7 +3,7 @@
 ## Project Overview
 
 ResumeMatch Pro is a web application designed **for foreign developers who want to find software developer jobs in Japan**. Candidates can upload their resume, get AI-assisted matching against Japanese developer job postings, and proceed all the way to applying for jobs and contacting companies.  
-This repository is a portfolio-grade project built with Next.js (App Router), combining TanStack Query, Zustand, nuqs, Zod, Supabase, AWS S3, Resend, and other modern frontend / full‑stack tools to showcase best practices.
+This repository is part of my personal portfolio, built with Next.js (App Router), TanStack Query, Zustand, nuqs, Zod, Supabase, AWS S3, Resend, and other modern frontend / full‑stack tools to demonstrate current best practices.
 
 **Status**  
 This project is **currently under active development**. Some of the features described in this README are designed or partially implemented but not yet production-ready. Features that are not fully implemented are explicitly marked with **`(in progress)`** in the feature list.
@@ -46,23 +46,23 @@ The main target users are:
 - **Match score & highlight view**
   - Show a numeric / visual match score between resume and job  
   - Highlight skills and experiences that contributed to the score 
-- **Apply for Job flow**
-  - Open an application modal from the job detail page to submit candidate info **(in progress)**  
-  - Form validation with Zod + React Hook Form **(in progress)** 
-  - Save application data linked with the resume into Supabase **(in progress)**  
-  - Send confirmation emails to both candidate and company using Resend + React Email **(in progress)**  
-  - Generate time-limited presigned URLs for the resume stored on AWS S3 **(in progress)**
+- **Apply for Job flow** **(in progress)**
+  - Open an application modal from the job detail page to submit candidate info  
+  - Form validation with Zod + React Hook Form 
+  - Save application data linked with the resume into Supabase  
+  - Send confirmation emails to both candidate and company using Resend + React Email  
+  - Generate time-limited presigned URLs for the resume stored on AWS S3
 
-### For Companies
+### For Companies **(in progress)**
 
-- **Company-facing landing page (“Post your job”)** **(in progress)**  
+- **Company-facing landing page (“Post your job”)**  
   - Explains value proposition, workflow, and pricing image for companies  
   - Clear Japanese copywriting and CTA buttons
-- **Job posting / company inquiry form (Post a Job)** **(in progress)**  
+- **Job posting / company inquiry form (Post a Job)**  
   - Fields like company name, contact person, email, phone, company size, industry, number of roles, budget, and inquiry details  
   - Strict validation with Zod + React Hook Form  
   - Store inquiries in Supabase
-- **Email notifications for companies** **(in progress)**  
+- **Email notifications for companies**  
   - Send inquiry details to the project owner via email  
   - Send an automatic confirmation mail back to the company with next steps **(in progress)**
 
@@ -109,20 +109,20 @@ The main target users are:
   - Clear separation of Server Components and Client Components for better data fetching and SEO
 - **API layer**
   - REST-style APIs implemented as Next.js Route Handlers under `app/api/**/route.ts` 
-  - All request and response payloads are validated with Zod for type safety and consistent error formatting **(in progress)**
+  - All request and response payloads are validated with Zod for type safety and consistent error formatting
 - **Data access**
   - Type-safe Supabase query functions under `lib/db/**`
-  - Responses are validated via Zod before being passed to the frontend **(in progress)**
+  - Responses are validated via Zod before being passed to the frontend
 - **State management layer**
-  - TanStack Query for server-side data and caching **(in progress)**
-  - Zustand for client-side global state (e.g., resume information) **(in progress)**
-  - nuqs to treat the URL as the single source of truth for filter state **(in progress)**
+  - TanStack Query for server-side data and caching
+  - Zustand for client-side global state (e.g., resume information)
+  - nuqs to treat the URL as the single source of truth for filter state
 
 ---
 
 ## Quality & Testing
 
-- **Testing strategy** **(in progress)**
+- **Testing strategy**
   - Hook tests (e.g., `useBatchMatching`, query hooks)  
   - Core component tests (job list, filters, application modal, etc.)  
   - Unit tests plus light integration tests
@@ -131,7 +131,7 @@ The main target users are:
   - Target: **70%+**
   - Use Jest’s built-in coverage (Istanbul)  
   - Example: `pnpm test -- --coverage` or a dedicated `pnpm test:coverage` script **(in progress)**
-- **CI integration** **(in progress)**
+- **CI integration**
   - Run lint, type-check, tests, and build automatically on GitHub Actions for each pull request
 
 ---
@@ -154,7 +154,7 @@ The main target users are:
 
 ### Prerequisites
 
-- Node.js (recommended: latest LTS)
+- Node.js 20 LTS (recommended)
 - One of pnpm (recommended) / npm / yarn
 
 ### Install dependencies
@@ -174,11 +174,11 @@ Open `http://localhost:3000` in your browser to see the app.
 ### Common pnpm scripts (including planned ones)
 
 - `pnpm dev`: start the development server
-- `pnpm build`: create a production build **(in progress)**
-- `pnpm start`: run the production build **(in progress)**
-- `pnpm lint`: run ESLint **(in progress)**
-- `pnpm test`: run Jest + React Testing Library tests **(in progress)**
-- `pnpm test:coverage`: run tests with coverage **(in progress)**
+- `pnpm build`: create a production build
+- `pnpm start`: run the production build
+- `pnpm lint`: run ESLint
+- `pnpm test`: run Jest + React Testing Library tests
+- `pnpm test:coverage`: run tests with coverage
 
 ### Example environment variables
 
@@ -316,14 +316,14 @@ tests/                  # Jest + RTL + MSW test code (in progress)
 
 ## Deployment
 
-- The project is planned to be deployed on **AWS Amplify** **(in progress)**.  
-- A CI/CD pipeline will be built with GitHub Actions to run lint, type-check, tests, and build, and only after all checks pass will the app be deployed via AWS Amplify **(in progress)**.
+- The project is planned to be deployed on **AWS Amplify**.  
+- A CI/CD pipeline will be built with GitHub Actions to run lint, type-check, tests, and build, and only after all checks pass will the app be deployed via AWS Amplify.
 
 ---
 
 ## Contribution & License
 
-- At the moment, this is mainly a personal portfolio / learning project. Once it becomes ready for external contributions, a `CONTRIBUTING.md` guide may be added **(in progress)**.  
-- The project is planned to be released under the **MIT License**. A `LICENSE` file will be added when it is officially published **(in progress)**.
+- At the moment, this is mainly a personal portfolio / learning project. Once it becomes ready for external contributions, a `CONTRIBUTING.md` guide may be added.  
+- The project is planned to be released under the **MIT License**. A `LICENSE` file will be added when it is officially published.
 
 
