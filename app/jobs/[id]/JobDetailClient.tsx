@@ -33,16 +33,22 @@ export default function JobDetailClient({
 }: JobDetailClientProps): React.ReactElement {
   // Get resumeId from ResumeGate context instead of props
   // props の代わりに ResumeGate コンテキストから resumeId を取得
+  const searchParams = useSearchParams();
+  const matchResultParam = searchParams.get("matchResult");
   const resumeId = useResumeId();
   const { data: detail, isLoading, error: jobError } = useJobById(jobId);
-  const [matchResult, setMatchResult] = useState<MatchResultItem | null>(null);
+  const [matchResult, setMatchResult] = useState<MatchResultItem | null>(() => {
+    if (!matchResultParam) return null;
+    try {
+      return JSON.parse(matchResultParam) as MatchResultItem;
+    } catch (error) {
+      console.error("Failed to parse initial matchResult:", error);
+      return null;
+    }
+  });
   const router = useRouter();
-  const searchParams = useSearchParams();
 
   useEffect(() => {
-    // Get matchResult from URL query params
-    // URL クエリパラメータから matchResult を取得
-    const matchResultParam = searchParams.get("matchResult");
     if (matchResultParam) {
       try {
         const parsed = JSON.parse(matchResultParam) as MatchResultItem;
@@ -51,7 +57,7 @@ export default function JobDetailClient({
         console.error("Failed to parse matchResult:", error);
       }
     }
-  }, [searchParams]);
+  }, [matchResultParam]);
 
   useEffect(() => {
     // Only redirect if loading is complete, detail is missing, and there's a real error

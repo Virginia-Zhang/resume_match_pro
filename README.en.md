@@ -2,8 +2,9 @@
 
 ## Project Overview
 
-ResumeMatch Pro is a web application designed **for foreign developers who want to find software developer jobs in Japan**. Candidates can upload their resume, get AI-assisted matching against Japanese developer job postings, and proceed all the way to applying for jobs and contacting companies.  
-This repository is part of my personal portfolio, built with Next.js (App Router), TanStack Query, Zustand, nuqs, Zod, Supabase, AWS S3, Resend, and other modern frontend / full‑stack tools to demonstrate current best practices.
+ResumeMatch Pro is a web application designed **for foreign developers who want to find software developer jobs in Japan**. Candidates can upload their resume and an LLM‑powered **AI matching engine** automatically compares it against Japanese developer job postings, helping them go all the way from discovery to applying and contacting companies. For each job, the AI computes an overall **match score** plus five dimension scores (technical skills, education, experience, projects, soft skills), generates a score summary, provides **strengths/weaknesses analysis**, and suggests **concrete interview strategies** tailored to the candidate.  
+
+This repository is a portfolio‑grade project built with Next.js (App Router), combining TanStack Query, Zustand, nuqs, Zod, Supabase, AWS S3, Resend, and an **AI‑powered matching pipeline** to showcase modern full‑stack best practices.
 
 **Status**  
 This project is **currently under active development**. Some of the features described in this README are designed or partially implemented but not yet production-ready. Features that are not fully implemented are explicitly marked with **`(in progress)`** in the feature list.

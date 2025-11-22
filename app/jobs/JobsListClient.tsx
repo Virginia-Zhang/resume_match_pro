@@ -22,7 +22,7 @@ import { toListItem } from '@/lib/jobs';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 
-import type { JobDetailV2, JobListItem } from '@/types/jobs_v2';
+import type { JobDetailV2 } from '@/types/jobs_v2';
 import type { MatchResultItem } from '@/types/matching';
 import { toast } from "sonner";
 
@@ -114,13 +114,7 @@ export default function JobsListClient(): React.ReactElement {
     totalJobs,
     startMatchingFromListItems,
   } = useBatchMatching(jobDetailsById);
-  
-  const [jobs, setJobs] = useState<JobListItem[]>(filteredJobs);
-  const [hasStartedMatching, setHasStartedMatching] = useState(false);
-  const [resumeText, setResumeText] = useState('');
-  // Track if filters have changed since last matching
-  // 最後のマッチング以降にフィルターが変更されたかを追跡
-  const [filtersChanged, setFiltersChanged] = useState(false);
+  const [resumeText, setResumeText] = useState("");
   /**
    * @description Query resume text via TanStack Query (hydrates local state for legacy flows).
    * @description レジュメテキストを TanStack Query で取得し、既存ロジック用にローカル状態へ同期。
@@ -129,7 +123,7 @@ export default function JobsListClient(): React.ReactElement {
     data: resumeTextData,
     error: resumeTextError,
   } = useResumeText(resumeId, { enabled: Boolean(resumeId) });
-  
+
   /**
    * @description Calculate progress percentage
    * @description 進捗率を計算
@@ -163,12 +157,9 @@ export default function JobsListClient(): React.ReactElement {
       return;
     }
     if (!resumeText.trim()) {
-      toast.error('レジュメテキストが読み込まれていません。まずレジュメをアップロードしてください。');
+      toast.error("レジュメテキストが読み込まれていません。まずレジュメをアップロードしてください。");
       return;
     }
-    
-    setHasStartedMatching(true);
-    setFiltersChanged(false); // Reset filter change flag when starting new matching
     
     // Filter out jobs that have already been analyzed
     // すでに分析された求人をフィルターで除外
@@ -195,16 +186,6 @@ export default function JobsListClient(): React.ReactElement {
       startMatchingFromListItems(resumeText, jobsToMatch, incremental);
     }
   };
-
-  /**
-   * @description Track filter changes
-   * @description フィルター変更を追跡
-   */
-  useEffect(() => {
-    // Mark filters as changed when any filter value changes
-    // フィルター値が変更されたときにフィルターが変更されたことをマーク
-    setFiltersChanged(true);
-  }, [selectedCategories, selectedResidence, selectedLocations]);
 
   /**
    * @description Update URL query params when filters change
@@ -239,36 +220,23 @@ export default function JobsListClient(): React.ReactElement {
   }, [selectedCategories, selectedResidence, selectedLocations, resumeId, router]);
 
   /**
-   * @description Update displayed jobs when filters change or matching completes
-   * @description フィルター変更時またはマッチング完了時に表示する求人を更新
+   * @description Derive jobs to display based on matching state and results.
+   * @description マッチング状態と結果に基づいて表示用の求人配列を導出。
    */
-  useEffect(() => {
-    // If matching is complete, show all filtered jobs sorted by overall score
-    // マッチングが完了している場合、すべてのフィルターされた求人を総合スコアでソートして表示
-    if (isMatchingComplete && results.length > 0) {
-      // Auto-set hasStartedMatching to true when we have match results
-      // マッチ結果がある場合、hasStartedMatching を自動的に true に設定
-      if (!hasStartedMatching) {
-        setHasStartedMatching(true);
-      }
-      
-      // Sort all filtered jobs by overall score in descending order
-      // すべてのフィルターされた求人を総合スコアで降順ソート
-      // Jobs without match results will have score 0 and appear at the end
-      // マッチ結果がない求人はスコア0となり、最後に表示される
-      const sortedJobs = [...filteredJobs].sort((a, b) => {
-        const scoreA = results.find(r => r.job_id === a.id)?.overall || 0;
-        const scoreB = results.find(r => r.job_id === b.id)?.overall || 0;
-        return scoreB - scoreA; // Descending order / 降順
+  const jobsToDisplay = useMemo(() => {
+    // When we have match results, sort by overall score (highest first)
+    // マッチ結果がある場合は総合スコアの高い順にソートして表示
+    if (results.length > 0) {
+      return [...filteredJobs].sort((a, b) => {
+        const scoreA = results.find(r => r.job_id === a.id)?.overall ?? 0;
+        const scoreB = results.find(r => r.job_id === b.id)?.overall ?? 0;
+        return scoreB - scoreA;
       });
-      
-      setJobs(sortedJobs);
-    } else if (!isMatching) {
-      // If not matching, show filtered jobs without sorting
-      // マッチングしていない場合、ソートなしでフィルターされた求人を表示
-      setJobs(filteredJobs);
     }
-  }, [filteredJobs, isMatchingComplete, isMatching, results, hasStartedMatching]);
+    // No results yet → fall back to original filtered order
+    // まだ結果がない場合はフィルター後の順序をそのまま利用
+    return filteredJobs;
+  }, [filteredJobs, results]);
   
   /**
    * @description Get match result for a specific job
@@ -330,9 +298,9 @@ export default function JobsListClient(): React.ReactElement {
         </div>
       )}
       
-      {/* Completion Message (shown only when no filter changes since last matching) */}
-      {/* 完了メッセージ（最後のマッチング以降にフィルターが変更されていない場合のみ表示） */}
-      {isMatchingComplete && !filtersChanged && !isMatching && (
+      {/* Completion Message */}
+      {/* 完了メッセージ */}
+      {isMatchingComplete && !isMatching && (
         <div className="p-4 bg-green-50 dark:bg-green-950 rounded-lg border border-green-200 dark:border-green-800">
           <div className="text-sm text-green-700 dark:text-green-300">
             ✅ AIマッチング分析が完了しました。{results.length} 件の求人を分析しました。
@@ -352,7 +320,7 @@ export default function JobsListClient(): React.ReactElement {
       {/* Job List */}
       {/* 求人一覧 */}
       <ul className="divide-y">
-        {(hasStartedMatching && isMatchingComplete ? jobs : filteredJobs).map((job) => {
+        {jobsToDisplay.map((job) => {
           const matchResult = getMatchResult(job.id);
           const isLoading = isMatching && !matchResult;
           const jobUrl = `${ROUTE_JOBS}/${encodeURIComponent(job.id)}`;

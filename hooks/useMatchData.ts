@@ -19,7 +19,7 @@ import type {
   SummaryEnvelope,
   UseMatchDataResult,
 } from "@/types/matching";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 /**
  * @description Custom hook for managing match data with unified API calls
@@ -41,6 +41,7 @@ export function useMatchData(props: ChartsProps): UseMatchDataResult {
   const [summaryError, setSummaryError] = useState<string | null>(null);
   const [detailsError, setDetailsError] = useState<string | null>(null);
   const [hover, setHover] = useState<HoverState | null>(null);
+  const detailsRequestedRef = useRef(false);
 
   /**
    * @description Generic API call function with shared error handling
@@ -130,6 +131,11 @@ export function useMatchData(props: ChartsProps): UseMatchDataResult {
     async function fetchDetails() {
       // Only proceed if summary is completed
       if (!summary) return;
+
+      // Guard against duplicate details requests (e.g., double effects in dev)
+      // 重複した詳細リクエストを防止（開発環境での副作用二重実行など）
+      if (detailsRequestedRef.current) return;
+      detailsRequestedRef.current = true;
 
       try {
         setDetailsLoading(true);

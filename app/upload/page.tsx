@@ -355,7 +355,7 @@ export default function UploadPage(): React.JSX.Element {
 
         <button
           ref={dropRef}
-          className={`relative flex flex-col items-center justify-center rounded-3xl border border-slate-100/80 px-10 py-18 min-h-[400px] bg-sky-50/80 dark:bg-slate-600/20 shadow-[0_30px_90px_rgba(15,23,42,0.12)] transition-all ${
+          className={`relative flex w-full flex-col items-center justify-center rounded-3xl border border-slate-100/80 px-10 py-18 min-h-[400px] bg-sky-50/80 dark:bg-slate-600/20 shadow-[0_30px_90px_rgba(15,23,42,0.12)] transition-all ${
             dragActive ? "ring-2 ring-sky-400 ring-offset-4" : ""
           }`}
           type="button"
@@ -421,7 +421,7 @@ export default function UploadPage(): React.JSX.Element {
       </div>
 
       {/* Parse button */}
-      <div className="flex flex-col items-center gap-4">
+      <div className="flex flex-col items-center gap-4 max-w-4xl mx-auto w-full">
         <PrimaryCtaButton
           onClick={handleParse}
           disabled={!file || parsePdfMutation.isPending}

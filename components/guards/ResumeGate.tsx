@@ -32,9 +32,9 @@ export function useResumeId(): string | null {
  * Minimal client-only gate component that blocks requests when resumeId is not present
  * 最小のクライアントゲートコンポーネント。`resume:current` がない場合、リクエストをブロック。
  */
-type ResumeGateProps = {
-  children: React.ReactNode;
-};
+interface ResumeGateProps {
+  readonly children: React.ReactNode;
+}
 
 export default function ResumeGate({
   children,
@@ -42,14 +42,13 @@ export default function ResumeGate({
   const [ok, setOk] = useState<boolean | null>(null);
   const [resumeId, setResumeId] = useState<string | null>(null);
   const searchParams = useSearchParams();
+  const urlResumeId = searchParams.get("resumeId");
 
   // Check if resume is present
   // レジュメが存在するか確認
   useEffect(() => {
-    // First, check URL searchParams (for immediate access after upload)
-    // まず、URL searchParamsを確認（アップロード直後の即座アクセス用）
-    const urlResumeId = searchParams.get("resumeId");
-    
+    // First, check resumeId from URL (for immediate access after upload)
+    // まず、URL から取得した resumeId を確認（アップロード直後の即座アクセス用）
     // Then check localStorage (for subsequent visits)
     // 次に、localStorageを確認（その後の訪問用）
     const p = resumePointer.load();
@@ -74,13 +73,15 @@ export default function ResumeGate({
       
       // Redirect to upload page if resume is not present
       // レジュメがない場合はアップロードページへリダイレクト
-      const t = setTimeout(() => window.location.replace(ROUTE_UPLOAD), 3000);
+      const t = setTimeout(() => {
+        globalThis.location?.replace(ROUTE_UPLOAD);
+      }, 3000);
       return () => clearTimeout(t);
     }
     
     // If URL param exists but localStorage doesn't, sync it
     // URLパラメータが存在するがlocalStorageにない場合、同期する
-    if (urlResumeId && (!p || p.resumeId !== urlResumeId)) {
+    if (urlResumeId && p?.resumeId !== urlResumeId) {
       try {
         resumePointer.save(urlResumeId);
       } catch (error) {
@@ -90,7 +91,7 @@ export default function ResumeGate({
     
     setResumeId(finalResumeId);
     setOk(true);
-  }, [searchParams]);
+  }, [urlResumeId]);
 
   if (ok !== true) {
     return <GateSkeleton />;
@@ -116,6 +117,8 @@ export default function ResumeGate({
  * @description ゲートコンポーネントのローディングスケルトン
  */
 function GateSkeleton() {
+  const skeletonRowIds = [1, 2, 3, 4, 5];
+
   return (
     <>
       {/* Ensure Toaster is available in this component tree */}
@@ -124,8 +127,8 @@ function GateSkeleton() {
       <div className="mx-auto max-w-4xl p-6 space-y-6">
         <Skeleton className="h-8 w-40" />
         <div className="space-y-3">
-          {Array.from({ length: 5 }).map((_, index) => (
-            <Skeleton key={index} className="h-30 w-full" />
+          {skeletonRowIds.map(rowId => (
+            <Skeleton key={`gate-skeleton-row-${rowId}`} className="h-30 w-full" />
           ))}
         </div>
       </div>

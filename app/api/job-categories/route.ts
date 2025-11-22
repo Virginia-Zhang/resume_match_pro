@@ -31,6 +31,7 @@ export async function GET(): Promise<Response> {
     const { data, error } = await supabase
       .from("job_categories")
       .select("code, name")
+      .order("sort_order", { ascending: true })
       .order("code", { ascending: true });
 
     if (error) {
