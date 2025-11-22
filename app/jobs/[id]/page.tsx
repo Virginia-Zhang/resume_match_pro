@@ -4,9 +4,9 @@
  * @description フローガード付きの求人詳細。データはクライアントで sessionStorage(JobDetailV2) からハイドレート。
  */
 
+import ResumeGate from "@/components/guards/ResumeGate";
 import React from "react";
 import JobDetailClient from "./JobDetailClient";
-import ResumeGate from "@/components/guards/ResumeGate";
 
 /**
  * Job detail server component wrapped by ResumeGuard.
@@ -15,18 +15,16 @@ import ResumeGate from "@/components/guards/ResumeGate";
  * @param {Promise<{ id: string }>} params.params - dynamic segment
  * @returns {Promise<React.JSX.Element>} JSX element
  */
+type JobDetailPageProps = Readonly<{
+  params: Promise<{ id: string }>;
+}>;
+
 export default async function JobDetailPage({
   params,
-}: {
-  params: Promise<{ id: string }>;
-}): Promise<React.JSX.Element> {
+}: JobDetailPageProps): Promise<React.JSX.Element> {
   const resolvedParams = await params;
   const jobId = resolvedParams.id;
 
-  // Keep detail view as-is; charts fetch uses `resumeId` from searchParams previously.
-  // Here we simply allow navigation when gate passes (i.e., resume:current exists).
-  // The child component already receives resumeId from server props earlier; if needed,
-  // we can extend to read from localStorage, but current flow relies on APIs using resumeId passed along.
 
   return (
     // Use ResumeGate to block requests when resume is not present

@@ -3,8 +3,7 @@
  * @description Utilities to derive list items from JobDetailV2 and fetch helpers.
  * @description JobDetailV2 から一覧用データを導出するユーティリティと取得ヘルパー。
  */
-import { fetchJson } from "@/lib/fetcher";
-import { getApiBase } from "@/lib/runtime-config";
+export { fetchJobById, fetchJobs } from "@/lib/api/jobs";
 import type { JobDetailV2, JobListItem } from "@/types/jobs_v2";
 
 export function toListItem(detail: JobDetailV2): JobListItem {
@@ -18,43 +17,6 @@ export function toListItem(detail: JobDetailV2): JobListItem {
     logoUrl: detail.logoUrl,
     recruitFromOverseas: detail.recruitFromOverseas,
   };
-}
-
-/**
- * @description Fetch all jobs from API
- * @description APIからすべての求人を取得
- * @param apiBase Optional API base URL override
- * @param apiBase オプションのAPIベースURLオーバーライド
- * @returns Promise resolving to JobDetailV2[]
- * @returns JobDetailV2[] を解決するプロミス
- */
-export async function fetchJobs(apiBase = ""): Promise<JobDetailV2[]> {
-  const base = getApiBase(apiBase);
-  const url = `${base}/api/jobs`;
-  return fetchJson<JobDetailV2[]>(url);
-}
-
-/**
- * @description Fetch a single job by ID from API
- * @description APIからIDで単一の求人を取得
- * @param jobId Job ID to fetch / 取得する求人ID
- * @param apiBase Optional API base URL override
- * @param apiBase オプションのAPIベースURLオーバーライド
- * @param signal Optional AbortSignal to cancel the request
- * @param signal リクエストをキャンセルするためのオプションのAbortSignal
- * @returns Promise resolving to JobDetailV2
- * @returns JobDetailV2 を解決するプロミス
- * @throws Error if job not found or API request fails
- * @throws 求人が見つからないかAPIリクエストが失敗した場合にエラーをスロー
- */
-export async function fetchJobById(
-  jobId: string,
-  apiBase = "",
-  signal?: AbortSignal
-): Promise<JobDetailV2> {
-  const base = getApiBase(apiBase);
-  const url = `${base}/api/jobs/${encodeURIComponent(jobId)}`;
-  return fetchJson<JobDetailV2>(url, { signal });
 }
 
 /**

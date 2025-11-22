@@ -8,7 +8,10 @@
  */
 
 import ResumeGate from "@/components/guards/ResumeGate";
-import { fetchJobs, toListItem } from "@/lib/jobs";
+import { fetchJobs } from "@/lib/api/jobs";
+import { getQueryClient } from "@/lib/react-query/get-query-client";
+import { queryKeys } from "@/lib/react-query/query-keys";
+import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import React from "react";
 import JobsListClient from "./JobsListClient";
 
@@ -20,20 +23,24 @@ import JobsListClient from "./JobsListClient";
  * @returns AI マッチング付きの求人一覧マークアップ
  */
 export default async function JobsPage(): Promise<React.JSX.Element> {
-  // Fetch jobs data on server
-  // サーバーで求人データを取得
-  const jobDetails = await fetchJobs();
-  const jobs = jobDetails.map(toListItem);
+  const queryClient = getQueryClient();
+
+  // Prefetch job list on the server to hydrate client-side TanStack Query cache
+  // クライアントの TanStack Query キャッシュをハイドレートするため、サーバーで求人一覧をプリフェッチ
+  await queryClient.prefetchQuery({
+    queryKey: queryKeys.jobs.list("all"),
+    queryFn: () => fetchJobs(),
+  });
+
+  const dehydratedState = dehydrate(queryClient);
 
   return (
-    // Use ResumeGate to block requests when resume is not present
-    // レジュメがない場合はリクエストをブロック
-    // The actual value of resumeId is injected by ResumeGate into the child component
-    // 実際の resumeId は ResumeGate によって子コンポーネントに注入されます
-    <ResumeGate>
-      {/* Pass both list items and full details: list items for display, full details for batch matching */}
-      {/* リストアイテムと完全な詳細の両方を渡す：リストアイテムは表示用、完全な詳細はバッチマッチング用 */}
-      <JobsListClient initialJobs={jobs} jobDetailsMap={jobDetails} />
-    </ResumeGate>
+    <HydrationBoundary state={dehydratedState}>
+      {/* Use ResumeGate to block requests when resume is not present */}
+      {/* レジュメがない場合はリクエストをブロック */}
+      <ResumeGate>
+        <JobsListClient />
+      </ResumeGate>
+    </HydrationBoundary>
   );
 }

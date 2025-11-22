@@ -1,5 +1,10 @@
-import type { Metadata } from "next";
 import { PRODUCT_NAME_EN } from "@/app/constants/constants";
+import PageFrame from "@/components/common/PageFrame";
+import SiteHeader from "@/components/common/SiteHeader";
+import { QueryProvider } from "@/components/providers/query-provider";
+import { ThemeProvider } from "@/components/providers/theme-provider";
+import { Toaster } from "@/components/ui/sonner";
+import type { Metadata } from "next";
 import {
   Geist,
   Geist_Mono,
@@ -7,10 +12,6 @@ import {
   Zen_Maru_Gothic,
 } from "next/font/google";
 import "./globals.css";
-import { ThemeProvider } from "@/components/providers/theme-provider";
-import SiteHeader from "@/components/common/SiteHeader";
-import PageFrame from "@/components/common/PageFrame";
-import { Toaster } from "@/components/ui/sonner"
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -68,11 +69,13 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <SiteHeader />
-          <PageFrame>{children}</PageFrame>
-          {/* Toast window to display notifications */}
-          {/* 通知を表示するトーストウィンドウ */}
-          <Toaster />
+          <QueryProvider>
+            <SiteHeader />
+            <PageFrame>{children}</PageFrame>
+            {/* Toast window to display notifications */}
+            {/* 通知を表示するトーストウィンドウ */}
+            <Toaster />
+          </QueryProvider>
         </ThemeProvider>
       </body>
     </html>

@@ -9,16 +9,15 @@
 "use client";
 
 import {
-  API_RESUME,
   API_RESUME_TEXT,
   ROUTE_JOBS,
   UPLOAD_FEATURES,
   UPLOAD_FILE_SIZE_ERROR_JA,
   UPLOAD_MAX_FILE_SIZE_BYTES,
   UPLOAD_STEPS,
-  UPLOAD_TEXTAREA_GUIDELINES,
+  UPLOAD_TEXTAREA_GUIDELINES
 } from "@/app/constants/constants";
-import { PrimaryCtaButton, SecondaryCtaButton } from "@/components/common/buttons/CtaButtons";
+import { PrimaryCtaButton } from "@/components/common/buttons/CtaButtons";
 import ErrorDisplay from "@/components/common/ErrorDisplay";
 import {
   Card,
@@ -29,6 +28,7 @@ import {
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import Skeleton from "@/components/ui/skeleton";
+import { useParsePdfMutation, useUploadResumeMutation } from "@/hooks/queries/useResume";
 import { getFriendlyErrorMessage } from "@/lib/errorHandling";
 import { fetchJson } from "@/lib/fetcher";
 import { clearBatchMatchingResults, resumePointer } from "@/lib/storage";
@@ -52,19 +52,24 @@ import {
 export default function UploadPage(): React.JSX.Element {
   const router = useRouter();
   const [file, setFile] = useState<File | null>(null);
-  const [parsing, setParsing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [text, setText] = useState("");
   // Initialize prefilling state to false to ensure SSR/client consistency
   // prefillingの状態をfalseで初期化し、SSR/クライアントの一貫性を確保
   const [prefilling, setPrefilling] = useState(false);
   const [dragActive, setDragActive] = useState(false);
-  const dropRef = useRef<HTMLDivElement | null>(null);
+  const dropRef = useRef<HTMLButtonElement | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   // Track if user has uploaded a new file or modified the text
   // ユーザーが新しいファイルをアップロードしたか、テキストを変更したかを追跡
   const [hasNewUpload, setHasNewUpload] = useState(false);
+  /**
+   * @description TanStack Query mutations for parsing PDFs and uploading resume text.
+   * @description PDF解析とレジュメアップロード用の TanStack Query ミューテーション。
+   */
+  const parsePdfMutation = useParsePdfMutation();
+  const uploadResumeMutation = useUploadResumeMutation();
 
   /**
    * @description Validates whether the uploaded file is in PDF format for both PC and mobile platforms.
@@ -119,27 +124,6 @@ export default function UploadPage(): React.JSX.Element {
    * @remarks Prevents event bubbling to avoid double trigger.
    * @remarks イベントバブリングを防止し、二重トリガーを回避します。
    */
-  const handleContainerClick = useCallback((event: React.MouseEvent) => {
-    event.stopPropagation();
-    openFilePicker();
-  }, [openFilePicker]);
-
-  /**
-   * @description Handle keyboard events for accessibility (Enter/Space to open file picker).
-   * @description アクセシビリティ用のキーボードイベントを処理します（Enter/Spaceでファイルピッカーを開く）。
-   * @param {React.KeyboardEvent} event - The keyboard event | キーボードイベント
-   * @returns {void} No return value | 返り値なし
-   * @remarks Supports Enter and Space keys.
-   * @remarks EnterキーとSpaceキーをサポートします。
-   */
-  const handleContainerKeyDown = useCallback((event: React.KeyboardEvent) => {
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      event.stopPropagation();
-      openFilePicker();
-    }
-  }, [openFilePicker]);
-
   /**
    * @description Handle drag over event to activate drop zone visual feedback.
    * @description ドロップゾーンの視覚的フィードバックを有効にするためのドラッグオーバーイベントを処理します。
@@ -237,18 +221,6 @@ export default function UploadPage(): React.JSX.Element {
   }, [isPdfFile]);
 
   /**
-   * @description Handle button click to open file picker (prevents event bubbling).
-   * @description ファイルピッカーを開くためのボタンクリックを処理します（イベントバブリングを防止）。
-   * @param {React.MouseEvent} event - The mouse event | マウスイベント
-   * @returns {void} No return value | 返り値なし
-   */
-  const handleButtonClick = useCallback((event: React.MouseEvent) => {
-    event.stopPropagation();
-    openFilePicker();
-  }, [openFilePicker]);
-
-
-  /**
    * Handle PDF parsing with error handling and user feedback
    * エラーハンドリングとユーザーフィードバック付きのPDF解析処理
    */
@@ -258,16 +230,8 @@ export default function UploadPage(): React.JSX.Element {
       setError("PDFファイルを選択してください");
       return;
     }
-    setParsing(true);
     try {
-      const form = new FormData();
-      form.append("file", file);
-      const res = await fetch("/api/parse", { method: "POST", body: form });
-      if (!res.ok) {
-        const msg = await res.text().catch(() => "");
-        throw new Error(`HTTP ${res.status} ${res.statusText}: ${msg}`);
-      }
-      const data = (await res.json()) as { resumeText?: string };
+      const data = await parsePdfMutation.mutateAsync({ file });
       const t = (data.resumeText || "").trim();
       if (!t) {
         throw new Error("Empty parse result");
@@ -279,8 +243,6 @@ export default function UploadPage(): React.JSX.Element {
       setError(
         "PDFの解析に失敗しました。再試行するか、テキストを手動で貼り付けてください。"
       );
-    } finally {
-      setParsing(false);
     }
   }
 
@@ -295,21 +257,23 @@ export default function UploadPage(): React.JSX.Element {
       setError("送信できるテキストがありません");
       return;
     }
-    const res = await fetch(API_RESUME, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    if (!res.ok) {
-      const t = await res.text().catch(() => "");
-      setError(`アップロードに失敗しました: ${t}`);
-      return;
-    }
-    const response = (await res.json()) as {
+    let response: {
       resumeId: string;
       resumeHash: string;
-      resumeText?: string; // Development mode may include resume text
     };
+    try {
+      response = await uploadResumeMutation.mutateAsync({
+        resumeText: payload.resume_text,
+      });
+    } catch (err) {
+      console.error("Resume upload failed:", err);
+      setError(
+        `アップロードに失敗しました: ${
+          err instanceof Error ? err.message : "Unknown error"
+        }`
+      );
+      return;
+    }
 
     // Clear previous batch matching results only if user uploaded a new resume
     // ユーザーが新しいレジュメをアップロードした場合のみ、以前のバッチマッチング結果をクリア
@@ -389,17 +353,13 @@ export default function UploadPage(): React.JSX.Element {
           </div>
         </div>
 
-        <div
+        <button
           ref={dropRef}
-          className={`relative flex flex-col items-center justify-center rounded-3xl border border-slate-100/80 px-10 py-18 min-h-[400px] bg-sky-50/80 dark:bg-slate-600/20 shadow-[0_30px_90px_rgba(15,23,42,0.12)] transition-all ${
+          className={`relative flex w-full flex-col items-center justify-center rounded-3xl border border-slate-100/80 px-10 py-18 min-h-[400px] bg-sky-50/80 dark:bg-slate-600/20 shadow-[0_30px_90px_rgba(15,23,42,0.12)] transition-all ${
             dragActive ? "ring-2 ring-sky-400 ring-offset-4" : ""
           }`}
-          role="button"
-          tabIndex={0}
-          aria-labelledby="upload-title"
-          aria-describedby="upload-instructions"
-          onClick={handleContainerClick}
-          onKeyDown={handleContainerKeyDown}
+          type="button"
+          onClick={openFilePicker}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
@@ -418,21 +378,9 @@ export default function UploadPage(): React.JSX.Element {
               <p id="upload-instructions" className="text-sm text-slate-500">
                 または
               </p>
-              <SecondaryCtaButton
-                className="h-12 px-10 text-base"
-                onClick={handleButtonClick}
-              >
+              <span className="inline-flex h-12 px-10 items-center justify-center rounded-full bg-white text-slate-900 text-base font-medium shadow-sm border border-slate-200">
                 ファイルを選択
-              </SecondaryCtaButton>
-        <input
-                id="upload-input"
-                className="sr-only"
-          type="file"
-          accept="application/pdf,.pdf"
-          multiple={false}
-                ref={fileInputRef}
-                onChange={handleFileInputChange}
-              />
+              </span>
               {file && (
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -449,7 +397,16 @@ export default function UploadPage(): React.JSX.Element {
               )}
             </div>
           </div>
-        </div>
+        </button>
+        <input
+          id="upload-input"
+          className="sr-only"
+          type="file"
+          accept="application/pdf,.pdf"
+          multiple={false}
+          ref={fileInputRef}
+          onChange={handleFileInputChange}
+        />
         {uploadError && (
           <div className="mt-3">
             <ErrorDisplay
@@ -464,11 +421,14 @@ export default function UploadPage(): React.JSX.Element {
       </div>
 
       {/* Parse button */}
-      <div className="flex flex-col items-center gap-4">
-        <PrimaryCtaButton onClick={handleParse} disabled={!file || parsing}>
+      <div className="flex flex-col items-center gap-4 max-w-4xl mx-auto w-full">
+        <PrimaryCtaButton
+          onClick={handleParse}
+          disabled={!file || parsePdfMutation.isPending}
+        >
           PDFを解析
         </PrimaryCtaButton>
-        {parsing && (
+        {parsePdfMutation.isPending && (
           <div className="w-full max-w-md text-center space-y-2">
             <Progress indeterminate aria-label="PDF解析の進捗" className="h-3" />
             <p className="text-sm font-medium text-slate-700 dark:text-slate-200">解析中...</p>
@@ -527,7 +487,10 @@ export default function UploadPage(): React.JSX.Element {
       {/* CTA button below text area, above operation steps */}
       {/* テキストエリア下、操作手順の上のCTAボタン */}
       <div className="flex justify-center">
-        <PrimaryCtaButton onClick={handleSubmit} disabled={!text.trim()}>
+        <PrimaryCtaButton
+          onClick={handleSubmit}
+          disabled={!text.trim() || uploadResumeMutation.isPending}
+        >
           求人一覧へ進む
         </PrimaryCtaButton>
       </div>
@@ -569,7 +532,6 @@ export default function UploadPage(): React.JSX.Element {
           <Card
             key={feature.title}
             className="border border-slate-200/70 dark:border-slate-600/60 shadow-[0_30px_90px_rgba(15,23,42,0.12)] bg-sky-100/80 dark:bg-slate-600/50 rounded-3xl py-8 px-5"
-            role="group"
             aria-label={feature.title}
           >
             <CardHeader className="space-y-4">

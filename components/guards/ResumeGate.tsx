@@ -8,28 +8,56 @@
 import { ROUTE_UPLOAD } from "@/app/constants/constants";
 import Skeleton from "@/components/ui/skeleton";
 import { resumePointer } from "@/lib/storage";
-import { cloneElement, isValidElement, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { createContext, useContext, useEffect, useState } from "react";
 import { toast, Toaster } from "sonner";
+
+/**
+ * Context for providing resumeId to child components
+ * 子コンポーネントに resumeId を提供するためのコンテキスト
+ */
+const ResumeIdContext = createContext<string | null>(null);
+
+/**
+ * Hook to access resumeId from ResumeGate context
+ * ResumeGate コンテキストから resumeId にアクセスするためのフック
+ * @returns resumeId string or null
+ * @returns resumeId 文字列または null
+ */
+export function useResumeId(): string | null {
+  return useContext(ResumeIdContext);
+}
 
 /**
  * Minimal client-only gate component that blocks requests when resumeId is not present
  * 最小のクライアントゲートコンポーネント。`resume:current` がない場合、リクエストをブロック。
  */
-type ResumeGateProps = {
-  children: React.ReactElement<{ resumeId?: string }>;
-};
+interface ResumeGateProps {
+  readonly children: React.ReactNode;
+}
 
 export default function ResumeGate({
   children,
 }: ResumeGateProps): React.ReactElement {
   const [ok, setOk] = useState<boolean | null>(null);
   const [resumeId, setResumeId] = useState<string | null>(null);
+  const searchParams = useSearchParams();
+  const urlResumeId = searchParams.get("resumeId");
 
   // Check if resume is present
   // レジュメが存在するか確認
   useEffect(() => {
+    // First, check resumeId from URL (for immediate access after upload)
+    // まず、URL から取得した resumeId を確認（アップロード直後の即座アクセス用）
+    // Then check localStorage (for subsequent visits)
+    // 次に、localStorageを確認（その後の訪問用）
     const p = resumePointer.load();
-    if (!p?.resumeId) {
+    
+    // Use URL param if available, otherwise use localStorage
+    // URLパラメータが利用可能な場合はそれを使用、そうでなければlocalStorageを使用
+    const finalResumeId = urlResumeId || p?.resumeId;
+    
+    if (!finalResumeId) {
       // Set state to false first to render GateSkeleton with Toaster
       // まず状態をfalseに設定してToaster付きのGateSkeletonをレンダリング
       setOk(false);
@@ -45,27 +73,43 @@ export default function ResumeGate({
       
       // Redirect to upload page if resume is not present
       // レジュメがない場合はアップロードページへリダイレクト
-      const t = setTimeout(() => window.location.replace(ROUTE_UPLOAD), 3000);
+      const t = setTimeout(() => {
+        globalThis.location?.replace(ROUTE_UPLOAD);
+      }, 3000);
       return () => clearTimeout(t);
     }
-    setResumeId(p.resumeId);
+    
+    // If URL param exists but localStorage doesn't, sync it
+    // URLパラメータが存在するがlocalStorageにない場合、同期する
+    if (urlResumeId && p?.resumeId !== urlResumeId) {
+      try {
+        resumePointer.save(urlResumeId);
+      } catch (error) {
+        console.warn('Failed to save resumeId to localStorage:', error);
+      }
+    }
+    
+    setResumeId(finalResumeId);
     setOk(true);
-  }, []);
+  }, [urlResumeId]);
 
-  if (ok !== true) return <GateSkeleton />;
+  if (ok !== true) {
+    return <GateSkeleton />;
+  }
   
   // Only render children when resumeId is available to avoid warnings
   // resumeId が利用可能な場合のみ子コンポーネントをレンダリングして警告を回避
-  if (!resumeId) return <GateSkeleton />;
-  
-  // Always inject resumeId to children
-  // 常に子コンポーネントに resumeId を注入
-  if (isValidElement(children)) {
-    const child = children as React.ReactElement<{ resumeId?: string }>;
-    return cloneElement(child, { resumeId });
+  if (!resumeId) {
+    return <GateSkeleton />;
   }
   
-  return <>{children}</>;
+  // Provide resumeId via Context API instead of cloneElement
+  // cloneElement の代わりに Context API で resumeId を提供
+  return (
+    <ResumeIdContext.Provider value={resumeId}>
+      {children}
+    </ResumeIdContext.Provider>
+  );
 }
 
 /**
@@ -73,6 +117,8 @@ export default function ResumeGate({
  * @description ゲートコンポーネントのローディングスケルトン
  */
 function GateSkeleton() {
+  const skeletonRowIds = [1, 2, 3, 4, 5];
+
   return (
     <>
       {/* Ensure Toaster is available in this component tree */}
@@ -81,8 +127,8 @@ function GateSkeleton() {
       <div className="mx-auto max-w-4xl p-6 space-y-6">
         <Skeleton className="h-8 w-40" />
         <div className="space-y-3">
-          {Array.from({ length: 5 }).map((_, index) => (
-            <Skeleton key={index} className="h-30 w-full" />
+          {skeletonRowIds.map(rowId => (
+            <Skeleton key={`gate-skeleton-row-${rowId}`} className="h-30 w-full" />
           ))}
         </div>
       </div>
