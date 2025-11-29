@@ -4,7 +4,9 @@ const nextConfig: NextConfig = {
   // Disable React Strict Mode in development to avoid double-invoked effects
   // 開発モードでの二重実行を避けるため React Strict Mode を無効化
   reactStrictMode: false,
-  
+  // Enable React compiler for automatic memoization
+  // React コンパイラを有効化して自動メモ化を有効化
+  reactCompiler: true,
   // Suppress Next.js development log file errors
   // Next.js 開発ログファイルエラーを抑制
   onDemandEntries: {
@@ -12,6 +14,11 @@ const nextConfig: NextConfig = {
     maxInactiveAge: 25 * 1000,
     // number of pages that should be kept simultaneously without being disposed
     pagesBufferLength: 2,
+  },
+  // Enable Turbopack file system cache for development
+  // Turbopack ファイルシステムキャッシュを開発モードで有効化
+  experimental: {
+    turbopackFileSystemCacheForDev: true,
   },
   
 };
