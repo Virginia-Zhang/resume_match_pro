@@ -31,7 +31,7 @@ import Skeleton from "@/components/ui/skeleton";
 import { useParsePdfMutation, useUploadResumeMutation } from "@/hooks/queries/useResume";
 import { getFriendlyErrorMessage } from "@/lib/errorHandling";
 import { fetchJson } from "@/lib/fetcher";
-import { clearBatchMatchingResults, resumePointer } from "@/lib/storage";
+import { clearBatchMatchCache, resumePointer } from "@/lib/storage";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -278,7 +278,7 @@ export default function UploadPage(): React.JSX.Element {
     // Clear previous batch matching results only if user uploaded a new resume
     // ユーザーが新しいレジュメをアップロードした場合のみ、以前のバッチマッチング結果をクリア
     if (hasNewUpload) {
-      clearBatchMatchingResults();
+      clearBatchMatchCache();
     }
 
     // Save pointer to localStorage for future sessions (non-sensitive)

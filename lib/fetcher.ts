@@ -24,7 +24,9 @@ export async function fetchWithTimeout(
   url: string,
   options: TimeoutOptions = {}
 ): Promise<Response> {
-  const { timeoutMs = 15000, signal, ...init } = options;
+  // Default timeout 60s for AI matching requests which may take longer
+  // AI マッチングリクエストは時間がかかる可能性があるため、デフォルトタイムアウトを 60 秒に設定
+  const { timeoutMs = 60000, signal, ...init } = options;
   const ac = new AbortController();
   const timer = setTimeout(() => ac.abort(), timeoutMs);
   try {

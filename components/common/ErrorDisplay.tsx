@@ -8,8 +8,9 @@
  */
 "use client";
 
-import React from "react";
 import { FriendlyErrorMessage } from "@/lib/errorHandling";
+import Link from "next/link";
+import React from "react";
 
 /**
  * @description Props for ErrorDisplay component
@@ -17,13 +18,13 @@ import { FriendlyErrorMessage } from "@/lib/errorHandling";
  */
 interface ErrorDisplayProps {
   /** Error title / エラータイトル */
-  title: string;
+  readonly title: string;
   /** Friendly error message and retry info / フレンドリーなエラーメッセージと再試行情報 */
-  errorInfo: FriendlyErrorMessage;
+  readonly errorInfo: FriendlyErrorMessage;
   /** Optional upload page route for resume-related errors / レジュメ関連エラー用のオプションのアップロードページルート */
-  uploadRoute?: string;
+  readonly uploadRoute?: string;
   /** Optional additional CSS classes / オプションの追加CSSクラス */
-  className?: string;
+  readonly className?: string;
 }
 
 /**
@@ -50,13 +51,14 @@ export default function ErrorDisplay({
         <div className="mt-3 space-y-2">
           <button
             className="px-4 py-2 text-sm rounded border bg-white hover:bg-gray-50 dark:bg-slate-900 dark:hover:bg-slate-800 dark:border-slate-600 text-gray-700 dark:text-gray-300 transition-colors"
-            onClick={() => window.location.reload()}
+            onClick={() => globalThis.location.reload()}
           >
             ページを更新して再試行
           </button>
           <p className="text-xs text-red-500 dark:text-red-400">
             問題が解決しない場合は、管理者にお問い合わせください：
-            <a href="mailto:zhangsakurayi@qq.com" className="underline ml-1">
+            {" "}
+            <a href="mailto:zhangsakurayi@qq.com" className="underline">
               zhangsakurayi@qq.com
             </a>
           </p>
@@ -66,9 +68,9 @@ export default function ErrorDisplay({
       {uploadRoute && (
         <p className="text-xs text-muted-foreground mt-3">
           レジュメが見つからない場合は、
-          <a href={uploadRoute} className="underline">
+          <Link href={uploadRoute} className="underline">
             アップロードページ
-          </a>
+          </Link>
           から再度アップロードしてください。
         </p>
       )}

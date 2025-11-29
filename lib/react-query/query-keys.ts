@@ -26,7 +26,8 @@ export const queryKeys = {
   match: {
     summary: () => ["match", "summary"] as const,
     details: () => ["match", "details"] as const,
-    batch: () => ["match", "batch"] as const,
+    batch: (resumeId?: string | null) =>
+      ["match", "batch", resumeId ?? ""] as const,
   },
 } as const;
 

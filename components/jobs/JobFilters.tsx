@@ -3,18 +3,8 @@
 import { PrimaryCtaButton } from "@/components/common/buttons/CtaButtons";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { fetchJson } from "@/lib/fetcher";
-import { getApiBase } from "@/lib/runtime-config";
-import React, { useEffect, useState } from "react";
-
-/**
- * @description Job category type
- * @description 求人カテゴリ型
- */
-interface JobCategory {
-  label: string;
-  value: string;
-}
+import { useJobCategories } from "@/hooks/queries/useJobs";
+import React from "react";
 
 /**
  * @file JobFilters.tsx
@@ -40,14 +30,14 @@ const locationOptions = [
 ];
 
 interface JobFiltersProps {
-  selectedCategories: string[];
-  onCategoriesChange: (categories: string[]) => void;
-  selectedResidence: string;
-  onResidenceChange: (residence: string) => void;
-  selectedLocations: string[];
-  onLocationsChange: (locations: string[]) => void;
-  onMatch: () => void;
-  isMatching: boolean;
+  readonly selectedCategories: string[];
+  readonly onCategoriesChange: (categories: string[]) => void;
+  readonly selectedResidence: string;
+  readonly onResidenceChange: (residence: string) => void;
+  readonly selectedLocations: string[];
+  readonly onLocationsChange: (locations: string[]) => void;
+  readonly onMatch: () => void;
+  readonly isMatching: boolean;
 }
 
 /**
@@ -69,30 +59,14 @@ export default function JobFilters({
   onMatch,
   isMatching,
 }: JobFiltersProps): React.ReactElement {
-  // Fetch job categories from API
-  // APIから求人カテゴリを取得
-  const [jobCategories, setJobCategories] = useState<JobCategory[]>([]);
-  const [categoriesLoading, setCategoriesLoading] = useState(true);
-
-  useEffect(() => {
-    const loadCategories = async () => {
-      try {
-        const apiBase = getApiBase();
-        const url = `${apiBase}/api/job-categories`;
-        const categories = await fetchJson<JobCategory[]>(url);
-        setJobCategories(categories);
-      } catch (error) {
-        console.error("Failed to load job categories:", error);
-        // Fallback to empty array on error
-        // エラー時は空配列にフォールバック
-        setJobCategories([]);
-      } finally {
-        setCategoriesLoading(false);
-      }
-    };
-
-    loadCategories();
-  }, []);
+  /**
+   * @description Fetch job categories via TanStack Query to populate the filter dropdown.
+   * @description TanStack Query を用いて求人カテゴリを取得し、フィルターに表示。
+   */
+  const {
+    data: jobCategories = [],
+    isLoading: categoriesLoading,
+  } = useJobCategories();
 
   // Check if required filters are selected to enable matching button
   // マッチングボタンを有効にするために必要なフィルターが選択されているかチェック
@@ -106,9 +80,9 @@ export default function JobFilters({
         {/* Job Category Multi-Select (Required) */}
         {/* 職種複数選択（必須） */}
         <div className="flex-1 min-w-[200px]">
-          <label className="text-xs text-muted-foreground mb-1 block">
+          <p className="text-xs text-muted-foreground mb-1 block">
             <span className="text-red-500">*</span> 職種
-          </label>
+          </p>
           <MultiSelect
             options={jobCategories}
             selected={selectedCategories}
@@ -121,9 +95,9 @@ export default function JobFilters({
         {/* Residence Single-Select (Required) */}
         {/* お住まい単一選択（必須） */}
         <div className="flex-1 min-w-[200px]">
-          <label className="text-xs text-muted-foreground mb-1 block">
+          <p className="text-xs text-muted-foreground mb-1 block">
             <span className="text-red-500">*</span> お住まい
-          </label>
+          </p>
           <Select value={selectedResidence} onValueChange={onResidenceChange}>
             <SelectTrigger className="w-full min-h-[42px]">
               <SelectValue placeholder="お住まいを選択" />
@@ -141,9 +115,9 @@ export default function JobFilters({
         {/* Work Location Multi-Select (Optional) */}
         {/* 勤務地複数選択（任意） */}
         <div className="flex-1 min-w-[200px]">
-          <label className="text-xs text-muted-foreground mb-1 block">
+          <p className="text-xs text-muted-foreground mb-1 block">
             勤務地
-          </label>
+          </p>
           <MultiSelect
             options={locationOptions}
             selected={selectedLocations}
