@@ -123,7 +123,6 @@ export function useMatchData(props: ChartsProps): UseMatchDataResult {
       return;
     }
     if (detailsRequestedRef.current) return;
-    detailsRequestedRef.current = true;
     setDetailsError(null);
 
     if (!resumeId || !jobId) {
@@ -139,6 +138,9 @@ export function useMatchData(props: ChartsProps): UseMatchDataResult {
       return;
     }
 
+    // Set ref to true only after all validation checks pass
+    // すべての検証チェックが通過した後にのみ ref を true に設定
+    detailsRequestedRef.current = true;
     setDetailsLoading(true);
     mutateDetails(
       {
