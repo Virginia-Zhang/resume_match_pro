@@ -9,21 +9,21 @@
 
 "use client";
 
-import { ROUTE_JOBS } from '@/app/constants/constants';
-import ErrorDisplay from '@/components/common/ErrorDisplay';
-import { useResumeId } from '@/components/guards/ResumeGate';
-import JobFilters from '@/components/jobs/JobFilters';
-import JobItem from '@/components/jobs/JobItem';
-import { Progress } from '@/components/ui/progress';
-import { useJobs, type JobListFilters } from '@/hooks/queries/useJobs';
-import { useResumeText } from '@/hooks/queries/useResume';
-import { useBatchMatching } from '@/hooks/useBatchMatching';
-import { toListItem } from '@/lib/jobs';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, useMemo, useState } from 'react';
+import { ROUTE_JOBS } from "@/app/constants/constants";
+import ErrorDisplay from "@/components/common/ErrorDisplay";
+import { useResumeId } from "@/components/guards/ResumeGate";
+import JobFilters from "@/components/jobs/JobFilters";
+import JobItem from "@/components/jobs/JobItem";
+import { Progress } from "@/components/ui/progress";
+import { useJobs, type JobListFilters } from "@/hooks/queries/useJobs";
+import { useResumeText } from "@/hooks/queries/useResume";
+import { useBatchMatching } from "@/hooks/useBatchMatching";
+import { toListItem } from "@/lib/jobs";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 
-import type { JobDetailV2 } from '@/types/jobs_v2';
-import type { MatchResultItem } from '@/types/matching';
+import type { JobDetailV2 } from "@/types/jobs_v2";
+import type { MatchResultItem } from "@/types/matching";
 import { toast } from "sonner";
 
 /**
@@ -97,7 +97,7 @@ export default function JobsListClient(): React.ReactElement {
   }, [jobDetails]);
 
   /**
-   * @description Derive lightweight list items for presentation layers.
+   * @description Derive lightweight job list items for presentation layers.
    * @description 表示用に軽量なリストアイテムへ変換。
    */
   const filteredJobs = useMemo(
@@ -113,7 +113,7 @@ export default function JobsListClient(): React.ReactElement {
     processedJobs,
     totalJobs,
     startMatchingFromListItems,
-  } = useBatchMatching(jobDetailsById);
+  } = useBatchMatching(jobDetailsById, resumeId);
   const [resumeText, setResumeText] = useState("");
   /**
    * @description Query resume text via TanStack Query (hydrates local state for legacy flows).
@@ -170,8 +170,6 @@ export default function JobsListClient(): React.ReactElement {
     // すべての求人がすでに分析されているかチェック
     if (jobsToMatch.length === 0) {
       toast.info('すべての求人は既に分析済みです。');
-      // Don't reset hasStartedMatching to false, keep it true so sorted jobs are displayed
-      // hasStartedMatching を false にリセットしない、ソートされた求人が表示されるように true のままにする
       return;
     }
     
@@ -192,32 +190,46 @@ export default function JobsListClient(): React.ReactElement {
    * @description フィルター変更時に URL クエリパラメータを更新
    */
   useEffect(() => {
+    // Build new query string from current state
+    // 現在の状態から新しいクエリ文字列を構築
     const params = new URLSearchParams();
-    
+
     // Preserve resumeId if it exists
     // resumeId が存在する場合は保持
     if (resumeId) {
-      params.set('resumeId', resumeId);
+      params.set("resumeId", resumeId);
     }
-    
+
     // Add filter params
     // フィルターパラメータを追加
     if (selectedCategories.length > 0) {
-      params.set('categories', selectedCategories.join(','));
+      params.set("categories", selectedCategories.join(","));
     }
     if (selectedResidence) {
-      params.set('residence', selectedResidence);
+      params.set("residence", selectedResidence);
     }
     if (selectedLocations.length > 0) {
-      params.set('locations', selectedLocations.join(','));
+      params.set("locations", selectedLocations.join(","));
     }
-    
-    // Update URL without triggering navigation
-    // ナビゲーションをトリガーせずに URL を更新
+
     const queryString = params.toString();
+    // Compare with current URL to avoid unnecessary updates
+    // 現在のURLと比較して不要な更新を回避
+    const currentUrl = searchParams.toString();
+    if (queryString === currentUrl) {
+      return;
+    }
+
     const newUrl = queryString ? `${ROUTE_JOBS}?${queryString}` : ROUTE_JOBS;
     router.replace(newUrl, { scroll: false });
-  }, [selectedCategories, selectedResidence, selectedLocations, resumeId, router]);
+  }, [
+    selectedCategories,
+    selectedResidence,
+    selectedLocations,
+    resumeId,
+    router,
+    searchParams,
+  ]);
 
   /**
    * @description Derive jobs to display based on matching state and results.

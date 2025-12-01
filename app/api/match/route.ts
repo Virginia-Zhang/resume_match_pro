@@ -89,13 +89,183 @@ function parseDetailsData(outputs: Record<string, unknown>): DetailsData {
   const adviceRaw = (outputs.advice as Array<Record<string, unknown>>) || [];
   const advice = adviceRaw
     .map(it => ({
-      title: String(it.title ?? ""),
-      detail: String(it.detail ?? ""),
+      title: typeof it.title === "string" ? it.title : "",
+      detail: typeof it.detail === "string" ? it.detail : "",
     }))
     .filter(it => it.title || it.detail);
   const overview = (outputs.overview as string) || "";
   
   return { advantages, disadvantages, advice, overview };
+}
+
+/**
+ * @description Checks for cached match result in database
+ * @description データベースでキャッシュされたマッチ結果を確認
+ * @param resumeId Resume ID to check
+ * @param resumeId 確認するレジュメID
+ * @param jobId Job ID to check
+ * @param jobId 確認するジョブID
+ * @param type Match type (summary or details)
+ * @param type マッチタイプ（サマリーまたは詳細）
+ * @returns Cached envelope or null if not found
+ * @returns キャッシュされたエンベロープまたは見つからない場合はnull
+ */
+async function checkDatabaseCache(
+  resumeId: string,
+  jobId: string,
+  type: MatchType
+): Promise<MatchEnvelope<SummaryData | DetailsData> | null> {
+  try {
+    const supabase = await createClient();
+    const { data: resumeRecord } = await supabase
+      .from("resumes")
+      .select("id")
+      .eq("id", resumeId)
+      .single();
+
+    if (!resumeRecord) {
+      return null;
+    }
+
+    const { data: matchResult, error: matchError } = await supabase
+      .from("match_results")
+      .select("*")
+      .eq("resume_id", resumeRecord.id)
+      .eq("job_id", jobId)
+      .eq("type", type)
+      .eq("version", "v2")
+      .order("timestamp", { ascending: false })
+      .limit(1)
+      .single();
+
+    if (matchError || !matchResult) {
+      return null;
+    }
+
+    return {
+      meta: {
+        jobId: matchResult.job_id,
+        resumeHash: matchResult.resume_hash,
+        source: "cache",
+        timestamp: matchResult.timestamp,
+        version: matchResult.version as "v1" | "v2",
+        type: matchResult.type as MatchType,
+      },
+      data: matchResult.data as SummaryData | DetailsData,
+    };
+  } catch (dbError) {
+    console.error("Database cache check error:", dbError);
+    return null;
+  }
+}
+
+/**
+ * @description Stores match result in database
+ * @description データベースにマッチ結果を保存
+ * @param resumeId Resume ID
+ * @param resumeId レジュメID
+ * @param envelope Match envelope to store
+ * @param envelope 保存するマッチエンベロープ
+ */
+async function storeMatchResult(
+  resumeId: string,
+  envelope: MatchEnvelope<SummaryData | DetailsData>
+): Promise<void> {
+  try {
+    const supabase = await createClient();
+    
+    const { data: resumeRecord, error: resumeError } = await supabase
+      .from("resumes")
+      .select("id")
+      .eq("id", resumeId)
+      .single();
+
+    if (resumeError || !resumeRecord) {
+      console.error("Failed to find resume record:", resumeError);
+      return;
+    }
+
+    const { error: matchError } = await supabase
+      .from("match_results")
+      .insert({
+        resume_id: resumeRecord.id,
+        job_id: envelope.meta.jobId,
+        resume_hash: envelope.meta.resumeHash,
+        source: envelope.meta.source,
+        version: envelope.meta.version,
+        type: envelope.meta.type,
+        data: envelope.data,
+        timestamp: envelope.meta.timestamp,
+      });
+
+    if (matchError) {
+      console.error("Failed to store match result in database:", matchError);
+    }
+  } catch (dbError) {
+    console.error("Database operation error:", dbError);
+  }
+}
+
+/**
+ * @description Calls Dify workflow API
+ * @description Difyワークフロー APIを呼び出す
+ * @param resumeText Resume text content
+ * @param resumeText レジュメテキスト内容
+ * @param jobDesc Job description
+ * @param jobDesc ジョブ説明
+ * @param type Match type (summary or details)
+ * @param type マッチタイプ（サマリーまたは詳細）
+ * @param overallFromSummary Overall score from summary (for details only)
+ * @param overallFromSummary サマリーからの総合スコア（詳細のみ）
+ * @returns Dify response outputs or error response
+ * @returns Dify応答出力またはエラーレスポンス
+ */
+async function callDifyWorkflow(
+  resumeText: string,
+  jobDesc: string,
+  type: MatchType,
+  overallFromSummary?: number
+): Promise<{ outputs: Record<string, unknown> } | NextResponse> {
+  const difyUrl = process.env.DIFY_WORKFLOW_URL || "";
+  const apiKey = process.env.DIFY_API_KEY || "";
+  const difyUser = process.env.DIFY_USER || "ResumeMatch Pro User";
+
+  if (!difyUrl || !apiKey) {
+    return NextResponse.json({ error: "Missing Dify env" }, { status: 500 });
+  }
+
+  const difyInputs: Record<string, unknown> = {
+    resume_text: resumeText,
+    job_description: jobDesc,
+  };
+
+  if (type === "details" && typeof overallFromSummary === "number" && !Number.isNaN(overallFromSummary)) {
+    difyInputs.overall_from_summary = overallFromSummary;
+  }
+
+  const res = await fetch(difyUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      inputs: difyInputs,
+      response_mode: "blocking",
+      user: difyUser,
+    }),
+  });
+
+  if (!res.ok) {
+    const msg = await res.text().catch(() => "");
+    return NextResponse.json(
+      { error: `Dify HTTP ${res.status}: ${msg}` },
+      { status: 502 }
+    );
+  }
+
+  const payload = await res.json();
+  return { outputs: (payload?.data?.outputs ?? {}) as Record<string, unknown> };
 }
 
 /**
@@ -128,136 +298,55 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     // リクエストパラメータを検証
     const validationError = validateRequest(body, type);
     if (validationError) {
-      return NextResponse.json(
-        { error: validationError },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: validationError }, { status: 400 });
     }
 
     const jobId = (body.jobId || "").toString();
     const jobDesc = (body.inputs?.job_description || "").toString();
+    const resumeId = body.resumeId?.toString();
 
-    // Resume text must be retrieved from S3
-    // レジュメテキストはS3から取得する必要がある
-    if (!body.resumeId) {
+    // Resume ID is required
+    // レジュメIDは必須
+    if (!resumeId) {
       return NextResponse.json({ error: "Missing resumeId" }, { status: 400 });
     }
 
-    const resumeText = await getText(resumeKey(body.resumeId.toString()));
+    // Check database cache first
+    // 最初にデータベースキャッシュを確認
+    const cachedResult = await checkDatabaseCache(resumeId, jobId, type);
+    if (cachedResult) {
+      return NextResponse.json(cachedResult);
+    }
+
+    // Retrieve resume text from S3
+    // S3からレジュメテキストを取得
+    const resumeText = await getText(resumeKey(resumeId));
     if (!resumeText) {
-      return NextResponse.json(
-        { error: "Resume not found in S3" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Resume not found in S3" }, { status: 404 });
     }
 
     const resumeHash = await sha256Hex(resumeText);
 
-    // Dify configuration is required
-    // Dify 設定は必須
-    const difyUrl = process.env.DIFY_WORKFLOW_URL || "";
-    const apiKey = process.env.DIFY_API_KEY || "";
-    const difyUser = process.env.DIFY_USER || "ResumeMatch Pro User";
+    // Call Dify workflow
+    // Difyワークフローを呼び出す
+    const difyResult = await callDifyWorkflow(
+      resumeText,
+      jobDesc,
+      type,
+      body.inputs?.overall_from_summary
+    );
 
-    if (!difyUrl || !apiKey) {
-      return NextResponse.json({ error: "Missing Dify env" }, { status: 500 });
+    // If difyResult is a NextResponse, return it (error case)
+    // difyResultがNextResponseの場合、それを返す（エラーケース）
+    if (difyResult instanceof NextResponse) {
+      return difyResult;
     }
-
-    // Check cache from database
-    // データベースからキャッシュをチェック
-    try {
-      const supabase = await createClient();
-      const { data: resumeRecord } = await supabase
-        .from("resumes")
-        .select("id")
-        .eq("id", body.resumeId.toString())
-        .single();
-
-      if (resumeRecord) {
-        const { data: matchResult, error: matchError } = await supabase
-          .from("match_results")
-          .select("*")
-          .eq("resume_id", resumeRecord.id)
-          .eq("job_id", jobId)
-          .eq("type", type)
-          .eq("version", "v2")
-          .order("timestamp", { ascending: false })
-          .limit(1)
-          .single();
-
-        if (!matchError && matchResult) {
-          // Return cached result from database
-          // データベースからキャッシュされた結果を返す
-          const cachedEnvelope: MatchEnvelope<SummaryData | DetailsData> = {
-            meta: {
-              jobId: matchResult.job_id,
-              resumeHash: matchResult.resume_hash,
-              source: "cache", // Always mark as cache when retrieved from database
-              timestamp: matchResult.timestamp,
-              version: matchResult.version as "v1" | "v2",
-              type: matchResult.type as MatchType,
-            },
-            data: matchResult.data as SummaryData | DetailsData,
-          };
-          return NextResponse.json(cachedEnvelope);
-        }
-      }
-    } catch (dbError) {
-      console.error("Database cache check error:", dbError);
-      // Continue to Dify API call
-      // Dify API呼び出しに続行
-    }
-
-    // Build Dify request body based on type
-    // タイプに基づいてDifyリクエストボディを構築
-    const difyRequestBody: any = {
-      inputs: {
-        resume_text: resumeText,
-        job_description: jobDesc,
-      },
-      response_mode: "blocking",
-      user: difyUser,
-    };
-
-    // Add type-specific parameters
-    // タイプ固有のパラメータを追加
-    if (type === "details") {
-      difyRequestBody.inputs.overall_from_summary = body.inputs?.overall_from_summary;
-    }
-
-    // Call Dify Workflow (non-streaming)
-    // Difyワークフローを呼び出す（非ストリーミング）
-    const res = await fetch(difyUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify(difyRequestBody),
-    });
-
-    if (!res.ok) {
-      const msg = await res.text().catch(() => "");
-      return NextResponse.json(
-        { error: `Dify HTTP ${res.status}: ${msg}` },
-        { status: 502 }
-      );
-    }
-
-    const payload = await res.json();
-    // Parse Dify workflow response: expect data.outputs to contain fields
-    // Dify ワークフロー応答を解析: data.outputs 内のフィールドを利用
-    const outputs = (payload?.data?.outputs ?? {}) as Record<string, unknown>;
 
     // Parse data based on type
     // タイプに基づいてデータを解析
-    let data: SummaryData | DetailsData;
-    
-    if (type === "summary") {
-      data = parseSummaryData(outputs);
-    } else {
-      data = parseDetailsData(outputs);
-    }
+    const data = type === "summary"
+      ? parseSummaryData(difyResult.outputs)
+      : parseDetailsData(difyResult.outputs);
 
     const envelope: MatchEnvelope<SummaryData | DetailsData> = {
       meta: {
@@ -271,50 +360,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       data,
     };
 
-    // Store match result in Supabase match_results table
-    // Supabaseのmatch_resultsテーブルにマッチ結果を保存
-    try {
-      const supabase = await createClient();
-      
-      // Get resume_id from resumes table using resumeId
-      // resumeIdを使用してresumesテーブルからresume_idを取得
-      const { data: resumeRecord, error: resumeError } = await supabase
-        .from("resumes")
-        .select("id")
-        .eq("id", body.resumeId.toString())
-        .single();
-
-      if (resumeError || !resumeRecord) {
-        console.error("Failed to find resume record:", resumeError);
-        // Continue without storing to database, but log error
-        // データベースへの保存を続行せず、エラーをログに記録
-      } else {
-        // Insert match result into match_results table
-        // match_resultsテーブルにマッチ結果を挿入
-        const { error: matchError } = await supabase
-          .from("match_results")
-          .insert({
-            resume_id: resumeRecord.id,
-            job_id: jobId,
-            resume_hash: resumeHash,
-            source: envelope.meta.source,
-            version: envelope.meta.version,
-            type: envelope.meta.type,
-            data: envelope.data,
-            timestamp: envelope.meta.timestamp,
-          });
-
-        if (matchError) {
-          console.error("Failed to store match result in database:", matchError);
-          // Continue without storing to database, but log error
-          // データベースへの保存を続行せず、エラーをログに記録
-        }
-      }
-    } catch (dbError) {
-      console.error("Database operation error:", dbError);
-      // Continue without storing to database, but log error
-      // データベースへの保存を続行せず、エラーをログに記録
-    }
+    // Store result in database (non-blocking)
+    // データベースに結果を保存（非ブロッキング）
+    void storeMatchResult(resumeId, envelope);
     
     return NextResponse.json(envelope);
   } catch (error) {

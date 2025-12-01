@@ -9,24 +9,31 @@
 
 "use client";
 
-import { API_MATCH_BATCH, BATCH_SIZE } from '@/app/constants/constants';
-import { FriendlyErrorMessage, getFriendlyErrorMessage } from '@/lib/errorHandling';
-import { serializeJDForBatchMatching } from '@/lib/jobs';
-import { getApiBase } from '@/lib/runtime-config';
-import { clearBatchMatchingResults, loadBatchMatchingResults, saveBatchMatchingResults } from '@/lib/storage';
-import type { JobDetailV2, JobListItem } from '@/types/jobs_v2';
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { BATCH_SIZE } from "@/app/constants/constants";
+import { useBatchMatchingMutation } from "@/hooks/queries/useMatch";
+import { FriendlyErrorMessage, getFriendlyErrorMessage } from "@/lib/errorHandling";
+import { serializeJDForBatchMatching } from "@/lib/jobs";
+import {
+  clearBatchMatchCache,
+  loadBatchMatchCache,
+  saveBatchMatchCache,
+} from "@/lib/storage/batch-match-cache";
+import type { JobDetailV2, JobListItem } from "@/types/jobs_v2";
+import { useCallback, useEffect, useRef, useState } from "react";
 
-import type { MatchResultItem, UseBatchMatchingResult } from '@/types/matching';
+import type { MatchResultItem, UseBatchMatchingResult } from "@/types/matching";
 
 /**
  * @description Custom hook for batch matching with progressive results display
  * @description 段階的な結果表示を伴うバッチマッチング用カスタムフック
  * @param jobDetailsMap Map of job ID to JobDetailV2 for quick lookup
  * @param jobDetailsMap 高速検索用の求人IDからJobDetailV2へのMap
+ * @param resumeId Current resume ID for cache key
+ * @param resumeId キャッシュキー用の現在のレジュメID
  */
 export function useBatchMatching(
-  jobDetailsMap: Map<string, JobDetailV2>
+  jobDetailsMap: Map<string, JobDetailV2>,
+  resumeId?: string | null
 ): UseBatchMatchingResult {
   const [results, setResults] = useState<MatchResultItem[]>([]);
   const [isMatchingComplete, setIsMatchingComplete] = useState(false);
@@ -35,42 +42,89 @@ export function useBatchMatching(
   const [processedJobs, setProcessedJobs] = useState(0);
   const [totalJobs, setTotalJobs] = useState(0);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const batchMutation = useBatchMatchingMutation();
+
   // Use ref to always access latest results value
   // 最新の results 値に常にアクセスするために ref を使用
   const resultsRef = useRef<MatchResultItem[]>([]);
-  
+
+  // Track previous resumeId to detect changes
+  // 前回の resumeId を追跡して変更を検出
+  const prevResumeIdRef = useRef<string | null | undefined>(resumeId);
+
   // Keep resultsRef in sync with results
   // resultsRef を results と同期させる
   useEffect(() => {
     resultsRef.current = results;
   }, [results]);
-  
-  /**
-   * @description Load saved results from sessionStorage on mount (synchronously)
-   * @description マウント時に sessionStorage から保存された結果を同期的に読み込む
-   * @remarks Using useLayoutEffect to prevent visual flash of empty state
-   * @remarks 視覚的な空白状態のフラッシュを防ぐため useLayoutEffect を使用
-   */
-  useLayoutEffect(() => {
-    const saved = loadBatchMatchingResults();
-    if (saved) {
-      setResults(saved.results as MatchResultItem[]);
-      setIsMatchingComplete(saved.isComplete);
-      setProcessedJobs(saved.processedJobs);
-      setTotalJobs(saved.totalJobs);
-    }
-  }, []);
-  
-  /**
-   * @description Save results to sessionStorage whenever they change
-   * @description 結果が変更されるたびに sessionStorage に保存
-   */
+
+  // Clear results when resumeId changes to prevent cache corruption
+  // resumeId 変更時に結果をクリアしてキャッシュ破損を防止
   useEffect(() => {
-    if (results.length > 0) {
-      saveBatchMatchingResults(results, isMatchingComplete, processedJobs, totalJobs);
+    // Skip on initial mount (when prevResumeIdRef is undefined)
+    // 初回マウント時はスキップ（prevResumeIdRef が undefined の場合）
+    if (prevResumeIdRef.current === undefined) {
+      prevResumeIdRef.current = resumeId;
+      return;
     }
-  }, [results, isMatchingComplete, processedJobs, totalJobs]);
-  
+
+    // If resumeId changed and we have existing results, clear them
+    // resumeId が変更され、既存の結果がある場合はクリア
+    if (prevResumeIdRef.current !== resumeId && results.length > 0) {
+      setResults([]);
+      setIsMatchingComplete(false);
+      setProcessedJobs(0);
+      setTotalJobs(0);
+      // Abort any in-progress matching
+      // 進行中のマッチングを中止
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    }
+
+    prevResumeIdRef.current = resumeId;
+  }, [resumeId, results.length]);
+
+  // Hydrate results from sessionStorage cache on mount or when resumeId changes
+  // マウント時または resumeId 変更時に sessionStorage キャッシュから結果をハイドレート
+  // Only hydrate when results are empty to avoid overwriting in-progress matching
+  // 進行中のマッチングを上書きしないよう、results が空の場合のみハイドレート
+  useEffect(() => {
+    if (!resumeId || results.length > 0) {
+      return;
+    }
+
+    const cachedData = loadBatchMatchCache(resumeId);
+    if (cachedData) {
+      setResults(cachedData.results);
+      setIsMatchingComplete(cachedData.isComplete);
+      setProcessedJobs(cachedData.processedJobs);
+      setTotalJobs(cachedData.totalJobs);
+    }
+  }, [resumeId, results.length]);
+
+  // Persist results to sessionStorage (debounced)
+  // 結果を sessionStorage に永続化（デバウンス済み）
+  useEffect(() => {
+    if (!resumeId || results.length === 0) {
+      return;
+    }
+
+    // Debounce the save operation to prevent excessive writes
+    // 保存操作を過剰に行わないようにデバウンス
+    const handle = setTimeout(() => {
+      saveBatchMatchCache(
+        resumeId,
+        results,
+        isMatchingComplete,
+        processedJobs,
+        totalJobs
+      );
+    }, 250);
+
+    return () => clearTimeout(handle);
+  }, [results, resumeId, isMatchingComplete, processedJobs, totalJobs]);
+
   /**
    * @description Cancel ongoing requests when component unmounts
    * @description コンポーネントのアンマウント時に進行中のリクエストをキャンセル
@@ -82,7 +136,7 @@ export function useBatchMatching(
       }
     };
   }, []);
-  
+
   /**
    * @description Split array into chunks
    * @description 配列をチャンクに分割
@@ -94,7 +148,104 @@ export function useBatchMatching(
     }
     return chunks;
   };
-  
+
+  /**
+   * @description Process a single batch and merge results
+   * @description 単一バッチを処理して結果をマージ
+   * @param batch Jobs in the batch
+   * @param batch バッチ内の求人
+   * @param resumeText Resume text for matching
+   * @param resumeText マッチング用のレジュメテキスト
+   * @param accumulatedResults Current accumulated results
+   * @param accumulatedResults 現在の累積結果
+   * @returns New results from this batch or null if failed
+   * @returns このバッチからの新しい結果、失敗した場合は null
+   */
+  const processSingleBatch = async (
+    batch: JobDetailV2[],
+    resumeText: string,
+    accumulatedResults: MatchResultItem[]
+  ): Promise<MatchResultItem[] | null> => {
+    const serializedJobs = batch.map(job => ({
+      id: job.id,
+      job_description: serializeJDForBatchMatching(job),
+    }));
+
+    const batchData = await batchMutation.mutateAsync({
+      resume_text: resumeText,
+      jobs: serializedJobs,
+      requestOptions: {
+        signal: abortControllerRef.current?.signal || undefined,
+      },
+    });
+
+    if (!batchData.match_results || !Array.isArray(batchData.match_results)) {
+      return null;
+    }
+
+    // Merge new results with existing ones (avoid duplicates)
+    // 新しい結果を既存の結果とマージ（重複を避ける）
+    return batchData.match_results.filter(
+      newResult =>
+        !accumulatedResults.some(
+          existing => existing.job_id === newResult.job_id
+        )
+    );
+  };
+
+  /**
+   * @description Handle successful batch processing
+   * @description バッチ処理の成功を処理
+   * @param newResults New results from the batch
+   * @param newResults バッチからの新しい結果
+   * @param accumulatedResults Current accumulated results
+   * @param accumulatedResults 現在の累積結果
+   */
+  const handleBatchSuccess = (
+    newResults: MatchResultItem[],
+    accumulatedResults: MatchResultItem[]
+  ): void => {
+    accumulatedResults.push(...newResults);
+    setResults([...accumulatedResults]);
+    setProcessedJobs(accumulatedResults.length);
+  };
+
+  /**
+   * @description Finalize matching process based on success status
+   * @description 成功状態に基づいてマッチング処理を完了
+   * @param accumulatedResults Final accumulated results
+   * @param accumulatedResults 最終的な累積結果
+   * @param initialResultCount Initial result count before processing
+   * @param initialResultCount 処理前の初期結果数
+   * @param hasSuccessfulBatch Whether any batch succeeded
+   * @param hasSuccessfulBatch バッチが成功したかどうか
+   */
+  const finalizeMatching = (
+    accumulatedResults: MatchResultItem[],
+    initialResultCount: number,
+    hasSuccessfulBatch: boolean
+  ): void => {
+    const hasNewResults = accumulatedResults.length > initialResultCount;
+
+    if (!hasSuccessfulBatch && !hasNewResults) {
+      // All batches failed - set error state instead of marking as complete
+      // すべてのバッチが失敗 - 完了としてマークする代わりにエラー状態を設定
+      const friendlyError: FriendlyErrorMessage = {
+        message: "すべてのバッチ処理が失敗しました。ネットワーク接続を確認して再試行してください。",
+        isRetryable: true,
+      };
+      setErrorInfo(friendlyError);
+      console.error("All batches failed - no results obtained");
+      return;
+    }
+
+    // At least one batch succeeded - mark as complete
+    // 少なくとも1つのバッチが成功 - 完了としてマーク
+    setResults([...accumulatedResults]);
+    setProcessedJobs(accumulatedResults.length);
+    setIsMatchingComplete(true);
+  };
+
   /**
    * @description Internal batch matching process
    * @description 内部バッチマッチング処理
@@ -105,95 +256,62 @@ export function useBatchMatching(
    * @param incremental - Whether to merge new results with existing ones
    * @param incremental 新しい結果を既存の結果とマージするかどうか
    */
-  const startMatchingInternal = useCallback(async (
-    resumeText: string, 
-    jobs: JobDetailV2[],
-    incremental: boolean = false,
-    existingResults: MatchResultItem[] = []
-  ) => {
-    // Split jobs into batches
-    // ジョブをバッチに分割
-    const batches = chunkArray(jobs, BATCH_SIZE);
-    
-    try {
-      const apiUrl = `${getApiBase()}${API_MATCH_BATCH}`;
-      const accumulatedResults: MatchResultItem[] = incremental ? [...existingResults] : [];
-      
-      // Process each batch sequentially
-      // 各バッチを順次処理
-      for (let i = 0; i < batches.length; i++) {
-        
-        try {
-          // Serialize JobDetailV2 objects to optimized text for AI analysis
-          // JobDetailV2 オブジェクトをAI分析用の最適化テキストにシリアライズ
-          const serializedJobs = batches[i].map(job => ({
-            id: job.id,
-            job_description: serializeJDForBatchMatching(job)
-          }));
-          
-          const response = await fetch(apiUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              resume_text: resumeText,
-              jobs: serializedJobs
-            }),
-            signal: abortControllerRef.current?.signal
-          });
-          
-          if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-          }
-          
-          const batchData = await response.json();
-          
-          // Immediately update results with new batch
-          // 新しいバッチで結果を即座に更新
-          if (batchData.match_results && Array.isArray(batchData.match_results)) {
-            // Merge new results with existing ones (avoid duplicates)
-            // 新しい結果を既存の結果とマージ（重複を避ける）
-            const newResults = batchData.match_results.filter(
-              (newResult: MatchResultItem) => 
-                !accumulatedResults.some(existing => existing.job_id === newResult.job_id)
+  const startMatchingInternal = useCallback(
+    async (
+      resumeText: string,
+      jobs: JobDetailV2[],
+      incremental: boolean = false,
+      existingResults: MatchResultItem[] = []
+    ) => {
+      const batches = chunkArray(jobs, BATCH_SIZE);
+
+      try {
+        const accumulatedResults: MatchResultItem[] = incremental
+          ? [...existingResults]
+          : [];
+        const initialResultCount = accumulatedResults.length;
+        let hasSuccessfulBatch = false;
+
+        // Process each batch sequentially
+        // 各バッチを順次処理
+        for (let i = 0; i < batches.length; i++) {
+          try {
+            const newResults = await processSingleBatch(
+              batches[i],
+              resumeText,
+              accumulatedResults
             );
-            accumulatedResults.push(...newResults);
-            setResults([...accumulatedResults]);
-            setProcessedJobs(accumulatedResults.length);
+
+            if (newResults && newResults.length > 0) {
+              hasSuccessfulBatch = true;
+              handleBatchSuccess(newResults, accumulatedResults);
+            }
+          } catch (batchError) {
+            if (
+              batchError instanceof Error &&
+              batchError.name === "AbortError"
+            ) {
+              return;
+            }
+            console.error(`Batch ${i + 1} failed:`, batchError);
           }
-          
-        } catch (batchError) {
-          // Check if it was aborted by user navigation
-          // ユーザーのナビゲーションによって中断されたかチェック
-          if (batchError instanceof Error && batchError.name === 'AbortError') {
-            return;
-          }
-          
-          console.error(`Batch ${i + 1} failed:`, batchError);
-          // Continue with next batch instead of stopping
-          // 停止せずに次のバッチを続行
-          continue;
         }
+
+        finalizeMatching(accumulatedResults, initialResultCount, hasSuccessfulBatch);
+      } catch (error) {
+        if (error instanceof Error && error.name === "AbortError") {
+          return;
+        }
+        const friendlyError = getFriendlyErrorMessage(error);
+        setErrorInfo(friendlyError);
+        console.error("Matching process error:", error);
+      } finally {
+        setIsMatching(false);
       }
-      
-      // Mark matching as complete
-      // マッチング完了をマーク
-      setIsMatchingComplete(true);
-      
-    } catch (error) {
-      // Check if it was aborted
-      // 中断されたかチェック
-      if (error instanceof Error && error.name === 'AbortError') {
-        return;
-      }
-      
-      const friendlyError = getFriendlyErrorMessage(error);
-      setErrorInfo(friendlyError);
-      console.error('Matching process error:', error);
-    } finally {
-      setIsMatching(false);
-    }
-  }, []);
-  
+    },
+    [batchMutation]
+  );
+
   /**
    * @description Start batch matching process from JobListItem array
    * @description JobListItem 配列からバッチマッチング処理を開始
@@ -206,79 +324,83 @@ export function useBatchMatching(
    * @param totalJobsCount - Total number of jobs (for incremental mode, includes already analyzed jobs)
    * @param totalJobsCount 求人の総数（インクリメンタルモードの場合、すでに分析された求人を含む）
    */
-  const startMatchingFromListItems = useCallback(async (
-    resumeText: string, 
-    jobListItems: JobListItem[],
-    incremental: boolean = false,
-    totalJobsCount?: number
-  ) => {
-    // Reset state only if not incremental matching
-    // インクリメンタルマッチングでない場合のみ状態をリセット
-    if (!incremental) {
-      setResults([]);
-      setIsMatchingComplete(false);
-      setProcessedJobs(0);
-      
-      // Clear previous saved results
-      // 以前の保存結果をクリア
-      clearBatchMatchingResults();
-    }
-    
-    setIsMatching(true);
-    setErrorInfo(null);
-    // Use totalJobsCount if provided (for incremental mode), otherwise use jobListItems.length
-    // totalJobsCountが提供されている場合（インクリメンタルモード）、それを使用、そうでなければjobListItems.lengthを使用
-    setTotalJobs(totalJobsCount ?? jobListItems.length);
-    
-    // For incremental mode, set processedJobs to the number of already analyzed jobs
-    // インクリメンタルモードの場合、processedJobs をすでに分析された求人の数に設定
-    if (incremental && totalJobsCount !== undefined) {
-      const alreadyProcessed = totalJobsCount - jobListItems.length;
-      setProcessedJobs(alreadyProcessed);
-    }
-    
-    // Create new AbortController for this matching session
-    // このマッチングセッション用の新しい AbortController を作成
-    abortControllerRef.current = new AbortController();
-    
-    try {
-      // Get full job details for each JobListItem from the provided map
-      // 提供されたMapから各JobListItemの完全な求人詳細を取得
-      const jobDetails: JobDetailV2[] = [];
-      
-      for (const jobItem of jobListItems) {
-        const jobDetail = jobDetailsMap.get(jobItem.id);
-        if (jobDetail) {
-          jobDetails.push(jobDetail);
-        } else {
-          console.warn(`Job not found in map: ${jobItem.id}`);
-        }
+  const startMatchingFromListItems = useCallback(
+    async (
+      resumeText: string,
+      jobListItems: JobListItem[],
+      incremental: boolean = false,
+      totalJobsCount?: number
+    ) => {
+      // Reset state only if not incremental matching
+      // インクリメンタルマッチングでない場合のみ状態をリセット
+      if (!incremental) {
+        setResults([]);
+        setIsMatchingComplete(false);
+        setProcessedJobs(0);
+        setTotalJobs(0);
+        clearBatchMatchCache();
       }
-      
-      if (jobDetails.length === 0) {
-        throw new Error('No job details could be found');
-      }
-      
-      // Start matching with full job details (incremental mode)
-      // 完全な求人詳細でマッチングを開始（インクリメンタルモード）
-      await startMatchingInternal(resumeText, jobDetails, incremental, resultsRef.current);
-      
-    } catch (error) {
-      // Check if it was aborted
-      // 中断されたかチェック
-      if (error instanceof Error && error.name === 'AbortError') {
 
-        return;
+      setIsMatching(true);
+      setErrorInfo(null);
+      // Use totalJobsCount if provided (for incremental mode), otherwise use jobListItems.length
+      // totalJobsCountが提供されている場合（インクリメンタルモード）、それを使用、そうでなければjobListItems.lengthを使用
+      setTotalJobs(totalJobsCount ?? jobListItems.length);
+
+      // For incremental mode, set processedJobs to the number of already analyzed jobs
+      // インクリメンタルモードの場合、processedJobs をすでに分析された求人の数に設定
+      if (incremental && totalJobsCount !== undefined) {
+        const alreadyProcessed = totalJobsCount - jobListItems.length;
+        setProcessedJobs(alreadyProcessed);
       }
-      
-      const friendlyError = getFriendlyErrorMessage(error);
-      setErrorInfo(friendlyError);
-      console.error('Matching process error:', error);
-    } finally {
-      setIsMatching(false);
-    }
-  }, [jobDetailsMap, startMatchingInternal]);
-  
+
+      // Create new AbortController for this matching session
+      // このマッチングセッション用の新しい AbortController を作成
+      abortControllerRef.current = new AbortController();
+
+      try {
+        // Get full job details for each JobListItem from the provided map
+        // 提供されたMapから各JobListItemの完全な求人詳細を取得
+        const jobDetails: JobDetailV2[] = [];
+
+        for (const jobItem of jobListItems) {
+          const jobDetail = jobDetailsMap.get(jobItem.id);
+          if (jobDetail) {
+            jobDetails.push(jobDetail);
+          } else {
+            console.warn(`Job not found in map: ${jobItem.id}`);
+          }
+        }
+
+        if (jobDetails.length === 0) {
+          throw new Error("No job details could be found");
+        }
+
+        // Start matching with full job details (incremental mode)
+        // 完全な求人詳細でマッチングを開始（インクリメンタルモード）
+        await startMatchingInternal(
+          resumeText,
+          jobDetails,
+          incremental,
+          resultsRef.current
+        );
+      } catch (error) {
+        // Check if it was aborted
+        // 中断されたかチェック
+        if (error instanceof Error && error.name === "AbortError") {
+          return;
+        }
+
+        const friendlyError = getFriendlyErrorMessage(error);
+        setErrorInfo(friendlyError);
+        console.error("Matching process error:", error);
+      } finally {
+        setIsMatching(false);
+      }
+    },
+    [jobDetailsMap, startMatchingInternal]
+  );
+
   return {
     results,
     isMatchingComplete,
@@ -286,6 +408,6 @@ export function useBatchMatching(
     errorInfo,
     processedJobs,
     totalJobs,
-    startMatchingFromListItems
+    startMatchingFromListItems,
   };
 }
