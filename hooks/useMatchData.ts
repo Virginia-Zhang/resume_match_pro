@@ -53,6 +53,9 @@ export function useMatchData(props: ChartsProps): UseMatchDataResult {
   // サマリーデータを独立して取得
   useEffect(() => {
     detailsRequestedRef.current = false;
+    // Clear summary and details at first to prevent using stale summary data when jobId changes
+    // ジョブIDが変更された場合に古いサマリーデータを使用しないようにするため、最初にサマリーと詳細をクリア
+    setSummary(null);
     setDetails(null);
     setSummaryError(null);
 
