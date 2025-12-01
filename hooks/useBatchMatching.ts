@@ -150,6 +150,103 @@ export function useBatchMatching(
   };
 
   /**
+   * @description Process a single batch and merge results
+   * @description 単一バッチを処理して結果をマージ
+   * @param batch Jobs in the batch
+   * @param batch バッチ内の求人
+   * @param resumeText Resume text for matching
+   * @param resumeText マッチング用のレジュメテキスト
+   * @param accumulatedResults Current accumulated results
+   * @param accumulatedResults 現在の累積結果
+   * @returns New results from this batch or null if failed
+   * @returns このバッチからの新しい結果、失敗した場合は null
+   */
+  const processSingleBatch = async (
+    batch: JobDetailV2[],
+    resumeText: string,
+    accumulatedResults: MatchResultItem[]
+  ): Promise<MatchResultItem[] | null> => {
+    const serializedJobs = batch.map(job => ({
+      id: job.id,
+      job_description: serializeJDForBatchMatching(job),
+    }));
+
+    const batchData = await batchMutation.mutateAsync({
+      resume_text: resumeText,
+      jobs: serializedJobs,
+      requestOptions: {
+        signal: abortControllerRef.current?.signal || undefined,
+      },
+    });
+
+    if (!batchData.match_results || !Array.isArray(batchData.match_results)) {
+      return null;
+    }
+
+    // Merge new results with existing ones (avoid duplicates)
+    // 新しい結果を既存の結果とマージ（重複を避ける）
+    return batchData.match_results.filter(
+      newResult =>
+        !accumulatedResults.some(
+          existing => existing.job_id === newResult.job_id
+        )
+    );
+  };
+
+  /**
+   * @description Handle successful batch processing
+   * @description バッチ処理の成功を処理
+   * @param newResults New results from the batch
+   * @param newResults バッチからの新しい結果
+   * @param accumulatedResults Current accumulated results
+   * @param accumulatedResults 現在の累積結果
+   */
+  const handleBatchSuccess = (
+    newResults: MatchResultItem[],
+    accumulatedResults: MatchResultItem[]
+  ): void => {
+    accumulatedResults.push(...newResults);
+    setResults([...accumulatedResults]);
+    setProcessedJobs(accumulatedResults.length);
+  };
+
+  /**
+   * @description Finalize matching process based on success status
+   * @description 成功状態に基づいてマッチング処理を完了
+   * @param accumulatedResults Final accumulated results
+   * @param accumulatedResults 最終的な累積結果
+   * @param initialResultCount Initial result count before processing
+   * @param initialResultCount 処理前の初期結果数
+   * @param hasSuccessfulBatch Whether any batch succeeded
+   * @param hasSuccessfulBatch バッチが成功したかどうか
+   */
+  const finalizeMatching = (
+    accumulatedResults: MatchResultItem[],
+    initialResultCount: number,
+    hasSuccessfulBatch: boolean
+  ): void => {
+    const hasNewResults = accumulatedResults.length > initialResultCount;
+
+    if (!hasSuccessfulBatch && !hasNewResults) {
+      // All batches failed - set error state instead of marking as complete
+      // すべてのバッチが失敗 - 完了としてマークする代わりにエラー状態を設定
+      const friendlyError: FriendlyErrorMessage = {
+        message: "すべてのバッチ処理が失敗しました。ネットワーク接続を確認して再試行してください。",
+        isRetryable: true,
+      };
+      setErrorInfo(friendlyError);
+      console.error("All batches failed - no results obtained");
+      return;
+    }
+
+    // At least one batch succeeded - mark as complete
+    // 少なくとも1つのバッチが成功 - 完了としてマーク
+    setResults([...accumulatedResults]);
+    setProcessedJobs(accumulatedResults.length);
+    setIsMatchingComplete(true);
+  };
+
+  /**
    * @description Internal batch matching process
    * @description 内部バッチマッチング処理
    * @param resumeText - Resume text for matching
@@ -166,52 +263,28 @@ export function useBatchMatching(
       incremental: boolean = false,
       existingResults: MatchResultItem[] = []
     ) => {
-      // Split jobs into batches
-      // ジョブをバッチに分割
       const batches = chunkArray(jobs, BATCH_SIZE);
 
       try {
         const accumulatedResults: MatchResultItem[] = incremental
           ? [...existingResults]
           : [];
+        const initialResultCount = accumulatedResults.length;
+        let hasSuccessfulBatch = false;
 
         // Process each batch sequentially
         // 各バッチを順次処理
         for (let i = 0; i < batches.length; i++) {
           try {
-            // Serialize JobDetailV2 objects to optimized text for AI analysis
-            // JobDetailV2 オブジェクトをAI分析用の最適化テキストにシリアライズ
-            const serializedJobs = batches[i].map(job => ({
-              id: job.id,
-              job_description: serializeJDForBatchMatching(job),
-            }));
+            const newResults = await processSingleBatch(
+              batches[i],
+              resumeText,
+              accumulatedResults
+            );
 
-            const batchData = await batchMutation.mutateAsync({
-              resume_text: resumeText,
-              jobs: serializedJobs,
-              requestOptions: {
-                signal: abortControllerRef.current?.signal || undefined,
-              },
-            });
-
-            if (
-              batchData.match_results &&
-              Array.isArray(batchData.match_results)
-            ) {
-              // Merge new results with existing ones (avoid duplicates)
-              // 新しい結果を既存の結果とマージ（重複を避ける）
-              const newResults = batchData.match_results.filter(
-                newResult =>
-                  !accumulatedResults.some(
-                    existing => existing.job_id === newResult.job_id
-                  )
-              );
-
-              accumulatedResults.push(...newResults);
-              // Update state immediately after each batch to ensure all results are captured
-              // 各バッチ後に即座に状態を更新し、すべての結果が確実にキャプチャされるようにする
-              setResults([...accumulatedResults]);
-              setProcessedJobs(accumulatedResults.length);
+            if (newResults && newResults.length > 0) {
+              hasSuccessfulBatch = true;
+              handleBatchSuccess(newResults, accumulatedResults);
             }
           } catch (batchError) {
             if (
@@ -221,16 +294,10 @@ export function useBatchMatching(
               return;
             }
             console.error(`Batch ${i + 1} failed:`, batchError);
-            continue;
           }
         }
 
-        // Ensure final state is set after all batches complete
-        // すべてのバッチ完了後に最終状態が確実に設定されるようにする
-        setResults([...accumulatedResults]);
-        setProcessedJobs(accumulatedResults.length);
-
-        setIsMatchingComplete(true);
+        finalizeMatching(accumulatedResults, initialResultCount, hasSuccessfulBatch);
       } catch (error) {
         if (error instanceof Error && error.name === "AbortError") {
           return;
