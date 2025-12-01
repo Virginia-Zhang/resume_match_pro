@@ -9,9 +9,10 @@
 
 "use client";
 
-import { API_MATCH_DETAILS, API_MATCH_SUMMARY } from "@/app/constants/constants";
-import { fetchJson } from "@/lib/fetcher";
-import { getApiBase } from "@/lib/runtime-config";
+import {
+  useMatchDetailsMutation,
+  useMatchSummaryMutation,
+} from "@/hooks/queries/useMatch";
 import type {
   ChartsProps,
   DetailsEnvelope,
@@ -19,7 +20,7 @@ import type {
   SummaryEnvelope,
   UseMatchDataResult,
 } from "@/types/matching";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 /**
  * @description Custom hook for managing match data with unified API calls
@@ -42,128 +43,149 @@ export function useMatchData(props: ChartsProps): UseMatchDataResult {
   const [detailsError, setDetailsError] = useState<string | null>(null);
   const [hover, setHover] = useState<HoverState | null>(null);
   const detailsRequestedRef = useRef(false);
-
-  /**
-   * @description Generic API call function with shared error handling
-   * @description 共有エラーハンドリングを持つ汎用API呼び出し関数
-   * @param type API type (summary or details)
-   * @param type APIタイプ（サマリーまたは詳細）
-   * @param inputs Additional inputs for the API call
-   * @param inputs API呼び出しの追加入力
-   * @param timeout Timeout in milliseconds
-   * @param timeout タイムアウト（ミリ秒）
-   * @returns Promise resolving to API response
-   * @returns APIレスポンスを解決するプロミス
-   */
-  const callMatchAPI = useCallback(async (
-    type: 'summary' | 'details',
-    inputs: any,
-    timeout: number
-  ) => {
-    const url = type === 'summary' 
-      ? `${getApiBase()}${API_MATCH_SUMMARY}`
-      : `${getApiBase()}${API_MATCH_DETAILS}`;
-
-    return await fetchJson<any>(url, {
-      method: "POST",
-      body: JSON.stringify({
-        inputs,
-        jobId,
-        resumeId,
-      }),
-      timeoutMs: timeout,
-    });
-  }, [jobId, resumeId]);
+  // Track if we're using cached summary to prevent stale API responses from overwriting
+  // キャッシュされたサマリーを使用しているかを追跡し、過去のAPI応答による上書きを防ぐ
+  const usingCachedSummaryRef = useRef(false);
+  const { mutate: mutateSummary, reset: resetSummary } = useMatchSummaryMutation();
+  const { mutate: mutateDetails, reset: resetDetails } = useMatchDetailsMutation();
 
   // Fetch summary data independently
   // サマリーデータを独立して取得
   useEffect(() => {
-    async function fetchSummary() {
-      try {
-        setSummaryLoading(true);
-        setSummaryError(null);
+    detailsRequestedRef.current = false;
+    // Clear summary and details at first to prevent using stale summary data when jobId changes
+    // ジョブIDが変更された場合に古いサマリーデータを使用しないようにするため、最初にサマリーと詳細をクリア
+    setSummary(null);
+    setDetails(null);
+    setSummaryError(null);
 
-        // Use provided overallScore and scores if available
-        // 提供された overallScore と scores が利用可能な場合はそれを使用
-        if (overallScore !== undefined && scores) {
-          setSummary({
-            meta: { 
-              jobId,
-              resumeHash: "", 
-              source: "cache" as const,
-              timestamp: new Date().toISOString(),
-              version: "v2" as const,
-              type: "summary" as const,
-            }, 
-            data: {
-              overall: overallScore,
-              scores: {
-                skills: scores.skills,
-                experience: scores.experience,
-                projects: scores.projects,
-                education: scores.education,
-                soft: scores.soft,
-              },
-            },
-          });
-          setSummaryLoading(false);
-          return;
-        }
-
-        const summaryData = await callMatchAPI('summary', {
-          job_description: jobDescription,
-        }, 30000); // 30 seconds for Dify API processing
-
-        setSummary(summaryData);
-      } catch (err) {
-        setSummaryError(err instanceof Error ? err.message : "Unknown error");
-      } finally {
-        setSummaryLoading(false);
-      }
+    // Use provided overallScore and scores if available
+    // 提供された overallScore と scores が利用可能な場合はそれを使用
+    if (overallScore !== undefined && scores) {
+      usingCachedSummaryRef.current = true;
+      const cachedSummary: SummaryEnvelope = {
+        meta: {
+          jobId,
+          resumeHash: "",
+          source: "cache",
+          timestamp: new Date().toISOString(),
+          version: "v2",
+          type: "summary",
+        },
+        data: {
+          overall: overallScore,
+          scores: {
+            skills: scores.skills,
+            experience: scores.experience,
+            projects: scores.projects,
+            education: scores.education,
+            soft: scores.soft,
+          },
+        },
+      };
+      setSummary(cachedSummary);
+      setSummaryLoading(false);
+      return;
     }
 
-    fetchSummary();
-  }, [resumeId, jobId, jobDescription, overallScore, scores, callMatchAPI]);
+    // Reset cached flag when fetching from API
+    // APIから取得する際はキャッシュフラグをリセット
+    usingCachedSummaryRef.current = false;
+
+    if (!resumeId || !jobId) {
+      setSummaryError("Missing resumeId or jobId for summary analysis");
+      setSummaryLoading(false);
+      return;
+    }
+
+    setSummaryLoading(true);
+    mutateSummary(
+      {
+        jobId,
+        resumeId,
+        inputs: { job_description: jobDescription },
+      },
+      {
+        onSuccess: data => {
+          // Only update if we're not using cached summary to prevent race condition
+          // キャッシュされたサマリーを使用していない場合のみ更新し、競合状態を防ぐ
+          if (!usingCachedSummaryRef.current) {
+            setSummary(data);
+          }
+        },
+        onError: err =>
+          setSummaryError(err instanceof Error ? err.message : "Unknown error"),
+        onSettled: () => setSummaryLoading(false),
+      }
+    );
+
+    return () => {
+      resetSummary();
+    };
+  }, [
+    resumeId,
+    jobId,
+    jobDescription,
+    overallScore,
+    scores,
+    mutateSummary,
+    resetSummary,
+  ]);
 
   // Fetch details data only after summary is completed
   // サマリー完了後にのみ詳細データを取得
   useEffect(() => {
-    async function fetchDetails() {
-      // Only proceed if summary is completed
-      if (!summary) return;
-
-      // Guard against duplicate details requests (e.g., double effects in dev)
-      // 重複した詳細リクエストを防止（開発環境での副作用二重実行など）
-      if (detailsRequestedRef.current) return;
-      detailsRequestedRef.current = true;
-
-      try {
-        setDetailsLoading(true);
-        setDetailsError(null);
-
-        // Get overall score from current summary state
-        if (!summary) {
-          setDetailsError("Summary data not available for details analysis");
-          setDetailsLoading(false);
-          return;
-        }
-        const overallFromSummary = summary.data.overall;
-
-        const detailsData = await callMatchAPI('details', {
-          job_description: jobDescription,
-          overall_from_summary: overallFromSummary,
-        }, 60000); // 60 seconds for Dify API processing
-
-        setDetails(detailsData);
-      } catch (err) {
-        setDetailsError(err instanceof Error ? err.message : "Unknown error");
-      } finally {
+    if (!summary) {
+      detailsRequestedRef.current = false;
+      // If summary loading is complete but summary is null (e.g., failed), stop details loading
+      // サマリー読み込みが完了したが summary が null の場合（失敗など）、詳細読み込みを停止
+      if (!summaryLoading) {
         setDetailsLoading(false);
       }
+      return;
+    }
+    if (detailsRequestedRef.current) return;
+    setDetailsError(null);
+
+    if (!resumeId || !jobId) {
+      setDetailsError("Missing resumeId or jobId for details analysis");
+      setDetailsLoading(false);
+      return;
     }
 
-    fetchDetails();
-  }, [resumeId, jobId, jobDescription, summary, callMatchAPI]);
+    const overallFromSummary = summary?.data?.overall;
+    if (overallFromSummary === undefined) {
+      setDetailsError("Missing overall score from summary");
+      setDetailsLoading(false);
+      return;
+    }
+
+    // Set ref to true only after all validation checks pass
+    // すべての検証チェックが通過した後にのみ ref を true に設定
+    detailsRequestedRef.current = true;
+    setDetailsLoading(true);
+    mutateDetails(
+      {
+        jobId,
+        resumeId,
+        inputs: {
+          job_description: jobDescription,
+          overall_from_summary: overallFromSummary,
+        },
+      },
+      {
+        onSuccess: data => setDetails(data),
+        onError: err =>
+          setDetailsError(err instanceof Error ? err.message : "Unknown error"),
+        onSettled: () => setDetailsLoading(false),
+      }
+    );
+
+    return () => {
+      detailsRequestedRef.current = false;
+      resetDetails();
+    };
+  }, [resumeId, jobId, jobDescription, summary, summaryLoading, mutateDetails, resetDetails]);
 
   return {
     summary,

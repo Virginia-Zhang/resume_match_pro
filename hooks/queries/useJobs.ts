@@ -12,7 +12,7 @@
 import { fetchJobById, fetchJobCategories, fetchJobs } from "@/lib/api/jobs";
 import { queryKeys } from "@/lib/react-query/query-keys";
 import type { JobDetailV2 } from "@/types/jobs_v2";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 
 type ResidenceFilter = "japan" | "overseas";
@@ -58,12 +58,15 @@ interface UseJobCategoriesOptions {
 export function useJobs(filters?: JobListFilters, options?: UseJobsOptions) {
   const normalizedFilters = useMemo(() => normalizeJobFilters(filters), [filters]);
 
+  // Use keepPreviousData to keep the previous data when the filters change, this is a good practice to avoid flickering
+  // フィルター変更時に前のデータを保持し、フリッカーを防ぐための良い慣習
   return useQuery({
     queryKey: queryKeys.jobs.list(normalizedFilters.key),
     queryFn: ({ signal }) => fetchJobs(options?.apiBase ?? "", signal),
     select: data =>
       normalizedFilters.hasFilters ? filterJobs(data, normalizedFilters) : data,
     enabled: options?.enabled ?? true,
+    placeholderData: keepPreviousData,
   });
 }
 
