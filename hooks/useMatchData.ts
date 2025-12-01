@@ -43,6 +43,9 @@ export function useMatchData(props: ChartsProps): UseMatchDataResult {
   const [detailsError, setDetailsError] = useState<string | null>(null);
   const [hover, setHover] = useState<HoverState | null>(null);
   const detailsRequestedRef = useRef(false);
+  // Track if we're using cached summary to prevent stale API responses from overwriting
+  // キャッシュされたサマリーを使用しているかを追跡し、過去のAPI応答による上書きを防ぐ
+  const usingCachedSummaryRef = useRef(false);
   const { mutate: mutateSummary, reset: resetSummary } = useMatchSummaryMutation();
   const { mutate: mutateDetails, reset: resetDetails } = useMatchDetailsMutation();
 
@@ -56,6 +59,7 @@ export function useMatchData(props: ChartsProps): UseMatchDataResult {
     // Use provided overallScore and scores if available
     // 提供された overallScore と scores が利用可能な場合はそれを使用
     if (overallScore !== undefined && scores) {
+      usingCachedSummaryRef.current = true;
       const cachedSummary: SummaryEnvelope = {
         meta: {
           jobId,
@@ -81,6 +85,10 @@ export function useMatchData(props: ChartsProps): UseMatchDataResult {
       return;
     }
 
+    // Reset cached flag when fetching from API
+    // APIから取得する際はキャッシュフラグをリセット
+    usingCachedSummaryRef.current = false;
+
     if (!resumeId || !jobId) {
       setSummaryError("Missing resumeId or jobId for summary analysis");
       setSummaryLoading(false);
@@ -95,7 +103,13 @@ export function useMatchData(props: ChartsProps): UseMatchDataResult {
         inputs: { job_description: jobDescription },
       },
       {
-        onSuccess: data => setSummary(data),
+        onSuccess: data => {
+          // Only update if we're not using cached summary to prevent race condition
+          // キャッシュされたサマリーを使用していない場合のみ更新し、競合状態を防ぐ
+          if (!usingCachedSummaryRef.current) {
+            setSummary(data);
+          }
+        },
         onError: err =>
           setSummaryError(err instanceof Error ? err.message : "Unknown error"),
         onSettled: () => setSummaryLoading(false),
