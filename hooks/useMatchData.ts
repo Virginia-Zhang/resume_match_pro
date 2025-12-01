@@ -132,7 +132,7 @@ export function useMatchData(props: ChartsProps): UseMatchDataResult {
     }
 
     const overallFromSummary = summary?.data?.overall;
-    if (!overallFromSummary) {
+    if (overallFromSummary === undefined) {
       setDetailsError("Missing overall score from summary");
       setDetailsLoading(false);
       return;
