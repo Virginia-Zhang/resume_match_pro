@@ -46,3 +46,7 @@ next-env.d.ts
 !README.en.md
 !CONTRIBUTING.md
 !docs/**/*.md
+.cursor/debug.log
+
+# test files
+test-job-list.json
