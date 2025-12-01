@@ -120,6 +120,11 @@ export function useMatchData(props: ChartsProps): UseMatchDataResult {
   useEffect(() => {
     if (!summary) {
       detailsRequestedRef.current = false;
+      // If summary loading is complete but summary is null (e.g., failed), stop details loading
+      // サマリー読み込みが完了したが summary が null の場合（失敗など）、詳細読み込みを停止
+      if (!summaryLoading) {
+        setDetailsLoading(false);
+      }
       return;
     }
     if (detailsRequestedRef.current) return;
@@ -163,7 +168,7 @@ export function useMatchData(props: ChartsProps): UseMatchDataResult {
       detailsRequestedRef.current = false;
       resetDetails();
     };
-  }, [resumeId, jobId, jobDescription, summary, mutateDetails, resetDetails]);
+  }, [resumeId, jobId, jobDescription, summary, summaryLoading, mutateDetails, resetDetails]);
 
   return {
     summary,

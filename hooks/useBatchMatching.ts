@@ -48,14 +48,45 @@ export function useBatchMatching(
   // 最新の results 値に常にアクセスするために ref を使用
   const resultsRef = useRef<MatchResultItem[]>([]);
 
+  // Track previous resumeId to detect changes
+  // 前回の resumeId を追跡して変更を検出
+  const prevResumeIdRef = useRef<string | null | undefined>(resumeId);
+
   // Keep resultsRef in sync with results
   // resultsRef を results と同期させる
   useEffect(() => {
     resultsRef.current = results;
   }, [results]);
 
-  // Hydrate results from sessionStorage cache on mount
-  // マウント時に sessionStorage キャッシュから結果をハイドレート
+  // Clear results when resumeId changes to prevent cache corruption
+  // resumeId 変更時に結果をクリアしてキャッシュ破損を防止
+  useEffect(() => {
+    // Skip on initial mount (when prevResumeIdRef is undefined)
+    // 初回マウント時はスキップ（prevResumeIdRef が undefined の場合）
+    if (prevResumeIdRef.current === undefined) {
+      prevResumeIdRef.current = resumeId;
+      return;
+    }
+
+    // If resumeId changed and we have existing results, clear them
+    // resumeId が変更され、既存の結果がある場合はクリア
+    if (prevResumeIdRef.current !== resumeId && results.length > 0) {
+      setResults([]);
+      setIsMatchingComplete(false);
+      setProcessedJobs(0);
+      setTotalJobs(0);
+      // Abort any in-progress matching
+      // 進行中のマッチングを中止
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    }
+
+    prevResumeIdRef.current = resumeId;
+  }, [resumeId, results.length]);
+
+  // Hydrate results from sessionStorage cache on mount or when resumeId changes
+  // マウント時または resumeId 変更時に sessionStorage キャッシュから結果をハイドレート
   // Only hydrate when results are empty to avoid overwriting in-progress matching
   // 進行中のマッチングを上書きしないよう、results が空の場合のみハイドレート
   useEffect(() => {
