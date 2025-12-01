@@ -51,3 +51,6 @@ next-env.d.ts
 
 # test files
 test-job-list.json
+
+# vscode
+.vscode/settings.json

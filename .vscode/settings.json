@@ -40,6 +40,7 @@
     "Dify",
     "nuqs",
     "Retryable",
-    "turbopack"
+    "turbopack",
+    "vercel"
   ]
 }
