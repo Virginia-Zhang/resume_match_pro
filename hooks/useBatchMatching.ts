@@ -63,12 +63,12 @@ export function useBatchMatching(
       return;
     }
 
-    const cachedResults = loadBatchMatchCache(resumeId);
-    if (cachedResults?.length) {
-      setResults(cachedResults);
-      setIsMatchingComplete(true);
-      setProcessedJobs(cachedResults.length);
-      setTotalJobs(prev => (prev === 0 ? cachedResults.length : prev));
+    const cachedData = loadBatchMatchCache(resumeId);
+    if (cachedData) {
+      setResults(cachedData.results);
+      setIsMatchingComplete(cachedData.isComplete);
+      setProcessedJobs(cachedData.processedJobs);
+      setTotalJobs(cachedData.totalJobs);
     }
   }, [resumeId, results.length]);
 
@@ -79,12 +79,20 @@ export function useBatchMatching(
       return;
     }
 
+    // Debounce the save operation to prevent excessive writes
+    // 保存操作を過剰に行わないようにデバウンス
     const handle = setTimeout(() => {
-      saveBatchMatchCache(resumeId, results);
+      saveBatchMatchCache(
+        resumeId,
+        results,
+        isMatchingComplete,
+        processedJobs,
+        totalJobs
+      );
     }, 250);
 
     return () => clearTimeout(handle);
-  }, [results, resumeId]);
+  }, [results, resumeId, isMatchingComplete, processedJobs, totalJobs]);
 
   /**
    * @description Cancel ongoing requests when component unmounts

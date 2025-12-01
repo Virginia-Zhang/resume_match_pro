@@ -18,6 +18,9 @@ const CACHE_KEY = "resume-batch-match-cache";
 interface BatchMatchCacheEntry {
   resumeId: string;
   results: MatchResultItem[];
+  isComplete: boolean;
+  processedJobs: number;
+  totalJobs: number;
   timestamp: number;
 }
 
@@ -32,16 +35,27 @@ function isBrowser(): boolean {
 }
 
 /**
+ * @description Cached batch match data structure.
+ * @description キャッシュされたバッチマッチデータの構造。
+ */
+export interface CachedBatchMatchData {
+  results: MatchResultItem[];
+  isComplete: boolean;
+  processedJobs: number;
+  totalJobs: number;
+}
+
+/**
  * @description Load batch match results from sessionStorage.
  * @description sessionStorage からバッチマッチング結果を読み込む。
  * @param resumeId Resume ID to match against cached data.
  * @param resumeId キャッシュデータと照合するレジュメID。
- * @returns Cached results array or null if not found/expired.
- * @returns キャッシュされた結果配列、または見つからない/期限切れの場合は null。
+ * @returns Cached data object with completion state or null if not found/expired.
+ * @returns 完了状態を含むキャッシュデータオブジェクト、または見つからない/期限切れの場合は null。
  */
 export function loadBatchMatchCache(
   resumeId: string
-): MatchResultItem[] | null {
+): CachedBatchMatchData | null {
   if (!isBrowser() || !resumeId) {
     return null;
   }
@@ -66,7 +80,12 @@ export function loadBatchMatchCache(
       return null;
     }
 
-    return entry.results;
+    return {
+      results: entry.results,
+      isComplete: entry.isComplete ?? false,
+      processedJobs: entry.processedJobs ?? entry.results.length,
+      totalJobs: entry.totalJobs ?? entry.results.length,
+    };
   } catch (error) {
     console.warn("Failed to load batch match cache:", error);
     return null;
@@ -80,10 +99,19 @@ export function loadBatchMatchCache(
  * @param resumeId 結果に関連付けられたレジュメID。
  * @param results Match results array to cache.
  * @param results キャッシュするマッチング結果配列。
+ * @param isComplete Whether matching is complete.
+ * @param isComplete マッチングが完了しているかどうか。
+ * @param processedJobs Number of processed jobs.
+ * @param processedJobs 処理済みの求人数。
+ * @param totalJobs Total number of jobs.
+ * @param totalJobs 求人の総数。
  */
 export function saveBatchMatchCache(
   resumeId: string,
-  results: MatchResultItem[]
+  results: MatchResultItem[],
+  isComplete: boolean,
+  processedJobs: number,
+  totalJobs: number
 ): void {
   if (!isBrowser() || !resumeId) {
     return;
@@ -93,6 +121,9 @@ export function saveBatchMatchCache(
     const entry: BatchMatchCacheEntry = {
       resumeId,
       results,
+      isComplete,
+      processedJobs,
+      totalJobs,
       timestamp: Date.now(),
     };
 
