@@ -1,13 +1,13 @@
 /**
  * @file ResumeGate.tsx
- * @description Minimal client-only gate: checks `localStorage` key `resume:current`; shows Skeleton then redirect to /upload when missing.
- * @description 最小のクライアントゲート。`localStorage` の `resume:current` を確認し、無ければ Skeleton 表示後 /upload へ遷移。
+ * @description Minimal client-only gate: checks resume state via Zustand store; shows Skeleton then redirect to /upload when missing.
+ * @description 最小のクライアントゲート。Zustandストア経由でレジュメ状態を確認し、無ければ Skeleton 表示後 /upload へ遷移。
  */
 "use client";
 
 import { ROUTE_UPLOAD } from "@/app/constants/constants";
 import Skeleton from "@/components/ui/skeleton";
-import { resumePointer } from "@/lib/storage";
+import { useResumeStore } from "@/store/resume";
 import { useSearchParams } from "next/navigation";
 import { createContext, useContext, useEffect, useState } from "react";
 import { toast, Toaster } from "sonner";
@@ -43,19 +43,22 @@ export default function ResumeGate({
   const [resumeId, setResumeId] = useState<string | null>(null);
   const searchParams = useSearchParams();
   const urlResumeId = searchParams.get("resumeId");
+  
+  // Get resume state from Zustand store
+  // Zustandストアからレジュメ状態を取得
+  const { resumeStorageKey, setResume } = useResumeStore();
 
   // Check if resume is present
   // レジュメが存在するか確認
   useEffect(() => {
     // First, check resumeId from URL (for immediate access after upload)
     // まず、URL から取得した resumeId を確認（アップロード直後の即座アクセス用）
-    // Then check localStorage (for subsequent visits)
-    // 次に、localStorageを確認（その後の訪問用）
-    const p = resumePointer.load();
+    // Then check Zustand store (for subsequent visits)
+    // 次に、Zustandストアを確認（その後の訪問用）
     
-    // Use URL param if available, otherwise use localStorage
-    // URLパラメータが利用可能な場合はそれを使用、そうでなければlocalStorageを使用
-    const finalResumeId = urlResumeId || p?.resumeId;
+    // Use URL param if available, otherwise use Zustand store
+    // URLパラメータが利用可能な場合はそれを使用、そうでなければZustandストアを使用
+    const finalResumeId = urlResumeId || resumeStorageKey;
     
     if (!finalResumeId) {
       // Set state to false first to render GateSkeleton with Toaster
@@ -64,7 +67,7 @@ export default function ResumeGate({
       
       // Use setTimeout to ensure GateSkeleton is rendered before showing toast
       // GateSkeletonがレンダリングされた後にtoastを表示するためsetTimeoutを使用
-      setTimeout(() => {
+      const toastTimeout = setTimeout(() => {
         toast.warning('あなたはまだレジュメをアップロードしていないか、レジュメが保存されていません。', {
           description: 'アップロードページに移動し、レジュメをアップロードしてください。',
           duration: 3000,
@@ -73,25 +76,31 @@ export default function ResumeGate({
       
       // Redirect to upload page if resume is not present
       // レジュメがない場合はアップロードページへリダイレクト
-      const t = setTimeout(() => {
+      const redirectTimeout = setTimeout(() => {
         globalThis.location?.replace(ROUTE_UPLOAD);
       }, 3000);
-      return () => clearTimeout(t);
+      
+      // Cleanup both timeouts to prevent toast/redirect when effect re-runs after hydration
+      // ハイドレーション後の再実行時にtoast/リダイレクトを防ぐため、両方のタイムアウトをクリーンアップ
+      return () => {
+        clearTimeout(toastTimeout);
+        clearTimeout(redirectTimeout);
+      };
     }
     
-    // If URL param exists but localStorage doesn't, sync it
-    // URLパラメータが存在するがlocalStorageにない場合、同期する
-    if (urlResumeId && p?.resumeId !== urlResumeId) {
+    // If URL param exists but Zustand store doesn't, sync it
+    // URLパラメータが存在するがZustandストアにない場合、同期する
+    if (urlResumeId && resumeStorageKey !== urlResumeId) {
       try {
-        resumePointer.save(urlResumeId);
+        setResume(urlResumeId);
       } catch (error) {
-        console.warn('Failed to save resumeId to localStorage:', error);
+        console.warn('Failed to save resumeId to Zustand store:', error);
       }
     }
     
     setResumeId(finalResumeId);
     setOk(true);
-  }, [urlResumeId]);
+  }, [urlResumeId, resumeStorageKey, setResume]);
 
   if (ok !== true) {
     return <GateSkeleton />;

@@ -1,10 +1,10 @@
 /**
  * @file HomepageActions.tsx
- * @description Client CTA buttons for upload and jobs navigation, with localStorage gating.
- * @description クライアントCTAボタン。アップロード/求人への遷移と localStorage によるガードを提供します。
+ * @description Client CTA buttons for upload and jobs navigation, with Zustand store gating.
+ * @description クライアントCTAボタン。アップロード/求人への遷移と Zustandストアによるガードを提供します。
  * @author Virginia Zhang
- * @remarks Uses shadcn/ui Button. Disables jobs button when `resume:current` is absent.
- * @remarks shadcn/ui の Button を使用。`resume:current` がない場合、求人ボタンを無効化します。
+ * @remarks Uses shadcn/ui Button. Disables jobs button when resume is absent in Zustand store.
+ * @remarks shadcn/ui の Button を使用。Zustandストアにレジュメがない場合、求人ボタンを無効化します。
  */
 "use client";
 
@@ -15,9 +15,8 @@ import {
   ROUTE_UPLOAD,
 } from "@/app/constants/constants";
 import { PrimaryCtaButton, SecondaryCtaButton } from "@/components/common/buttons/CtaButtons";
-import { resumePointer } from "@/lib/storage";
+import { useResumeStore } from "@/store/resume";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
 
 /**
  * @component HomepageActions
@@ -26,14 +25,11 @@ import { useEffect, useState } from "react";
  */
 export default function HomepageActions(): React.ReactElement {
   const router = useRouter();
-  const [hasResume, setHasResume] = useState<boolean>(false);
-
-  useEffect(() => {
-    // Check presence of resume pointer in localStorage on mount
-    // マウント時に localStorage のポインタ有無を確認
-    const p = resumePointer.load();
-    setHasResume(Boolean(p?.resumeId));
-  }, []);
+  
+  // Subscribe to resume state from Zustand store to react to hydration and updates
+  // ハイドレーションと更新に反応するため、Zustandストアからレジュメ状態を購読
+  const resumeStorageKey = useResumeStore((state) => state.resumeStorageKey);
+  const hasResume = Boolean(resumeStorageKey);
 
   return (
     <div className="flex flex-wrap gap-4 justify-center px-4 w-full lg:w-auto">

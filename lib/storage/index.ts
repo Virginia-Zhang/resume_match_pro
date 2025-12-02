@@ -9,7 +9,6 @@ export {
     clearBatchMatchCache,
     loadBatchMatchCache,
     saveBatchMatchCache,
-    type CachedBatchMatchData,
+    type CachedBatchMatchData
 } from "./batch-match-cache";
-export { resumePointer } from "./resume-pointer";
 
