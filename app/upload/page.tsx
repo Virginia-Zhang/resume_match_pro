@@ -63,6 +63,9 @@ export default function UploadPage(): React.JSX.Element {
   // Track if user has uploaded a new file or modified the text
   // ユーザーが新しいファイルをアップロードしたか、テキストを変更したかを追跡
   const [hasNewUpload, setHasNewUpload] = useState(false);
+  // Track if we've already prefilled to prevent repopulating after user clears text
+  // ユーザーがテキストをクリアした後に再入力するのを防ぐため、既に事前入力したかを追跡
+  const hasPrefilledRef = useRef(false);
   /**
    * @description TanStack Query mutations for parsing PDFs and uploading resume text.
    * @description PDF解析とレジュメアップロード用の TanStack Query ミューテーション。
@@ -184,6 +187,8 @@ export default function UploadPage(): React.JSX.Element {
     setError(null);
     setUploadError(null);
     setHasNewUpload(true); // Mark as new upload
+    hasPrefilledRef.current = true; // Prevent prefilling after user selects new file
+    // ユーザーが新しいファイルを選択した後は事前入力を防ぐ
   }, [isPdfFile, resetFileInput]);
 
   /**
@@ -217,6 +222,8 @@ export default function UploadPage(): React.JSX.Element {
     setError(null);
     setUploadError(null);
     setHasNewUpload(true); // Mark as new upload
+    hasPrefilledRef.current = true; // Prevent prefilling after user selects new file
+    // ユーザーが新しいファイルを選択した後は事前入力を防ぐ
   }, [isPdfFile]);
 
   /**
@@ -237,6 +244,8 @@ export default function UploadPage(): React.JSX.Element {
       }
       setText(t);
       setHasNewUpload(true); // Mark as new upload after parsing
+      hasPrefilledRef.current = true; // Prevent prefilling after parsing new file
+      // 新しいファイルを解析した後は事前入力を防ぐ
     } catch (error) {
       console.error("PDF parsing error:", error);
       setError(
@@ -300,13 +309,15 @@ export default function UploadPage(): React.JSX.Element {
 
   // Prefill from S3 if resume exists in Zustand store using TanStack Query
   // Zustandストアにレジュメが存在する場合、TanStack Queryを使用してS3から事前入力
+  // Only enable prefilling if we haven't prefilled yet and no file is selected
+  // まだ事前入力していない場合、かつファイルが選択されていない場合のみ事前入力を有効化
   const {
     data: resumeTextData,
     isLoading: isResumeTextLoading,
     isError: isResumeTextError,
   } = useResumeText(resumeStorageKey, {
-    enabled: Boolean(resumeStorageKey) && !text, // Only fetch if resume exists and text is empty
-    // resumeIdが存在し、テキストが空の場合のみ取得
+    enabled: Boolean(resumeStorageKey) && !text && !file && !hasPrefilledRef.current,
+    // resumeIdが存在し、テキストが空で、ファイルが選択されておらず、まだ事前入力していない場合のみ取得
   });
 
   // Set prefilling state based on loading status
@@ -315,13 +326,24 @@ export default function UploadPage(): React.JSX.Element {
     setPrefilling(isResumeTextLoading);
   }, [isResumeTextLoading]);
 
-  // Update text when resume data is loaded
-  // レジュメデータが読み込まれたらテキストを更新
+  // Update text when resume data is loaded (only on initial prefill, not after user clears)
+  // レジュメデータが読み込まれたらテキストを更新（初期事前入力時のみ、ユーザーがクリアした後は実行しない）
   useEffect(() => {
-    if (resumeTextData?.resumeText && !text) {
+    // Only prefill if:
+    // 1. We have resume data
+    // 2. Text is currently empty
+    // 3. No file is selected (user hasn't started a new upload)
+    // 4. We haven't already prefilled (prevents repopulating after user clears)
+    // 事前入力は以下の場合のみ実行：
+    // 1. レジュメデータがある
+    // 2. テキストが現在空
+    // 3. ファイルが選択されていない（ユーザーが新しいアップロードを開始していない）
+    // 4. まだ事前入力していない（ユーザーがクリアした後の再入力を防ぐ）
+    if (resumeTextData?.resumeText && !text && !file && !hasPrefilledRef.current) {
       setText(resumeTextData.resumeText);
+      hasPrefilledRef.current = true;
     }
-  }, [resumeTextData, text]);
+  }, [resumeTextData, text, file]);
 
   // Silent failure for prefilling errors; user can still paste manually
   // 事前入力エラーはサイレント失敗；ユーザーは手動で貼り付け可能
@@ -471,6 +493,8 @@ export default function UploadPage(): React.JSX.Element {
               onChange={e => {
                 setText(e.target.value);
                 setHasNewUpload(true); // Mark as modified
+                hasPrefilledRef.current = true; // Prevent prefilling after manual text edit
+                // 手動でテキストを編集した後は事前入力を防ぐ
               }}
               placeholder="レジュメテキストを貼り付け..."
             />

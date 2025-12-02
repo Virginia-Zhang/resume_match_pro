@@ -17,7 +17,6 @@ import {
 import { PrimaryCtaButton, SecondaryCtaButton } from "@/components/common/buttons/CtaButtons";
 import { useResumeStore } from "@/store/resume";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
 
 /**
  * @component HomepageActions
@@ -26,14 +25,11 @@ import { useEffect, useState } from "react";
  */
 export default function HomepageActions(): React.ReactElement {
   const router = useRouter();
-  const [hasResume, setHasResume] = useState<boolean>(false);
   
-  // Check resume state from Zustand store after mount to avoid hydration mismatch
-  // ハイドレーションミスマッチを避けるため、マウント後にZustandストアからレジュメ状態を確認
-  useEffect(() => {
-    const storeHasResume = useResumeStore.getState().hasResume();
-    setHasResume(storeHasResume);
-  }, []);
+  // Subscribe to resume state from Zustand store to react to hydration and updates
+  // ハイドレーションと更新に反応するため、Zustandストアからレジュメ状態を購読
+  const resumeStorageKey = useResumeStore((state) => state.resumeStorageKey);
+  const hasResume = Boolean(resumeStorageKey);
 
   return (
     <div className="flex flex-wrap gap-4 justify-center px-4 w-full lg:w-auto">
