@@ -9,7 +9,6 @@
 "use client";
 
 import {
-  API_RESUME_TEXT,
   ROUTE_JOBS,
   UPLOAD_FEATURES,
   UPLOAD_FILE_SIZE_ERROR_JA,
@@ -28,10 +27,10 @@ import {
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import Skeleton from "@/components/ui/skeleton";
-import { useParsePdfMutation, useUploadResumeMutation } from "@/hooks/queries/useResume";
+import { useParsePdfMutation, useResumeText, useUploadResumeMutation } from "@/hooks/queries/useResume";
 import { getFriendlyErrorMessage } from "@/lib/errorHandling";
-import { fetchJson } from "@/lib/fetcher";
-import { clearBatchMatchCache, resumePointer } from "@/lib/storage";
+import { clearBatchMatchCache } from "@/lib/storage";
+import { useResumeStore } from "@/store/resume";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -281,10 +280,11 @@ export default function UploadPage(): React.JSX.Element {
       clearBatchMatchCache();
     }
 
-    // Save pointer to localStorage for future sessions (non-sensitive)
-    // localStorageに将来のセッション用のポインタを保存（非機密情報）
+    // Save resume info to Zustand store for future sessions (non-sensitive)
+    // 将来のセッション用のレジュメ情報をZustandストアに保存（非機密情報）
     try {
-      resumePointer.save(response.resumeId);
+      const { setResume } = useResumeStore.getState();
+      setResume(response.resumeId);
     } catch {}
 
     // Redirect to jobs list with ids using Next.js router
@@ -294,40 +294,42 @@ export default function UploadPage(): React.JSX.Element {
     router.push(`${ROUTE_JOBS}?${q.toString()}`);
   }
 
-  // Prefill from S3 if resume:current exists
-  // resume:currentが存在する場合、S3から事前入力
+  // Get resume storage key from Zustand store
+  // Zustandストアからレジュメストレージキーを取得
+  const resumeStorageKey = useResumeStore((state) => state.resumeStorageKey);
+
+  // Prefill from S3 if resume exists in Zustand store using TanStack Query
+  // Zustandストアにレジュメが存在する場合、TanStack Queryを使用してS3から事前入力
+  const {
+    data: resumeTextData,
+    isLoading: isResumeTextLoading,
+    isError: isResumeTextError,
+  } = useResumeText(resumeStorageKey, {
+    enabled: Boolean(resumeStorageKey) && !text, // Only fetch if resume exists and text is empty
+    // resumeIdが存在し、テキストが空の場合のみ取得
+  });
+
+  // Set prefilling state based on loading status
+  // ローディング状態に基づいてprefilling状態を設定
   useEffect(() => {
-    const p = resumePointer.load();
-    if (!p?.resumeId || text) return;
-    
-    // Set prefilling to true before fetching
-    // 取得前にprefillingをtrueに設定
-    setPrefilling(true);
-    
-    // Track whether component has unmounted to prevent state updates after unmount
-    // コンポーネントがアンマウントされたかを追跡し、アンマウント後の状態更新を防ぐ
-    let cancelled = false;
-    (async () => {
-      try {
-        const url = `${API_RESUME_TEXT}?resumeId=${encodeURIComponent(p.resumeId)}`;
-        const data = await fetchJson<{ resumeText: string }>(url, {
-          timeoutMs: 15000,
-        });
-        if (!cancelled && data?.resumeText && !text) {
-          setText(data.resumeText);
-        }
-      } catch (error) {
-        console.error("Prefilling error:", error);
-        // Silent failure; user can still paste manually
-        // サイレント失敗；ユーザーは手動で貼り付け可能
-      } finally {
-        if (!cancelled) setPrefilling(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [text]);
+    setPrefilling(isResumeTextLoading);
+  }, [isResumeTextLoading]);
+
+  // Update text when resume data is loaded
+  // レジュメデータが読み込まれたらテキストを更新
+  useEffect(() => {
+    if (resumeTextData?.resumeText && !text) {
+      setText(resumeTextData.resumeText);
+    }
+  }, [resumeTextData, text]);
+
+  // Silent failure for prefilling errors; user can still paste manually
+  // 事前入力エラーはサイレント失敗；ユーザーは手動で貼り付け可能
+  useEffect(() => {
+    if (isResumeTextError) {
+      console.error("Prefilling error: Failed to load resume text");
+    }
+  }, [isResumeTextError]);
 
   return (
     <div className="mx-auto max-w-7xl 2xl:max-w-[85vw] px-4 sm:px-6 lg:px-8 py-8 space-y-10">
