@@ -67,7 +67,7 @@ export default function ResumeGate({
       
       // Use setTimeout to ensure GateSkeleton is rendered before showing toast
       // GateSkeletonがレンダリングされた後にtoastを表示するためsetTimeoutを使用
-      setTimeout(() => {
+      const toastTimeout = setTimeout(() => {
         toast.warning('あなたはまだレジュメをアップロードしていないか、レジュメが保存されていません。', {
           description: 'アップロードページに移動し、レジュメをアップロードしてください。',
           duration: 3000,
@@ -76,10 +76,16 @@ export default function ResumeGate({
       
       // Redirect to upload page if resume is not present
       // レジュメがない場合はアップロードページへリダイレクト
-      const t = setTimeout(() => {
+      const redirectTimeout = setTimeout(() => {
         globalThis.location?.replace(ROUTE_UPLOAD);
       }, 3000);
-      return () => clearTimeout(t);
+      
+      // Cleanup both timeouts to prevent toast/redirect when effect re-runs after hydration
+      // ハイドレーション後の再実行時にtoast/リダイレクトを防ぐため、両方のタイムアウトをクリーンアップ
+      return () => {
+        clearTimeout(toastTimeout);
+        clearTimeout(redirectTimeout);
+      };
     }
     
     // If URL param exists but Zustand store doesn't, sync it
