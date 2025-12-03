@@ -114,7 +114,10 @@ export const useResumeStore = create<ResumeStore>()(
         // Migrate from old format (resumeId, savedAt) to new format (resumeStorageKey, resumeUploadedAt)
         // 古い形式（resumeId, savedAt）から新しい形式（resumeStorageKey, resumeUploadedAt）へ移行
         if (state && typeof state === "object") {
-          const migratedState: Partial<ResumeState> = {};
+          const migratedState: ResumeState = {
+            resumeStorageKey: null,
+            resumeUploadedAt: null,
+          };
           
           // Handle old field names
           // 古いフィールド名を処理
@@ -137,10 +140,10 @@ export const useResumeStore = create<ResumeStore>()(
             migratedState.resumeUploadedAt = state.resumeUploadedAt as string | null;
           }
           
-          return migratedState as ResumeState;
+          return migratedState;
         }
         
-        return state as ResumeState;
+        return initialState;
       },
       version: 1, // Set version to enable migration
     }

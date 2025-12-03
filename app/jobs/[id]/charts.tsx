@@ -182,24 +182,24 @@ export default function Charts(props: Readonly<ChartsProps>): React.JSX.Element 
             <section>
               <h4 className="font-medium mb-3">強み</h4>
               <ul className="list-disc pl-5 space-y-1">
-                {details.data.advantages?.map((item) => (
-                  <li key={item}>{item}</li>
+                {details.data.advantages?.map((item, index) => (
+                  <li key={`advantage-${index}-${item.slice(0, 20)}`}>{item}</li>
                 ))}
               </ul>
             </section>
             <section>
               <h4 className="font-medium mb-3">弱み</h4>
               <ul className="list-disc pl-5 space-y-1">
-                {details.data.disadvantages?.map((item) => (
-                  <li key={item}>{item}</li>
+                {details.data.disadvantages?.map((item, index) => (
+                  <li key={`disadvantage-${index}-${item.slice(0, 20)}`}>{item}</li>
                 ))}
               </ul>
             </section>
             <section>
               <h4 className="font-medium mb-3">面接対策</h4>
               <ul className="list-disc pl-5 space-y-2">
-                {details.data.advice?.map((item) => (
-                  <li key={item.title}>
+                {details.data.advice?.map((item, index) => (
+                  <li key={`advice-${index}-${item.title.slice(0, 20)}`}>
                     <div className="font-medium">{item.title}</div>
                     <div className="text-xs text-muted-foreground mt-1 whitespace-pre-wrap">
                       {item.detail}
