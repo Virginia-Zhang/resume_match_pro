@@ -1,7 +1,7 @@
 /**
  * @file lib/api/match.ts
- * @description API helpers for unified summary/detail matching and batch workflows.
- * @description サマリー/詳細マッチングおよびバッチ処理向け API ヘルパー。
+ * @description API helpers for unified scoring/detail matching and batch workflows.
+ * @description スコアリング/詳細マッチングおよびバッチ処理向け API ヘルパー。
  * @author Virginia Zhang
  * @remarks Designed for TanStack Query hooks and imperative calls in client/server components.
  * @remarks TanStack Query フックやクライアント/サーバーコンポーネントからの命令的呼び出し向け。
@@ -14,7 +14,7 @@ import type {
     BaseRequestBody,
     DetailsEnvelope,
     MatchResultItem,
-    SummaryEnvelope,
+    ScoringEnvelope,
 } from "@/types/matching";
 
 /**
@@ -52,8 +52,8 @@ export interface BatchMatchResponse {
 /**
  * @description Internal helper to POST to /api/match with a specific type.
  * @description 種別付きで /api/match に POST する内部ヘルパー。
- * @param type Match type segment ("summary" or "details").
- * @param type マッチタイプ（"summary" または "details"）。
+ * @param type Match type segment ("scoring" or "details").
+ * @param type マッチタイプ（"scoring" または "details"）。
  * @param body Request payload including jobId/resumeId/inputs.
  * @param body jobId/resumeId/inputs を含むリクエストペイロード。
  * @param options Optional request configuration.
@@ -64,7 +64,7 @@ export interface BatchMatchResponse {
  * @throws body が無効、またはネットワークリクエストが失敗した場合にエラー。
  */
 async function postMatch<T>(
-  type: "summary" | "details",
+  type: "scoring" | "details",
   body: BaseRequestBody,
   options: MatchApiOptions = {}
 ): Promise<T> {
@@ -84,22 +84,22 @@ async function postMatch<T>(
 }
 
 /**
- * @description Invokes summary matching workflow and returns structured scores.
- * @description サマリーマッチングワークフローを呼び出し、構造化スコアを返す。
+ * @description Invokes scoring matching workflow and returns structured scores.
+ * @description スコアリングマッチングワークフローを呼び出し、構造化スコアを返す。
  * @param body Request payload with job/resume identifiers and inputs.
  * @param body 求人/レジュメ識別子と入力を含むリクエストペイロード。
  * @param options Optional network configuration.
  * @param options オプションのネットワーク設定。
- * @returns Promise resolving to summary match envelope.
- * @returns サマリーマッチエンベロープを解決するプロミス。
+ * @returns Promise resolving to scoring match envelope.
+ * @returns スコアリングマッチエンベロープを解決するプロミス。
  * @throws Error when validation or network fails.
  * @throws バリデーションまたはネットワーク失敗時にエラー。
  */
-export function matchSummary(
+export function matchScoring(
   body: BaseRequestBody,
   options?: MatchApiOptions
-): Promise<SummaryEnvelope> {
-  return postMatch<SummaryEnvelope>("summary", body, options);
+): Promise<ScoringEnvelope> {
+  return postMatch<ScoringEnvelope>("scoring", body, options);
 }
 
 /**

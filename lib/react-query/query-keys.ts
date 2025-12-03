@@ -24,7 +24,7 @@ export const queryKeys = {
     upload: () => ["resume", "upload"] as const,
   },
   match: {
-    summary: () => ["match", "summary"] as const,
+    scoring: () => ["match", "scoring"] as const,
     details: () => ["match", "details"] as const,
     batch: (resumeId?: string | null) =>
       ["match", "batch", resumeId ?? ""] as const,
