@@ -11,7 +11,7 @@
  * @description Match type for API requests
  * @description APIリクエスト用のマッチタイプ
  */
-export type MatchType = "summary" | "details";
+export type MatchType = "scoring" | "details";
 
 /**
  * @description Base request body interface for match API
@@ -20,17 +20,17 @@ export type MatchType = "summary" | "details";
 export interface BaseRequestBody {
   inputs: {
     job_description: string;
-    overall_from_summary?: number;
+    overall_from_scoring?: number;
   };
   jobId: string;
   resumeId: string;
 }
 
 /**
- * @description Summary data structure returned by Dify workflow
- * @description Difyワークフローから返されるサマリーデータ構造
+ * @description Scoring data structure returned by Dify workflow
+ * @description Difyワークフローから返されるスコアデータ構造
  */
-export interface SummaryData {
+export interface ScoringData {
   overall: number;
   scores: Record<string, number>;
 }
@@ -69,7 +69,7 @@ export interface MatchEnvelope<T> {
  * @description Type aliases for specific envelope types
  * @description 特定のエンベロープタイプの型エイリアス
  */
-export type SummaryEnvelope = MatchEnvelope<SummaryData>;
+export type ScoringEnvelope = MatchEnvelope<ScoringData>;
 export type DetailsEnvelope = MatchEnvelope<DetailsData>;
 
 /**
@@ -104,11 +104,11 @@ export interface HoverState {
  * @description useMatchDataフックの戻り値型
  */
 export interface UseMatchDataResult {
-  summary: SummaryEnvelope | null;
+  scoring: ScoringEnvelope | null;
   details: DetailsEnvelope | null;
-  summaryLoading: boolean;
+  scoringLoading: boolean;
   detailsLoading: boolean;
-  summaryError: string | null;
+  scoringError: string | null;
   detailsError: string | null;
   hover: HoverState | null;
   setHover: React.Dispatch<React.SetStateAction<HoverState | null>>;

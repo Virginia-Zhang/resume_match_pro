@@ -1,7 +1,7 @@
 /**
  * @file hooks/queries/useMatch.ts
- * @description TanStack Query mutations for summary/details matching and batch matching.
- * @description サマリー/詳細マッチングおよびバッチマッチング用の TanStack Query ミューテーション。
+ * @description TanStack Query mutations for scoring/details matching and batch matching.
+ * @description スコアリング/詳細マッチングおよびバッチマッチング用の TanStack Query ミューテーション。
  * @author Virginia Zhang
  * @remarks Wraps match API helpers with consistent mutation keys and options.
  * @remarks マッチAPIヘルパーを一貫したミューテーションキーとともにラップ。
@@ -12,7 +12,7 @@
 import {
     matchBatch,
     matchDetails,
-    matchSummary,
+    matchScoring,
     type BatchMatchRequest,
     type BatchMatchResponse,
     type MatchApiOptions,
@@ -21,11 +21,11 @@ import { queryKeys } from "@/lib/react-query/query-keys";
 import type {
     BaseRequestBody,
     DetailsEnvelope,
-    SummaryEnvelope,
+    ScoringEnvelope,
 } from "@/types/matching";
 import { useMutation, type UseMutationOptions } from "@tanstack/react-query";
 
-export interface MatchSummaryVariables extends BaseRequestBody {
+export interface MatchScoringVariables extends BaseRequestBody {
   requestOptions?: MatchApiOptions;
 }
 
@@ -38,21 +38,21 @@ export interface BatchMatchVariables extends BatchMatchRequest {
 }
 
 /**
- * @description Mutation hook for summary matching (type=summary).
- * @description サマリーマッチング用のミューテーションフック（type=summary）。
+ * @description Mutation hook for scoring matching (type=scoring).
+ * @description スコアリングマッチング用のミューテーションフック（type=scoring）。
  */
-export function useMatchSummaryMutation(
+export function useMatchScoringMutation(
   options?: UseMutationOptions<
-    SummaryEnvelope,
+    ScoringEnvelope,
     Error,
-    MatchSummaryVariables,
+    MatchScoringVariables,
     unknown
   >
 ) {
   return useMutation({
-    mutationKey: queryKeys.match.summary(),
+    mutationKey: queryKeys.match.scoring(),
     mutationFn: ({ requestOptions, ...body }) =>
-      matchSummary(body, requestOptions),
+      matchScoring(body, requestOptions),
     ...options,
   });
 }

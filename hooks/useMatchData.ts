@@ -1,7 +1,7 @@
 /**
  * @file useMatchData.ts
- * @description Custom hook for managing match data (summary and details) with unified API calls.
- * @description 統合API呼び出しでマッチデータ（サマリーと詳細）を管理するカスタムフック。
+ * @description Custom hook for managing match data (scoring and details) with unified API calls.
+ * @description 統合API呼び出しでマッチデータ（スコアリングと詳細）を管理するカスタムフック。
  * @author Virginia Zhang
  * @remarks Client-side hook for unified match data management with shared logic.
  * @remarks 共有ロジックを持つ統合マッチデータ管理用クライアントサイドフック。
@@ -11,13 +11,13 @@
 
 import {
   useMatchDetailsMutation,
-  useMatchSummaryMutation,
+  useMatchScoringMutation,
 } from "@/hooks/queries/useMatch";
 import type {
   ChartsProps,
   DetailsEnvelope,
   HoverState,
-  SummaryEnvelope,
+  ScoringEnvelope,
   UseMatchDataResult,
 } from "@/types/matching";
 import { useEffect, useRef, useState } from "react";
@@ -29,48 +29,48 @@ import { useEffect, useRef, useState } from "react";
  * @param props Chartsコンポーネントのプロパティ
  * @returns Match data state and controls
  * @returns マッチデータの状態とコントロール
- * @remarks Handles both summary and details API calls with shared logic
- * @remarks 共有ロジックでサマリーと詳細API呼び出しの両方を処理
+ * @remarks Handles both scoring and details API calls with shared logic
+ * @remarks 共有ロジックでスコアリングと詳細API呼び出しの両方を処理
  */
 export function useMatchData(props: ChartsProps): UseMatchDataResult {
   const { resumeId, jobId, jobDescription, overallScore, scores } = props;
 
-  const [summary, setSummary] = useState<SummaryEnvelope | null>(null);
+  const [scoring, setScoring] = useState<ScoringEnvelope | null>(null);
   const [details, setDetails] = useState<DetailsEnvelope | null>(null);
-  const [summaryLoading, setSummaryLoading] = useState(true);
+  const [scoringLoading, setScoringLoading] = useState(true);
   const [detailsLoading, setDetailsLoading] = useState(true);
-  const [summaryError, setSummaryError] = useState<string | null>(null);
+  const [scoringError, setScoringError] = useState<string | null>(null);
   const [detailsError, setDetailsError] = useState<string | null>(null);
   const [hover, setHover] = useState<HoverState | null>(null);
   const detailsRequestedRef = useRef(false);
-  // Track if we're using cached summary to prevent stale API responses from overwriting
-  // キャッシュされたサマリーを使用しているかを追跡し、過去のAPI応答による上書きを防ぐ
-  const usingCachedSummaryRef = useRef(false);
-  const { mutate: mutateSummary, reset: resetSummary } = useMatchSummaryMutation();
+  // Track if we're using cached scoring to prevent stale API responses from overwriting
+  // キャッシュされたスコアリングを使用しているかを追跡し、過去のAPI応答による上書きを防ぐ
+  const usingCachedScoringRef = useRef(false);
+  const { mutate: mutateScoring, reset: resetScoring } = useMatchScoringMutation();
   const { mutate: mutateDetails, reset: resetDetails } = useMatchDetailsMutation();
 
-  // Fetch summary data independently
-  // サマリーデータを独立して取得
+  // Fetch scoring data independently
+  // スコアリングデータを独立して取得
   useEffect(() => {
     detailsRequestedRef.current = false;
-    // Clear summary and details at first to prevent using stale summary data when jobId changes
-    // ジョブIDが変更された場合に古いサマリーデータを使用しないようにするため、最初にサマリーと詳細をクリア
-    setSummary(null);
+    // Clear scoring and details at first to prevent using stale scoring data when jobId changes
+    // ジョブIDが変更された場合に古いスコアリングデータを使用しないようにするため、最初にスコアリングと詳細をクリア
+    setScoring(null);
     setDetails(null);
-    setSummaryError(null);
+    setScoringError(null);
 
     // Use provided overallScore and scores if available
     // 提供された overallScore と scores が利用可能な場合はそれを使用
     if (overallScore !== undefined && scores) {
-      usingCachedSummaryRef.current = true;
-      const cachedSummary: SummaryEnvelope = {
+      usingCachedScoringRef.current = true;
+      const cachedScoring: ScoringEnvelope = {
         meta: {
           jobId,
           resumeHash: "",
           source: "cache",
           timestamp: new Date().toISOString(),
           version: "v2",
-          type: "summary",
+          type: "scoring",
         },
         data: {
           overall: overallScore,
@@ -83,23 +83,23 @@ export function useMatchData(props: ChartsProps): UseMatchDataResult {
           },
         },
       };
-      setSummary(cachedSummary);
-      setSummaryLoading(false);
+      setScoring(cachedScoring);
+      setScoringLoading(false);
       return;
     }
 
     // Reset cached flag when fetching from API
     // APIから取得する際はキャッシュフラグをリセット
-    usingCachedSummaryRef.current = false;
+    usingCachedScoringRef.current = false;
 
     if (!resumeId || !jobId) {
-      setSummaryError("Missing resumeId or jobId for summary analysis");
-      setSummaryLoading(false);
+      setScoringError("Missing resumeId or jobId for scoring analysis");
+      setScoringLoading(false);
       return;
     }
 
-    setSummaryLoading(true);
-    mutateSummary(
+    setScoringLoading(true);
+    mutateScoring(
       {
         jobId,
         resumeId,
@@ -107,20 +107,20 @@ export function useMatchData(props: ChartsProps): UseMatchDataResult {
       },
       {
         onSuccess: data => {
-          // Only update if we're not using cached summary to prevent race condition
-          // キャッシュされたサマリーを使用していない場合のみ更新し、競合状態を防ぐ
-          if (!usingCachedSummaryRef.current) {
-            setSummary(data);
+          // Only update if we're not using cached scoring to prevent race condition
+          // キャッシュされたスコアリングを使用していない場合のみ更新し、競合状態を防ぐ
+          if (!usingCachedScoringRef.current) {
+            setScoring(data);
           }
         },
         onError: err =>
-          setSummaryError(err instanceof Error ? err.message : "Unknown error"),
-        onSettled: () => setSummaryLoading(false),
+          setScoringError(err instanceof Error ? err.message : "Unknown error"),
+        onSettled: () => setScoringLoading(false),
       }
     );
 
     return () => {
-      resetSummary();
+      resetScoring();
     };
   }, [
     resumeId,
@@ -128,18 +128,18 @@ export function useMatchData(props: ChartsProps): UseMatchDataResult {
     jobDescription,
     overallScore,
     scores,
-    mutateSummary,
-    resetSummary,
+    mutateScoring,
+    resetScoring,
   ]);
 
-  // Fetch details data only after summary is completed
-  // サマリー完了後にのみ詳細データを取得
+  // Fetch details data only after scoring is completed
+  // スコアリング完了後にのみ詳細データを取得
   useEffect(() => {
-    if (!summary) {
+    if (!scoring) {
       detailsRequestedRef.current = false;
-      // If summary loading is complete but summary is null (e.g., failed), stop details loading
-      // サマリー読み込みが完了したが summary が null の場合（失敗など）、詳細読み込みを停止
-      if (!summaryLoading) {
+      // If scoring loading is complete but scoring is null (e.g., failed), stop details loading
+      // スコアリング読み込みが完了したが scoring が null の場合（失敗など）、詳細読み込みを停止
+      if (!scoringLoading) {
         setDetailsLoading(false);
       }
       return;
@@ -153,9 +153,9 @@ export function useMatchData(props: ChartsProps): UseMatchDataResult {
       return;
     }
 
-    const overallFromSummary = summary?.data?.overall;
-    if (overallFromSummary === undefined) {
-      setDetailsError("Missing overall score from summary");
+    const overallFromScoring = scoring?.data?.overall;
+    if (overallFromScoring === undefined) {
+      setDetailsError("Missing overall score from scoring");
       setDetailsLoading(false);
       return;
     }
@@ -170,7 +170,7 @@ export function useMatchData(props: ChartsProps): UseMatchDataResult {
         resumeId,
         inputs: {
           job_description: jobDescription,
-          overall_from_summary: overallFromSummary,
+          overall_from_scoring: overallFromScoring,
         },
       },
       {
@@ -185,14 +185,14 @@ export function useMatchData(props: ChartsProps): UseMatchDataResult {
       detailsRequestedRef.current = false;
       resetDetails();
     };
-  }, [resumeId, jobId, jobDescription, summary, summaryLoading, mutateDetails, resetDetails]);
+  }, [resumeId, jobId, jobDescription, scoring, scoringLoading, mutateDetails, resetDetails]);
 
   return {
-    summary,
+    scoring,
     details,
-    summaryLoading,
+    scoringLoading,
     detailsLoading,
-    summaryError,
+    scoringError,
     detailsError,
     hover,
     setHover,

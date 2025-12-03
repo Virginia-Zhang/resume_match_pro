@@ -105,7 +105,7 @@ export const useResumeStore = create<ResumeStore>()(
       partialize: (state) => ({
         resumeStorageKey: state.resumeStorageKey,
         resumeUploadedAt: state.resumeUploadedAt,
-      }),
+      })
     }
   )
 );

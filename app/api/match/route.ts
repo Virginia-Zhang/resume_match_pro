@@ -1,10 +1,10 @@
 /**
  * @file route.ts
- * @description Unified match API: handles both summary and details requests with database cache.
- * @description 統合マッチAPI：データベースキャッシュ付きでサマリーと詳細の両方のリクエストを処理。
+ * @description Unified match API: handles both scoring and details requests with database cache.
+ * @description 統合マッチAPI：データベースキャッシュ付きでスコアリングと詳細の両方のリクエストを処理。
  * @author Virginia Zhang
- * @remarks Server route for unified AI matching. Supports both summary and details analysis.
- * @remarks 統合AIマッチング用サーバールート。サマリーと詳細分析の両方をサポート。
+ * @remarks Server route for unified AI matching. Supports both scoring and details analysis.
+ * @remarks 統合AIマッチング用サーバールート。スコアリングと詳細分析の両方をサポート。
  */
 
 import { sha256Hex } from "@/lib/hash";
@@ -18,7 +18,7 @@ import type {
   DetailsData,
   MatchEnvelope,
   MatchType,
-  SummaryData,
+  ScoringData,
 } from "@/types/matching";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -27,8 +27,8 @@ import { NextRequest, NextResponse } from "next/server";
  * @description マッチタイプに基づいてリクエストパラメータを検証
  * @param body Request body to validate
  * @param body 検証するリクエストボディ
- * @param type Match type (summary or details)
- * @param type マッチタイプ（サマリーまたは詳細）
+ * @param type Match type (scoring or details)
+ * @param type マッチタイプ（スコアリングまたは詳細）
  * @returns Validation error message or null if valid
  * @returns 検証エラーメッセージまたは有効な場合はnull
  */
@@ -41,9 +41,9 @@ function validateRequest(body: BaseRequestBody, type: MatchType): string | null 
   }
 
   if (type === "details") {
-    const overallFromSummary = body.inputs?.overall_from_summary;
-    if (overallFromSummary === undefined) {
-      return "Missing overall_from_summary for details request";
+    const overallFromScoring = body.inputs?.overall_from_scoring;
+    if (overallFromScoring === undefined) {
+      return "Missing overall_from_scoring for details request";
     }
   }
 
@@ -51,14 +51,14 @@ function validateRequest(body: BaseRequestBody, type: MatchType): string | null 
 }
 
 /**
- * @description Parses Dify workflow response for summary data
- * @description サマリーデータ用にDifyワークフロー応答を解析
+ * @description Parses Dify workflow response for scoring data
+ * @description スコアリングデータ用にDifyワークフロー応答を解析
  * @param outputs Raw outputs from Dify workflow
  * @param outputs Difyワークフローからの生の出力
- * @returns Parsed summary data
- * @returns 解析されたサマリーデータ
+ * @returns Parsed scoring data
+ * @returns 解析されたスコアリングデータ
  */
-function parseSummaryData(outputs: Record<string, unknown>): SummaryData {
+function parseScoringData(outputs: Record<string, unknown>): ScoringData {
   const overall = Number((outputs as { overall?: unknown }).overall ?? 0);
   const rawScores = (outputs as { scores?: Record<string, unknown> }).scores;
   const scores: Record<string, number> = {};
@@ -99,14 +99,61 @@ function parseDetailsData(outputs: Record<string, unknown>): DetailsData {
 }
 
 /**
+ * @description Validates scoring data to ensure it's not empty/invalid
+ * @description スコアリングデータが空/無効でないことを検証
+ * @param data Parsed scoring data to validate
+ * @param data 検証するスコアリングデータ
+ * @returns Validation error message or null if valid
+ * @returns 検証エラーメッセージまたは有効な場合はnull
+ */
+function validateScoringData(data: ScoringData): string | null {
+  // Check if scores object is empty
+  // scoresオブジェクトが空かチェック
+  const hasScores = Object.keys(data.scores).length > 0;
+  
+  // Check if overall score is 0 (likely indicates LLM failure)
+  // overall スコアが 0 かチェック（LLM失敗の可能性）
+  const hasOverall = data.overall > 0;
+  
+  if (!hasScores || !hasOverall) {
+    return "Invalid scoring data: LLM may have failed to generate scores. Please check OpenRouter balance or try again later.";
+  }
+  
+  return null;
+}
+
+/**
+ * @description Validates details data to ensure it's not empty/invalid
+ * @description 詳細データが空/無効でないことを検証
+ * @param data Parsed details data to validate
+ * @param data 検証する詳細データ
+ * @returns Validation error message or null if valid
+ * @returns 検証エラーメッセージまたは有効な場合はnull
+ */
+function validateDetailsData(data: DetailsData): string | null {
+  // Check if all arrays are empty (likely indicates LLM failure)
+  // すべての配列が空かチェック（LLM失敗の可能性）
+  const hasAdvantages = data.advantages && data.advantages.length > 0;
+  const hasDisadvantages = data.disadvantages && data.disadvantages.length > 0;
+  const hasAdvice = data.advice && data.advice.length > 0;
+  const hasOverview = data.overview && data.overview.trim().length > 0;
+  
+  if (!hasAdvantages && !hasDisadvantages && !hasAdvice && !hasOverview) {
+    return "Invalid details data: LLM may have failed to generate analysis. Please check OpenRouter balance or try again later.";
+  }
+  
+  return null;
+}
+
+/**
  * @description Checks for cached match result in database
  * @description データベースでキャッシュされたマッチ結果を確認
  * @param resumeId Resume ID to check
  * @param resumeId 確認するレジュメID
  * @param jobId Job ID to check
  * @param jobId 確認するジョブID
- * @param type Match type (summary or details)
- * @param type マッチタイプ（サマリーまたは詳細）
+ * @param type Match type (scoring or details)
+ * @param type マッチタイプ（スコアリングまたは詳細）
  * @returns Cached envelope or null if not found
  * @returns キャッシュされたエンベロープまたは見つからない場合はnull
  */
@@ -114,7 +161,7 @@ async function checkDatabaseCache(
   resumeId: string,
   jobId: string,
   type: MatchType
-): Promise<MatchEnvelope<SummaryData | DetailsData> | null> {
+): Promise<MatchEnvelope<ScoringData | DetailsData> | null> {
   try {
     const supabase = await createClient();
     const { data: resumeRecord } = await supabase
@@ -151,7 +198,7 @@ async function checkDatabaseCache(
         version: matchResult.version as "v1" | "v2",
         type: matchResult.type as MatchType,
       },
-      data: matchResult.data as SummaryData | DetailsData,
+      data: matchResult.data as ScoringData | DetailsData,
     };
   } catch (dbError) {
     console.error("Database cache check error:", dbError);
@@ -169,7 +216,7 @@ async function checkDatabaseCache(
  */
 async function storeMatchResult(
   resumeId: string,
-  envelope: MatchEnvelope<SummaryData | DetailsData>
+  envelope: MatchEnvelope<ScoringData | DetailsData>
 ): Promise<void> {
   try {
     const supabase = await createClient();
@@ -213,10 +260,10 @@ async function storeMatchResult(
  * @param resumeText レジュメテキスト内容
  * @param jobDesc Job description
  * @param jobDesc ジョブ説明
- * @param type Match type (summary or details)
- * @param type マッチタイプ（サマリーまたは詳細）
- * @param overallFromSummary Overall score from summary (for details only)
- * @param overallFromSummary サマリーからの総合スコア（詳細のみ）
+ * @param type Match type (scoring or details)
+ * @param type マッチタイプ（スコアリングまたは詳細）
+ * @param overallFromScoring Overall score from scoring (for details only)
+ * @param overallFromScoring スコアリングからの総合スコア（詳細のみ）
  * @returns Dify response outputs or error response
  * @returns Dify応答出力またはエラーレスポンス
  */
@@ -224,7 +271,7 @@ async function callDifyWorkflow(
   resumeText: string,
   jobDesc: string,
   type: MatchType,
-  overallFromSummary?: number
+  overallFromScoring?: number
 ): Promise<{ outputs: Record<string, unknown> } | NextResponse> {
   const difyUrl = process.env.DIFY_WORKFLOW_URL || "";
   const apiKey = process.env.DIFY_API_KEY || "";
@@ -239,8 +286,8 @@ async function callDifyWorkflow(
     job_description: jobDesc,
   };
 
-  if (type === "details" && typeof overallFromSummary === "number" && !Number.isNaN(overallFromSummary)) {
-    difyInputs.overall_from_summary = overallFromSummary;
+  if (type === "details" && typeof overallFromScoring === "number" && !Number.isNaN(overallFromScoring)) {
+    difyInputs.overall_from_scoring = overallFromScoring;
   }
 
   const res = await fetch(difyUrl, {
@@ -275,8 +322,8 @@ async function callDifyWorkflow(
  * @param req Next.jsリクエストオブジェクト
  * @returns Next.js response object with match results
  * @returns マッチ結果を含むNext.jsレスポンスオブジェクト
- * @remarks Supports both summary and details analysis through type parameter
- * @remarks タイプパラメータを通じてサマリーと詳細分析の両方をサポート
+ * @remarks Supports both scoring and details analysis through type parameter
+ * @remarks タイプパラメータを通じてスコアリングと詳細分析の両方をサポート
  */
 export async function POST(req: NextRequest): Promise<NextResponse> {
   try {
@@ -285,9 +332,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const { searchParams } = new URL(req.url);
     const type = searchParams.get("type") as MatchType;
     
-    if (!type || !["summary", "details"].includes(type)) {
+    if (!type || !["scoring", "details"].includes(type)) {
       return NextResponse.json(
-        { error: "Missing or invalid type parameter. Must be 'summary' or 'details'" },
+        { error: "Missing or invalid type parameter. Must be 'scoring' or 'details'" },
         { status: 400 }
       );
     }
@@ -333,7 +380,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       resumeText,
       jobDesc,
       type,
-      body.inputs?.overall_from_summary
+      body.inputs?.overall_from_scoring
     );
 
     // If difyResult is a NextResponse, return it (error case)
@@ -344,11 +391,28 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     // Parse data based on type
     // タイプに基づいてデータを解析
-    const data = type === "summary"
-      ? parseSummaryData(difyResult.outputs)
+    const data = type === "scoring"
+      ? parseScoringData(difyResult.outputs)
       : parseDetailsData(difyResult.outputs);
 
-    const envelope: MatchEnvelope<SummaryData | DetailsData> = {
+    // Validate parsed data to ensure LLM generated valid results
+    // 解析されたデータを検証してLLMが有効な結果を生成したことを確認
+    const dataValidationError = type === "scoring"
+      ? validateScoringData(data as ScoringData)
+      : validateDetailsData(data as DetailsData);
+    
+    if (dataValidationError) {
+      console.error("Data validation failed:", dataValidationError, "Raw outputs:", difyResult.outputs);
+      return NextResponse.json(
+        { 
+          error: dataValidationError,
+          hint: "This usually happens when OpenRouter balance is insufficient or LLM service is unavailable."
+        },
+        { status: 500 }
+      );
+    }
+
+    const envelope: MatchEnvelope<ScoringData | DetailsData> = {
       meta: {
         jobId,
         resumeHash,

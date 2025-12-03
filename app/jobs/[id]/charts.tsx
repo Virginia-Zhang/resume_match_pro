@@ -30,44 +30,44 @@ import {
 
 
 
-export default function Charts(props: ChartsProps): React.JSX.Element {
+export default function Charts(props: Readonly<ChartsProps>): React.JSX.Element {
   const {
-    summary,
+    scoring,
     details,
-    summaryLoading,
+    scoringLoading,
     detailsLoading,
-    summaryError,
+    scoringError,
     detailsError,
     hover,
     setHover,
   } = useMatchData(props);
 
 
-  // Render summary section independently
-  // サマリーセクションを独立してレンダリング
-  const renderSummarySection = () => {
-    if (summaryLoading) {
+  // Render scoring section independently
+  // スコアリングセクションを独立してレンダリング
+  const renderScoringSection = () => {
+    if (scoringLoading) {
       return <ChartsSummarySkeleton />;
     }
 
-    if (summaryError) {
+    if (scoringError) {
       return (
         <ErrorDisplay
-          title="サマリー分析エラー"
-          errorInfo={getFriendlyErrorMessage(summaryError)}
+          title="スコアリング分析エラー"
+          errorInfo={getFriendlyErrorMessage(scoringError)}
           uploadRoute={ROUTE_UPLOAD}
         />
       );
     }
 
-    if (!summary) return null;
+    if (!scoring) return null;
 
     const overall = Math.max(
       0,
-      Math.min(100, Number(summary?.data?.overall ?? 0))
+      Math.min(100, Number(scoring?.data?.overall ?? 0))
     );
     const scores = normalizeScores(
-      summary?.data?.scores as Record<string, number> | undefined
+      scoring?.data?.scores as Record<string, number> | undefined
     );
 
     return (
@@ -182,24 +182,24 @@ export default function Charts(props: ChartsProps): React.JSX.Element {
             <section>
               <h4 className="font-medium mb-3">強み</h4>
               <ul className="list-disc pl-5 space-y-1">
-                {details.data.advantages?.map((x, i) => (
-                  <li key={`adv-${i}`}>{x}</li>
+                {details.data.advantages?.map((item, index) => (
+                  <li key={`advantage-${index}-${item.slice(0, 20)}`}>{item}</li>
                 ))}
               </ul>
             </section>
             <section>
               <h4 className="font-medium mb-3">弱み</h4>
               <ul className="list-disc pl-5 space-y-1">
-                {details.data.disadvantages?.map((x, i) => (
-                  <li key={`dis-${i}`}>{x}</li>
+                {details.data.disadvantages?.map((item, index) => (
+                  <li key={`disadvantage-${index}-${item.slice(0, 20)}`}>{item}</li>
                 ))}
               </ul>
             </section>
             <section>
               <h4 className="font-medium mb-3">面接対策</h4>
               <ul className="list-disc pl-5 space-y-2">
-                {details.data.advice?.map((item, i) => (
-                  <li key={`adv-${i}`}>
+                {details.data.advice?.map((item, index) => (
+                  <li key={`advice-${index}-${item.title.slice(0, 20)}`}>
                     <div className="font-medium">{item.title}</div>
                     <div className="text-xs text-muted-foreground mt-1 whitespace-pre-wrap">
                       {item.detail}
@@ -216,7 +216,7 @@ export default function Charts(props: ChartsProps): React.JSX.Element {
 
   return (
     <div className="space-y-6">
-      {renderSummarySection()}
+      {renderScoringSection()}
       {renderDetailsSection()}
     </div>
   );
