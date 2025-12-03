@@ -22,8 +22,8 @@ function makeQueryClient(): QueryClient {
         // With SSR, we usually want to set some default staleTime
         // above 0 to avoid refetching immediately on the client
         // SSRでは、クライアントで即座に再取得を避けるために、デフォルトのstaleTimeを0より大きく設定
-        staleTime: 60 * 1000, // 1 minute / 1分
-        gcTime: 5 * 60 * 1000, // 5 minutes (formerly cacheTime in v4) / 5分（v4ではcacheTime）
+        staleTime: 5 * 60 * 1000, // 5 minutes / 5分
+        gcTime: 10 * 60 * 1000, // 10 minutes (formerly cacheTime in v4) / 10分（v4ではcacheTime）
         retry: 1, // Retry once on failure / 失敗時に1回再試行
         refetchOnWindowFocus: false, // Next.js doesn't need this / Next.jsでは不要
       },

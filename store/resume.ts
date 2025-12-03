@@ -106,46 +106,7 @@ export const useResumeStore = create<ResumeStore>()(
         resumeStorageKey: state.resumeStorageKey,
         resumeUploadedAt: state.resumeUploadedAt,
       }),
-      // Migration function to handle old data format
-      // 古いデータ形式を処理するためのマイグレーション関数
-      migrate: (persistedState: unknown) => {
-        const state = persistedState as Record<string, unknown>;
-        
-        // Migrate from old format (resumeId, savedAt) to new format (resumeStorageKey, resumeUploadedAt)
-        // 古い形式（resumeId, savedAt）から新しい形式（resumeStorageKey, resumeUploadedAt）へ移行
-        if (state && typeof state === "object") {
-          const migratedState: ResumeState = {
-            resumeStorageKey: null,
-            resumeUploadedAt: null,
-          };
-          
-          // Handle old field names
-          // 古いフィールド名を処理
-          if ("resumeId" in state && typeof state.resumeId === "string") {
-            migratedState.resumeStorageKey = state.resumeId;
-          } else if ("resumeStorageKey" in state) {
-            migratedState.resumeStorageKey = state.resumeStorageKey as string | null;
-          }
-          
-          if ("savedAt" in state && typeof state.savedAt === "string") {
-            // Convert savedAt format "2025/12/02 18:02:10" to ISO string
-            // savedAt形式 "2025/12/02 18:02:10" をISO文字列に変換
-            try {
-              const date = new Date(state.savedAt);
-              migratedState.resumeUploadedAt = date.toISOString();
-            } catch {
-              migratedState.resumeUploadedAt = null;
-            }
-          } else if ("resumeUploadedAt" in state) {
-            migratedState.resumeUploadedAt = state.resumeUploadedAt as string | null;
-          }
-          
-          return migratedState;
-        }
-        
-        return initialState;
-      },
-      version: 1, // Set version to enable migration
+      version: 1
     }
   )
 );
