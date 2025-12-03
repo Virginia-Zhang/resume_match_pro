@@ -99,6 +99,53 @@ function parseDetailsData(outputs: Record<string, unknown>): DetailsData {
 }
 
 /**
+ * @description Validates scoring data to ensure it's not empty/invalid
+ * @description スコアリングデータが空/無効でないことを検証
+ * @param data Parsed scoring data to validate
+ * @param data 検証するスコアリングデータ
+ * @returns Validation error message or null if valid
+ * @returns 検証エラーメッセージまたは有効な場合はnull
+ */
+function validateScoringData(data: ScoringData): string | null {
+  // Check if scores object is empty
+  // scoresオブジェクトが空かチェック
+  const hasScores = Object.keys(data.scores).length > 0;
+  
+  // Check if overall score is 0 (likely indicates LLM failure)
+  // overall スコアが 0 かチェック（LLM失敗の可能性）
+  const hasOverall = data.overall > 0;
+  
+  if (!hasScores || !hasOverall) {
+    return "Invalid scoring data: LLM may have failed to generate scores. Please check OpenRouter balance or try again later.";
+  }
+  
+  return null;
+}
+
+/**
+ * @description Validates details data to ensure it's not empty/invalid
+ * @description 詳細データが空/無効でないことを検証
+ * @param data Parsed details data to validate
+ * @param data 検証する詳細データ
+ * @returns Validation error message or null if valid
+ * @returns 検証エラーメッセージまたは有効な場合はnull
+ */
+function validateDetailsData(data: DetailsData): string | null {
+  // Check if all arrays are empty (likely indicates LLM failure)
+  // すべての配列が空かチェック（LLM失敗の可能性）
+  const hasAdvantages = data.advantages && data.advantages.length > 0;
+  const hasDisadvantages = data.disadvantages && data.disadvantages.length > 0;
+  const hasAdvice = data.advice && data.advice.length > 0;
+  const hasOverview = data.overview && data.overview.trim().length > 0;
+  
+  if (!hasAdvantages && !hasDisadvantages && !hasAdvice && !hasOverview) {
+    return "Invalid details data: LLM may have failed to generate analysis. Please check OpenRouter balance or try again later.";
+  }
+  
+  return null;
+}
+
+/**
  * @description Checks for cached match result in database
  * @description データベースでキャッシュされたマッチ結果を確認
  * @param resumeId Resume ID to check
@@ -347,6 +394,23 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const data = type === "scoring"
       ? parseScoringData(difyResult.outputs)
       : parseDetailsData(difyResult.outputs);
+
+    // Validate parsed data to ensure LLM generated valid results
+    // 解析されたデータを検証してLLMが有効な結果を生成したことを確認
+    const dataValidationError = type === "scoring"
+      ? validateScoringData(data as ScoringData)
+      : validateDetailsData(data as DetailsData);
+    
+    if (dataValidationError) {
+      console.error("Data validation failed:", dataValidationError, "Raw outputs:", difyResult.outputs);
+      return NextResponse.json(
+        { 
+          error: dataValidationError,
+          hint: "This usually happens when OpenRouter balance is insufficient or LLM service is unavailable."
+        },
+        { status: 500 }
+      );
+    }
 
     const envelope: MatchEnvelope<ScoringData | DetailsData> = {
       meta: {
