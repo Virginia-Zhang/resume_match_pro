@@ -28,6 +28,8 @@ export const queryKeys = {
     details: () => ["match", "details"] as const,
     batch: (resumeId?: string | null) =>
       ["match", "batch", resumeId ?? ""] as const,
+    batchCache: (resumeId?: string | null) =>
+      ["match", "batchCache", resumeId ?? ""] as const,
   },
 } as const;
 

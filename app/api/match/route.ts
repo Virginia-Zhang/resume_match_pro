@@ -193,7 +193,7 @@ async function checkDatabaseCache(
       meta: {
         jobId: matchResult.job_id,
         resumeHash: matchResult.resume_hash,
-        source: "cache",
+        source: matchResult.source as "single" | "batch",
         timestamp: matchResult.timestamp,
         version: matchResult.version as "v1" | "v2",
         type: matchResult.type as MatchType,
@@ -416,7 +416,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       meta: {
         jobId,
         resumeHash,
-        source: "dify",
+        source: "single",
         timestamp: new Date().toISOString(),
         version: "v2",
         type,

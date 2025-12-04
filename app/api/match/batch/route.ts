@@ -10,6 +10,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { MAX_BATCH_RETRIES } from "@/app/constants/constants";
 import { fetchJson } from "@/lib/fetcher";
+import { sha256Hex } from "@/lib/hash";
+import { createClient } from "@/lib/supabase/server";
 
 // Environment variables
 // 環境変数
@@ -21,6 +23,7 @@ const DIFY_USER = process.env.DIFY_USER;
 // リクエスト/レスポンスインターフェース
 interface BatchMatchRequest {
   resume_text: string;
+  resume_id: string;
   jobs: Array<{
     id: string;
     job_description: string;
@@ -140,7 +143,58 @@ async function callDifyAPIWithRetry(
       }
     }
   }
-  throw lastError!;
+  throw lastError ?? new Error("All retry attempts failed");
+}
+
+/**
+ * @description Stores batch match results to database
+ * @description バッチマッチング結果をデータベースに保存
+ * @param resumeId Resume ID to associate with results
+ * @param resumeId 結果に関連付けるレジュメID
+ * @param resumeHash Hash of resume text for cache invalidation
+ * @param resumeHash キャッシュ無効化のためのレジュメテキストのハッシュ
+ * @param matchResults Array of match results to store
+ * @param matchResults 保存するマッチング結果の配列
+ */
+async function storeBatchMatchResults(
+  resumeId: string,
+  resumeHash: string,
+  matchResults: MatchResultItem[]
+): Promise<void> {
+  try {
+    const supabase = await createClient();
+    const timestamp = new Date().toISOString();
+
+    // Insert all results in parallel for better performance
+    // パフォーマンス向上のため、すべての結果を並列で挿入
+    const insertPromises = matchResults.map(result =>
+      supabase.from("match_results").insert({
+        resume_id: resumeId,
+        job_id: result.job_id,
+        resume_hash: resumeHash,
+        source: "batch",
+        version: "v2",
+        type: "scoring",
+        data: {
+          overall: result.overall,
+          scores: result.scores,
+        },
+        timestamp,
+      })
+    );
+
+    const results = await Promise.all(insertPromises);
+    
+    // Log any errors but don't fail the request
+    // エラーをログに記録するが、リクエストは失敗させない
+    for (const { error } of results) {
+      if (error) {
+        console.error("Failed to store batch match result:", error);
+      }
+    }
+  } catch (dbError) {
+    console.error("Database operation error during batch store:", dbError);
+  }
 }
 
 /**
@@ -164,6 +218,15 @@ export async function POST(request: NextRequest) {
     if (!body.resume_text || !body.jobs || !Array.isArray(body.jobs)) {
       return NextResponse.json(
         { error: "Invalid request: resume_text and jobs array are required" },
+        { status: 400 }
+      );
+    }
+
+    // Validate resume_id for database persistence
+    // データベース永続化のために resume_id を検証
+    if (!body.resume_id) {
+      return NextResponse.json(
+        { error: "Invalid request: resume_id is required" },
         { status: 400 }
       );
     }
@@ -194,6 +257,13 @@ export async function POST(request: NextRequest) {
     const difyResponse = await callDifyAPIWithRetry(body.resume_text, body.jobs);
     const matchResults = difyResponse.data.outputs.match_results;
 
+    // Calculate resume hash for cache invalidation
+    // キャッシュ無効化のためにレジュメハッシュを計算
+    const resumeHash = await sha256Hex(body.resume_text);
+
+    // Store results to database (non-blocking)
+    // データベースに結果を保存（非ブロッキング）
+    void storeBatchMatchResults(body.resume_id, resumeHash, matchResults);
 
     // Return results in expected format
     // 期待される形式で結果を返す

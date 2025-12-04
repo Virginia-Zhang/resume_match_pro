@@ -29,7 +29,7 @@ import { Separator } from "@/components/ui/separator";
 import Skeleton from "@/components/ui/skeleton";
 import { useParsePdfMutation, useResumeText, useUploadResumeMutation } from "@/hooks/queries/useResume";
 import { getFriendlyErrorMessage } from "@/lib/errorHandling";
-import { clearBatchMatchCache } from "@/lib/storage";
+import { clearBatchMatchMetadata } from "@/lib/storage";
 import { useResumeStore } from "@/store/resume";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -283,10 +283,10 @@ export default function UploadPage(): React.JSX.Element {
       return;
     }
 
-    // Clear previous batch matching results only if user uploaded a new resume
-    // ユーザーが新しいレジュメをアップロードした場合のみ、以前のバッチマッチング結果をクリア
+    // Clear previous batch matching metadata only if user uploaded a new resume
+    // ユーザーが新しいレジュメをアップロードした場合のみ、以前のバッチマッチングメタデータをクリア
     if (hasNewUpload) {
-      clearBatchMatchCache();
+      clearBatchMatchMetadata();
     }
 
     // Save resume info to Zustand store for future sessions (non-sensitive)

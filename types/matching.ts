@@ -50,6 +50,16 @@ export interface DetailsData {
 }
 
 /**
+ * @description Source type for match results
+ * @description マッチング結果のソースタイプ
+ * @remarks "single" - Generated from single job matching (detail page)
+ * @remarks "single" - 単一求人マッチング（詳細ページ）から生成
+ * @remarks "batch" - Generated from batch matching (jobs list page)
+ * @remarks "batch" - バッチマッチング（求人一覧ページ）から生成
+ */
+export type MatchSource = "single" | "batch";
+
+/**
  * @description Envelope structure for API response with metadata
  * @description メタデータ付きAPIレスポンスのエンベロープ構造
  */
@@ -57,7 +67,7 @@ export interface MatchEnvelope<T> {
   meta: {
     jobId: string;
     resumeHash: string;
-    source: "cache" | "dify";
+    source: MatchSource;
     timestamp: string;
     version: "v1" | "v2";
     type: MatchType;

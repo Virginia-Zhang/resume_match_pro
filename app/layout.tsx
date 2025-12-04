@@ -5,41 +5,129 @@ import { QueryProvider } from "@/components/providers/query-provider";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import type { Metadata } from "next";
-import {
-  Geist,
-  Geist_Mono,
-  Noto_Sans_JP,
-  Zen_Maru_Gothic,
-} from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 
-const geistSans = Geist({
+const geistSans = localFont({
   variable: "--font-geist-sans",
-  subsets: ["latin"],
+  display: "swap",
+  preload: true,
+  src: [
+    {
+      // Local Geist variable font
+      // ローカルの Geist 可変フォント
+      path: "../public/fonts/geist/Geist-VariableFont_wght.ttf",
+      style: "normal",
+      weight: "100 900",
+    },
+  ],
+  fallback: [
+    "system-ui",
+    "-apple-system",
+    "BlinkMacSystemFont",
+    "Segoe UI",
+    "Roboto",
+    "sans-serif",
+  ],
 });
 
-const geistMono = Geist_Mono({
+const geistMono = localFont({
   variable: "--font-geist-mono",
-  subsets: ["latin"],
+  display: "swap",
+  preload: true,
+  src: [
+    {
+      // Local Geist Mono variable font
+      // ローカルの Geist Mono 可変フォント
+      path: "../public/fonts/geist-mono/GeistMono-VariableFont_wght.ttf",
+      style: "normal",
+      weight: "100 900",
+    },
+  ],
+  fallback: [
+    "ui-monospace",
+    "SFMono-Regular",
+    "Monaco",
+    "Consolas",
+    "Liberation Mono",
+    "Courier New",
+    "monospace",
+  ],
 });
 
 // Noto Sans JP as primary UI font for Japanese
-const notoSansJp = Noto_Sans_JP({
-  weight: ["400", "500", "700"],
-  // Use 'swap' to avoid FOIT: render fallback first, then swap to webfont when ready
-  // 'swap' を使用して FOIT を回避：まず代替フォントを表示し、読み込み後にウェブフォントへ置換
+const notoSansJp = localFont({
   display: "swap",
-  preload: false,
+  preload: true,
   variable: "--font-noto-sans-jp",
+  src: [
+    {
+      // Local Noto Sans JP variable font
+      // ローカルの Noto Sans JP 可変フォント
+      path: "../public/fonts/noto-sans-jp/NotoSansJP-VariableFont_wght.ttf",
+      style: "normal",
+      weight: "100 900",
+    },
+  ],
+  fallback: [
+    "system-ui",
+    "-apple-system",
+    "BlinkMacSystemFont",
+    "Segoe UI",
+    "Roboto",
+    "sans-serif",
+    "Hiragino Sans",
+    "Hiragino Kaku Gothic ProN",
+    "Meiryo",
+    "MS Gothic",
+  ],
 });
 
 // Heavily rounded Japanese font for strong pill-like CTA typography
 // より丸みの強い日本語フォント（CTAで視覚的な丸ゴシック感を強調）
-const zenMaru = Zen_Maru_Gothic({
-  weight: ["500", "700", "900"],
+const zenMaru = localFont({
   display: "swap",
-  preload: false,
+  preload: true,
   variable: "--font-zen-maru",
+  src: [
+    {
+      path: "../public/fonts/zen-maru-gothic/ZenMaruGothic-Light.ttf",
+      style: "normal",
+      weight: "300",
+    },
+    {
+      path: "../public/fonts/zen-maru-gothic/ZenMaruGothic-Regular.ttf",
+      style: "normal",
+      weight: "400",
+    },
+    {
+      path: "../public/fonts/zen-maru-gothic/ZenMaruGothic-Medium.ttf",
+      style: "normal",
+      weight: "500",
+    },
+    {
+      path: "../public/fonts/zen-maru-gothic/ZenMaruGothic-Bold.ttf",
+      style: "normal",
+      weight: "700",
+    },
+    {
+      path: "../public/fonts/zen-maru-gothic/ZenMaruGothic-Black.ttf",
+      style: "normal",
+      weight: "900",
+    },
+  ],
+  fallback: [
+    "system-ui",
+    "-apple-system",
+    "BlinkMacSystemFont",
+    "Segoe UI",
+    "Roboto",
+    "sans-serif",
+    "Hiragino Sans",
+    "Hiragino Kaku Gothic ProN",
+    "Meiryo",
+    "MS Gothic",
+  ],
 });
 
 export const metadata: Metadata = {
@@ -59,7 +147,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="jp" suppressHydrationWarning>
+    <html lang="ja" suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${notoSansJp.variable} ${zenMaru.variable} font-sans antialiased`}
       >

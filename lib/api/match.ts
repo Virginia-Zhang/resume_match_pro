@@ -38,6 +38,7 @@ export interface BatchMatchJob {
  */
 export interface BatchMatchRequest {
   resume_text: string;
+  resume_id: string;
   jobs: BatchMatchJob[];
 }
 
@@ -140,6 +141,9 @@ export async function matchBatch(
   if (!payload?.resume_text?.trim()) {
     throw new Error("resume_text is required for batch matching");
   }
+  if (!payload?.resume_id?.trim()) {
+    throw new Error("resume_id is required for batch matching");
+  }
   if (!payload.jobs?.length) {
     throw new Error("jobs array is required for batch matching");
   }
@@ -153,6 +157,41 @@ export async function matchBatch(
   return fetchJson<BatchMatchResponse>(url, {
     method: "POST",
     body: JSON.stringify(payload),
+    signal: options.signal,
+    timeoutMs: options.timeoutMs,
+  });
+}
+
+/**
+ * @description Response payload from /api/match/batch-cache.
+ * @description /api/match/batch-cache のレスポンスペイロード。
+ */
+export interface BatchCacheResponse {
+  results: MatchResultItem[];
+}
+
+/**
+ * @description Fetches all cached scoring results from database (batch + single matching).
+ * @description データベースからすべてのキャッシュされたスコアリング結果を取得（バッチ＋単一マッチング）。
+ * @param resumeId Resume ID to fetch cached results for.
+ * @param resumeId キャッシュ結果を取得するレジュメID。
+ * @param options Optional request configuration.
+ * @param options オプションのリクエスト設定。
+ * @returns Promise resolving to all cached scoring results regardless of source.
+ * @returns ソースに関係なくすべてのキャッシュされたスコアリング結果を解決するプロミス。
+ * @throws Error when resumeId is invalid or network request fails.
+ * @throws resumeIdが無効、またはネットワーク失敗時にエラー。
+ */
+export async function fetchBatchCache(
+  resumeId: string,
+  options: MatchApiOptions = {}
+): Promise<BatchCacheResponse> {
+  if (!resumeId?.trim()) {
+    throw new Error("resumeId is required for fetching batch cache");
+  }
+  const url = buildApiUrl(`/api/match/batch-cache?resumeId=${encodeURIComponent(resumeId)}`, options.apiBase);
+  return fetchJson<BatchCacheResponse>(url, {
+    method: "GET",
     signal: options.signal,
     timeoutMs: options.timeoutMs,
   });

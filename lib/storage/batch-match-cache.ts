@@ -1,23 +1,20 @@
 /**
  * @file batch-match-cache.ts
- * @description Simple sessionStorage cache for batch matching results.
- * @description バッチマッチング結果用のシンプルな sessionStorage キャッシュ。
+ * @description sessionStorage cache for batch matching runtime metadata (results are stored in database).
+ * @description バッチマッチングの実行時メタデータ用 sessionStorage キャッシュ（結果はデータベースに保存）。
  * @author Virginia Zhang
- * @remarks Client-only module; provides clean data structure without TanStack Query overhead.
- * @remarks クライアント専用モジュール。TanStack Query のオーバーヘッドなしでクリーンなデータ構造を提供。
+ * @remarks Client-only module; stores only runtime state, not results.
+ * @remarks クライアント専用モジュール。結果ではなく実行時状態のみを保存。
  */
 
-import type { MatchResultItem } from "@/types/matching";
-
-const CACHE_KEY = "resume-batch-match-cache";
+const CACHE_KEY = "resume-batch-match-metadata";
 
 /**
- * @description Cache entry structure stored in sessionStorage.
- * @description sessionStorage に保存されるキャッシュエントリの構造。
+ * @description Metadata entry structure stored in sessionStorage.
+ * @description sessionStorage に保存されるメタデータエントリの構造。
  */
-interface BatchMatchCacheEntry {
+interface BatchMatchMetadataEntry {
   resumeId: string;
-  results: MatchResultItem[];
   isComplete: boolean;
   processedJobs: number;
   totalJobs: number;
@@ -35,27 +32,26 @@ function isBrowser(): boolean {
 }
 
 /**
- * @description Cached batch match data structure.
- * @description キャッシュされたバッチマッチデータの構造。
+ * @description Cached batch match metadata structure.
+ * @description キャッシュされたバッチマッチメタデータの構造。
  */
-export interface CachedBatchMatchData {
-  results: MatchResultItem[];
+export interface CachedBatchMatchMetadata {
   isComplete: boolean;
   processedJobs: number;
   totalJobs: number;
 }
 
 /**
- * @description Load batch match results from sessionStorage.
- * @description sessionStorage からバッチマッチング結果を読み込む。
+ * @description Load batch match metadata from sessionStorage.
+ * @description sessionStorage からバッチマッチングメタデータを読み込む。
  * @param resumeId Resume ID to match against cached data.
  * @param resumeId キャッシュデータと照合するレジュメID。
- * @returns Cached data object with completion state or null if not found/expired.
- * @returns 完了状態を含むキャッシュデータオブジェクト、または見つからない/期限切れの場合は null。
+ * @returns Cached metadata object or null if not found.
+ * @returns キャッシュされたメタデータオブジェクト、または見つからない場合は null。
  */
-export function loadBatchMatchCache(
+export function loadBatchMatchMetadata(
   resumeId: string
-): CachedBatchMatchData | null {
+): CachedBatchMatchMetadata | null {
   if (!isBrowser() || !resumeId) {
     return null;
   }
@@ -66,7 +62,7 @@ export function loadBatchMatchCache(
       return null;
     }
 
-    const entry: BatchMatchCacheEntry = JSON.parse(raw);
+    const entry: BatchMatchMetadataEntry = JSON.parse(raw);
 
     // Validate resumeId matches
     // resumeId が一致するか検証
@@ -74,31 +70,22 @@ export function loadBatchMatchCache(
       return null;
     }
 
-    // Validate results array exists
-    // results 配列が存在するか検証
-    if (!Array.isArray(entry.results) || entry.results.length === 0) {
-      return null;
-    }
-
     return {
-      results: entry.results,
       isComplete: entry.isComplete ?? false,
-      processedJobs: entry.processedJobs ?? entry.results.length,
-      totalJobs: entry.totalJobs ?? entry.results.length,
+      processedJobs: entry.processedJobs ?? 0,
+      totalJobs: entry.totalJobs ?? 0,
     };
   } catch (error) {
-    console.warn("Failed to load batch match cache:", error);
+    console.warn("Failed to load batch match metadata:", error);
     return null;
   }
 }
 
 /**
- * @description Save batch match results to sessionStorage.
- * @description sessionStorage にバッチマッチング結果を保存。
- * @param resumeId Resume ID associated with the results.
- * @param resumeId 結果に関連付けられたレジュメID。
- * @param results Match results array to cache.
- * @param results キャッシュするマッチング結果配列。
+ * @description Save batch match metadata to sessionStorage.
+ * @description sessionStorage にバッチマッチングメタデータを保存。
+ * @param resumeId Resume ID associated with the metadata.
+ * @param resumeId メタデータに関連付けられたレジュメID。
  * @param isComplete Whether matching is complete.
  * @param isComplete マッチングが完了しているかどうか。
  * @param processedJobs Number of processed jobs.
@@ -106,9 +93,8 @@ export function loadBatchMatchCache(
  * @param totalJobs Total number of jobs.
  * @param totalJobs 求人の総数。
  */
-export function saveBatchMatchCache(
+export function saveBatchMatchMetadata(
   resumeId: string,
-  results: MatchResultItem[],
   isComplete: boolean,
   processedJobs: number,
   totalJobs: number
@@ -118,9 +104,8 @@ export function saveBatchMatchCache(
   }
 
   try {
-    const entry: BatchMatchCacheEntry = {
+    const entry: BatchMatchMetadataEntry = {
       resumeId,
-      results,
       isComplete,
       processedJobs,
       totalJobs,
@@ -129,15 +114,15 @@ export function saveBatchMatchCache(
 
     sessionStorage.setItem(CACHE_KEY, JSON.stringify(entry));
   } catch (error) {
-    console.warn("Failed to save batch match cache:", error);
+    console.warn("Failed to save batch match metadata:", error);
   }
 }
 
 /**
- * @description Clear batch match cache from sessionStorage.
- * @description sessionStorage からバッチマッチングキャッシュをクリア。
+ * @description Clear batch match metadata from sessionStorage.
+ * @description sessionStorage からバッチマッチングメタデータをクリア。
  */
-export function clearBatchMatchCache(): void {
+export function clearBatchMatchMetadata(): void {
   if (!isBrowser()) {
     return;
   }
@@ -145,7 +130,6 @@ export function clearBatchMatchCache(): void {
   try {
     sessionStorage.removeItem(CACHE_KEY);
   } catch (error) {
-    console.warn("Failed to clear batch match cache:", error);
+    console.warn("Failed to clear batch match metadata:", error);
   }
 }
-

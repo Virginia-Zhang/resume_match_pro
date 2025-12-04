@@ -10,13 +10,13 @@
 "use client";
 
 import { BATCH_SIZE } from "@/app/constants/constants";
-import { useBatchMatchingMutation } from "@/hooks/queries/useMatch";
+import { useBatchCacheQuery, useBatchMatchingMutation } from "@/hooks/queries/useMatch";
 import { FriendlyErrorMessage, getFriendlyErrorMessage } from "@/lib/errorHandling";
 import { serializeJDForBatchMatching } from "@/lib/jobs";
 import {
-  clearBatchMatchCache,
-  loadBatchMatchCache,
-  saveBatchMatchCache,
+  clearBatchMatchMetadata,
+  loadBatchMatchMetadata,
+  saveBatchMatchMetadata,
 } from "@/lib/storage/batch-match-cache";
 import type { JobDetailV2, JobListItem } from "@/types/jobs_v2";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -52,6 +52,21 @@ export function useBatchMatching(
   // 前回の resumeId を追跡して変更を検出
   const prevResumeIdRef = useRef<string | null | undefined>(resumeId);
 
+  // Track if initial data has been hydrated to prevent saving initial values
+  // 初期データがハイドレートされたかを追跡し、初期値の保存を防ぐ
+  const isHydratedRef = useRef(false);
+
+  // Track if user has actively started matching (to enable metadata saving)
+  // ユーザーがアクティブにマッチングを開始したかを追跡（メタデータ保存を有効化）
+  const hasStartedMatchingRef = useRef(false);
+
+  // Fetch cached results from database using TanStack Query
+  // TanStack Query を使用してデータベースからキャッシュ結果を取得
+  const { data: cacheData } = useBatchCacheQuery(resumeId, {
+    enabled: Boolean(resumeId) && !isMatching,
+    staleTime: 0, // Always refetch on mount to capture single match updates
+  });
+
   // Keep resultsRef in sync with results
   // resultsRef を results と同期させる
   useEffect(() => {
@@ -85,37 +100,75 @@ export function useBatchMatching(
     prevResumeIdRef.current = resumeId;
   }, [resumeId, results.length]);
 
-  // Hydrate results from sessionStorage cache on mount or when resumeId changes
-  // マウント時または resumeId 変更時に sessionStorage キャッシュから結果をハイドレート
-  // Only hydrate when results are empty to avoid overwriting in-progress matching
-  // 進行中のマッチングを上書きしないよう、results が空の場合のみハイドレート
+  // Hydrate results from database cache when TanStack Query data is available
+  // TanStack Query データが利用可能なときにデータベースキャッシュから結果をハイドレート
   useEffect(() => {
-    if (!resumeId || results.length > 0) {
+    if (!resumeId || isMatching || !cacheData) {
       return;
     }
 
-    const cachedData = loadBatchMatchCache(resumeId);
-    if (cachedData) {
-      setResults(cachedData.results);
-      setIsMatchingComplete(cachedData.isComplete);
-      setProcessedJobs(cachedData.processedJobs);
-      setTotalJobs(cachedData.totalJobs);
+    // Update results if cacheData has more items (e.g., after single match from detail page)
+    // cacheData により多くのアイテムがある場合は結果を更新（例：詳細ページからの単一マッチ後）
+    if (cacheData.results && cacheData.results.length > 0) {
+      // Only update if cache has different data
+      // キャッシュに異なるデータがある場合のみ更新
+      if (cacheData.results.length !== results.length) {
+        setResults(cacheData.results);
+        
+        // Load metadata from sessionStorage to restore UI state
+        // UI状態を復元するためにsessionStorageからメタデータを読み込み
+        const metadata = loadBatchMatchMetadata(resumeId);
+        
+        // Check if new data was added (e.g., from single match in detail page)
+        // 新しいデータが追加されたかチェック（例：詳細ページからの単一マッチ）
+        const hasNewData = metadata && cacheData.results.length > metadata.processedJobs;
+        
+        // Check if metadata is valid and should be preserved
+        // メタデータが有効で保持すべきかチェック
+        const shouldKeepMetadata = !hasNewData && metadata && metadata.totalJobs > 0;
+        
+        if (shouldKeepMetadata) {
+          // Keep existing metadata if it's still valid
+          // 有効な場合は既存のメタデータを保持
+          setIsMatchingComplete(metadata.isComplete);
+          setProcessedJobs(metadata.processedJobs);
+          setTotalJobs(metadata.totalJobs);
+        } else {
+          // Update metadata to reflect current database state (new data or no valid metadata)
+          // 現在のデータベース状態を反映するようにメタデータを更新（新しいデータまたは有効なメタデータなし）
+          setIsMatchingComplete(true);
+          setProcessedJobs(cacheData.results.length);
+          setTotalJobs(cacheData.results.length);
+          saveBatchMatchMetadata(resumeId, true, cacheData.results.length, cacheData.results.length);
+        }
+      }
     }
-  }, [resumeId, results.length]);
+    
+    // Mark as hydrated after processing cache data
+    // キャッシュデータの処理後にハイドレート完了としてマーク
+    isHydratedRef.current = true;
+  }, [resumeId, results.length, isMatching, cacheData]);
 
-  // Persist results to sessionStorage (debounced)
-  // 結果を sessionStorage に永続化（デバウンス済み）
+  // Persist metadata to sessionStorage (debounced) - only after user starts matching
+  // メタデータを sessionStorage に永続化（デバウンス済み）- ユーザーがマッチングを開始した後のみ
   useEffect(() => {
-    if (!resumeId || results.length === 0) {
+    // Only save metadata if user has actively started matching
+    // ユーザーがアクティブにマッチングを開始した場合のみメタデータを保存
+    if (!resumeId || !hasStartedMatchingRef.current) {
+      return;
+    }
+
+    // Don't save if all values are zero (initial state)
+    // すべての値がゼロの場合は保存しない（初期状態）
+    if (processedJobs === 0 && totalJobs === 0 && !isMatchingComplete) {
       return;
     }
 
     // Debounce the save operation to prevent excessive writes
     // 保存操作を過剰に行わないようにデバウンス
     const handle = setTimeout(() => {
-      saveBatchMatchCache(
+      saveBatchMatchMetadata(
         resumeId,
-        results,
         isMatchingComplete,
         processedJobs,
         totalJobs
@@ -123,7 +176,7 @@ export function useBatchMatching(
     }, 250);
 
     return () => clearTimeout(handle);
-  }, [results, resumeId, isMatchingComplete, processedJobs, totalJobs]);
+  }, [resumeId, isMatchingComplete, processedJobs, totalJobs]);
 
   /**
    * @description Cancel ongoing requests when component unmounts
@@ -156,6 +209,8 @@ export function useBatchMatching(
    * @param batch バッチ内の求人
    * @param resumeText Resume text for matching
    * @param resumeText マッチング用のレジュメテキスト
+   * @param currentResumeId Resume ID for database persistence
+   * @param currentResumeId データベース永続化用のレジュメID
    * @param accumulatedResults Current accumulated results
    * @param accumulatedResults 現在の累積結果
    * @returns New results from this batch or null if failed
@@ -164,6 +219,7 @@ export function useBatchMatching(
   const processSingleBatch = async (
     batch: JobDetailV2[],
     resumeText: string,
+    currentResumeId: string,
     accumulatedResults: MatchResultItem[]
   ): Promise<MatchResultItem[] | null> => {
     const serializedJobs = batch.map(job => ({
@@ -173,6 +229,7 @@ export function useBatchMatching(
 
     const batchData = await batchMutation.mutateAsync({
       resume_text: resumeText,
+      resume_id: currentResumeId,
       jobs: serializedJobs,
       requestOptions: {
         signal: abortControllerRef.current?.signal || undefined,
@@ -251,6 +308,8 @@ export function useBatchMatching(
    * @description 内部バッチマッチング処理
    * @param resumeText - Resume text for matching
    * @param resumeText マッチング用のレジュメテキスト
+   * @param currentResumeId - Resume ID for database persistence
+   * @param currentResumeId データベース永続化用のレジュメID
    * @param jobs - Jobs to match
    * @param jobs マッチングする求人
    * @param incremental - Whether to merge new results with existing ones
@@ -259,6 +318,7 @@ export function useBatchMatching(
   const startMatchingInternal = useCallback(
     async (
       resumeText: string,
+      currentResumeId: string,
       jobs: JobDetailV2[],
       incremental: boolean = false,
       existingResults: MatchResultItem[] = []
@@ -279,6 +339,7 @@ export function useBatchMatching(
             const newResults = await processSingleBatch(
               batches[i],
               resumeText,
+              currentResumeId,
               accumulatedResults
             );
 
@@ -331,6 +392,10 @@ export function useBatchMatching(
       incremental: boolean = false,
       totalJobsCount?: number
     ) => {
+      // Mark that user has actively started matching
+      // ユーザーがアクティブにマッチングを開始したことをマーク
+      hasStartedMatchingRef.current = true;
+
       // Reset state only if not incremental matching
       // インクリメンタルマッチングでない場合のみ状態をリセット
       if (!incremental) {
@@ -338,7 +403,7 @@ export function useBatchMatching(
         setIsMatchingComplete(false);
         setProcessedJobs(0);
         setTotalJobs(0);
-        clearBatchMatchCache();
+        clearBatchMatchMetadata();
       }
 
       setIsMatching(true);
@@ -376,10 +441,17 @@ export function useBatchMatching(
           throw new Error("No job details could be found");
         }
 
+        // Validate resumeId is available for database persistence
+        // データベース永続化のためresumeIdが利用可能か検証
+        if (!resumeId) {
+          throw new Error("resumeId is required for batch matching");
+        }
+
         // Start matching with full job details (incremental mode)
         // 完全な求人詳細でマッチングを開始（インクリメンタルモード）
         await startMatchingInternal(
           resumeText,
+          resumeId,
           jobDetails,
           incremental,
           resultsRef.current

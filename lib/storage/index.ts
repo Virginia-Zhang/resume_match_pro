@@ -6,9 +6,8 @@
  */
 
 export {
-    clearBatchMatchCache,
-    loadBatchMatchCache,
-    saveBatchMatchCache,
-    type CachedBatchMatchData
+  clearBatchMatchMetadata,
+  loadBatchMatchMetadata,
+  saveBatchMatchMetadata,
+  type CachedBatchMatchMetadata,
 } from "./batch-match-cache";
-
