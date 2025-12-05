@@ -30,7 +30,7 @@ ResumeMatch Pro は、**日本での就職を目指す海外エンジニア（�
 ### 候補者向け機能
 
 - **レジュメアップロード & 管理**（PDF レジュメをアップロードし、ローカルに状態を保持）
-  - Zustand + `persist` ミドルウェアによるクライアント状態管理 **(開発中 / in progress)**  
+  - Zustand + `persist` ミドルウェアによるクライアント状態管理
   - レジュメのポインタ情報（ID やストレージキー、タイムスタンプなど）のみを localStorage に保持し、実際のメタデータは Supabase、ファイル本体は AWS S3 に保存
 - **求人マッチング機能（バッチマッチング）**
   - アップロードしたレジュメと求人情報をまとめてマッチング  
@@ -52,7 +52,7 @@ ResumeMatch Pro は、**日本での就職を目指す海外エンジニア（�
   - Zod + React Hook Form によるフォームバリデーション 
   - 応募内容とレジュメを紐づけて Supabase に保存  
   - Resend + React Email による応募完了メール送信（応募者 & 企業  
-  - AWS S3 上のレジュメファイルへの期限付きアクセス URL（プリサインド URL
+  - AWS S3 上のレジュメファイルへの期限付きアクセス URL（プリサインド URL）
 
 ### 企業向け機能　**(開発中 / in progress)**  
 
@@ -81,8 +81,8 @@ ResumeMatch Pro は、**日本での就職を目指す海外エンジニア（�
   - Next.js (App Router, React Server Components, Route Handlers)
   - TypeScript（strict モードを想定）
 - **状態管理**
-  - TanStack Query：サーバー状態・データフェッチ・キャッシュ管理 **(開発中 / in progress)**
-  - Zustand：レジュメなどのクライアントグローバル状態管理 **(開発中 / in progress)**
+  - TanStack Query：サーバー状態・データフェッチ・キャッシュ管理
+  - Zustand：レジュメなどのクライアントグローバル状態管理
   - nuqs：URL ベースの状態管理（フィルタやページング）**(開発中 / in progress)**
 - **バリデーション & スキーマ**
   - Zod：API リクエスト / レスポンス、フォーム、URL クエリ、環境変数のスキーマ定義 **(開発中 / in progress)**
