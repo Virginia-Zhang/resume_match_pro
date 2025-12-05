@@ -30,7 +30,7 @@ The main target users are:
 ### For Candidates
 
 - **Resume upload & management** (upload PDF, keep it locally for re-use)
-  - Client-side state management with Zustand + `persist` middleware **(in progress)**  
+  - Client-side state management with Zustand + `persist` middleware
   - Store only a lightweight "resume pointer" (e.g. ID / storage key / timestamps) in localStorage via Zustand persist, while resume metadata lives in Supabase and the file itself in AWS S3
 - **Job matching (batch matching)**
   - Match the uploaded resume against multiple job postings  
@@ -65,7 +65,7 @@ The main target users are:
   - Store inquiries in Supabase
 - **Email notifications for companies**  
   - Send inquiry details to the project owner via email  
-  - Send an automatic confirmation mail back to the company with next steps **(in progress)**
+  - Send an automatic confirmation mail back to the company with next steps
 
 ### Shared UX Features
 
@@ -81,8 +81,8 @@ The main target users are:
   - Next.js (App Router, React Server Components, Route Handlers)
   - TypeScript (aiming for strict mode)
 - **State management**
-  - TanStack Query for server state, data fetching, and caching **(in progress)**
-  - Zustand for client-side global state such as resume data **(in progress)**
+  - TanStack Query for server state, data fetching, and caching
+  - Zustand for client-side global state such as resume data
   - nuqs for URL-based state (filters, pagination) **(in progress)**
 - **Validation & schemas**
   - Zod for API request/response, forms, URL queries, and environment variables **(in progress)**
