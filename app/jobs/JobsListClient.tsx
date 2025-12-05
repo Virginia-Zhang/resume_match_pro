@@ -161,10 +161,14 @@ export default function JobsListClient(): React.ReactElement {
       return;
     }
     
-    // Filter out jobs that have already been analyzed
-    // すでに分析された求人をフィルターで除外
+    // Filter out jobs that have already been analyzed (includes both batch and single matching)
+    // すでに分析された求人をフィルターで除外（バッチおよび単一マッチングの両方を含む）
     const alreadyAnalyzedJobIds = new Set(results.map(r => r.job_id));
     const jobsToMatch = filteredJobs.filter(job => !alreadyAnalyzedJobIds.has(job.id));
+    
+    // Calculate number of already analyzed jobs in current filter
+    // 現在のフィルター内ですでに分析済みの求人数を計算
+    const alreadyAnalyzedCount = filteredJobs.length - jobsToMatch.length;
     
     // Check if all jobs have already been analyzed
     // すべての求人がすでに分析されているかチェック
@@ -176,7 +180,7 @@ export default function JobsListClient(): React.ReactElement {
     const incremental = jobsToMatch.length < filteredJobs.length;
     
     if (incremental) {
-      toast.info(`${processedJobs} 件の求人は既に分析済みです。新しい ${jobsToMatch.length} 件のみを分析します。`);
+      toast.info(`${alreadyAnalyzedCount} 件の求人は既に分析済みです。新しい ${jobsToMatch.length} 件のみを分析します。`);
       // Pass total number of filtered jobs (including already analyzed ones)
       // フィルターされた求人の総数（すでに分析されたものを含む）を渡す
       startMatchingFromListItems(resumeText, jobsToMatch, incremental, filteredJobs.length);

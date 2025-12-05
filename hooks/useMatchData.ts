@@ -13,6 +13,7 @@ import {
   useMatchDetailsMutation,
   useMatchScoringMutation,
 } from "@/hooks/queries/useMatch";
+import { queryKeys } from "@/lib/react-query/query-keys";
 import type {
   ChartsProps,
   DetailsEnvelope,
@@ -20,6 +21,7 @@ import type {
   ScoringEnvelope,
   UseMatchDataResult,
 } from "@/types/matching";
+import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 
 /**
@@ -35,6 +37,7 @@ import { useEffect, useRef, useState } from "react";
 export function useMatchData(props: ChartsProps): UseMatchDataResult {
   const { resumeId, jobId, jobDescription, overallScore, scores } = props;
 
+  const queryClient = useQueryClient();
   const [scoring, setScoring] = useState<ScoringEnvelope | null>(null);
   const [details, setDetails] = useState<DetailsEnvelope | null>(null);
   const [scoringLoading, setScoringLoading] = useState(true);
@@ -67,7 +70,7 @@ export function useMatchData(props: ChartsProps): UseMatchDataResult {
         meta: {
           jobId,
           resumeHash: "",
-          source: "cache",
+          source: "batch",
           timestamp: new Date().toISOString(),
           version: "v2",
           type: "scoring",
@@ -112,6 +115,11 @@ export function useMatchData(props: ChartsProps): UseMatchDataResult {
           if (!usingCachedScoringRef.current) {
             setScoring(data);
           }
+          // Invalidate batch cache query to refresh jobs list when user navigates back
+          // バッチキャッシュクエリを無効化し、ユーザーが戻ったときにジョブリストを更新
+          void queryClient.invalidateQueries({
+            queryKey: queryKeys.match.batchCache(resumeId),
+          });
         },
         onError: err =>
           setScoringError(err instanceof Error ? err.message : "Unknown error"),

@@ -10,9 +10,11 @@
 "use client";
 
 import {
+    fetchBatchCache,
     matchBatch,
     matchDetails,
     matchScoring,
+    type BatchCacheResponse,
     type BatchMatchRequest,
     type BatchMatchResponse,
     type MatchApiOptions,
@@ -23,7 +25,7 @@ import type {
     DetailsEnvelope,
     ScoringEnvelope,
 } from "@/types/matching";
-import { useMutation, type UseMutationOptions } from "@tanstack/react-query";
+import { useMutation, useQuery, type UseMutationOptions, type UseQueryOptions } from "@tanstack/react-query";
 
 export interface MatchScoringVariables extends BaseRequestBody {
   requestOptions?: MatchApiOptions;
@@ -102,5 +104,33 @@ export function useBatchMatchingMutation(
  * @description 既存フックとの命名互換性を保つためのエイリアス。
  */
 export const useBatchMatching = useBatchMatchingMutation;
+
+/**
+ * @description Query hook for fetching all cached scoring results (batch + single) from database.
+ * @description データベースからすべてのキャッシュされたスコアリング結果（バッチ＋単一）を取得するクエリフック。
+ * @param resumeId Resume ID to fetch cached results for.
+ * @param resumeId キャッシュ結果を取得するレジュメID。
+ * @param options Optional TanStack Query configuration.
+ * @param options オプションの TanStack Query 設定。
+ * @remarks Returns all scoring results regardless of source (batch or single matching).
+ * @remarks ソースに関係なくすべてのスコアリング結果を返します（バッチまたは単一マッチング）。
+ */
+export function useBatchCacheQuery(
+  resumeId?: string | null,
+  options?: Omit<UseQueryOptions<BatchCacheResponse, Error>, "queryKey" | "queryFn">
+) {
+  return useQuery({
+    queryKey: queryKeys.match.batchCache(resumeId),
+    queryFn: () => {
+      if (!resumeId) {
+        return { results: [] };
+      }
+      return fetchBatchCache(resumeId);
+    },
+    enabled: Boolean(resumeId),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    ...options,
+  });
+}
 
 
