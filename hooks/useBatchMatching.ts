@@ -470,7 +470,7 @@ export function useBatchMatching(
         setIsMatching(false);
       }
     },
-    [jobDetailsMap, startMatchingInternal]
+    [jobDetailsMap, startMatchingInternal, resumeId]
   );
 
   return {
