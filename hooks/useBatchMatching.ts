@@ -266,23 +266,26 @@ export function useBatchMatching(
    * @param newResults バッチからの新しい結果
    * @param accumulatedResults Current accumulated results
    * @param accumulatedResults 現在の累積結果
+   * @param currentResumeId Resume ID for cache key (use parameter to avoid closure trap)
+   * @param currentResumeId キャッシュキー用のレジュメID（クロージャトラップを避けるためパラメータを使用）
    */
   const handleBatchSuccess = (
     newResults: MatchResultItem[],
-    accumulatedResults: MatchResultItem[]
+    accumulatedResults: MatchResultItem[],
+    currentResumeId: string
   ): void => {
     accumulatedResults.push(...newResults);
     setResults([...accumulatedResults]);
     setProcessedJobs(accumulatedResults.length);
 
     // Immediately update React Query cache after each batch to prevent race conditions
+    // Use currentResumeId parameter instead of closure variable to avoid stale closure bug
     // 各バッチ後に即座に React Query キャッシュを更新して競合状態を防ぐ
-    if (resumeId) {
-      queryClient.setQueryData(
-        queryKeys.match.batchCache(resumeId),
-        { results: [...accumulatedResults] }
-      );
-    }
+    // クロージャ変数の代わりに currentResumeId パラメータを使用して古いクロージャのバグを回避
+    queryClient.setQueryData(
+      queryKeys.match.batchCache(currentResumeId),
+      { results: [...accumulatedResults] }
+    );
   };
 
   /**
@@ -294,11 +297,14 @@ export function useBatchMatching(
    * @param initialResultCount 処理前の初期結果数
    * @param hasSuccessfulBatch Whether any batch succeeded
    * @param hasSuccessfulBatch バッチが成功したかどうか
+   * @param currentResumeId Resume ID for cache key (use parameter to avoid closure trap)
+   * @param currentResumeId キャッシュキー用のレジュメID（クロージャトラップを避けるためパラメータを使用）
    */
   const finalizeMatching = (
     accumulatedResults: MatchResultItem[],
     initialResultCount: number,
-    hasSuccessfulBatch: boolean
+    hasSuccessfulBatch: boolean,
+    currentResumeId: string
   ): void => {
     const hasNewResults = accumulatedResults.length > initialResultCount;
 
@@ -321,13 +327,13 @@ export function useBatchMatching(
     setIsMatchingComplete(true);
 
     // Immediately update React Query cache to prevent stale data issues
+    // Use currentResumeId parameter instead of closure variable to avoid stale closure bug
     // 新しい結果で即座に React Query キャッシュを更新して、古いデータの問題を防ぐ
-    if (resumeId) {
-      queryClient.setQueryData(
-        queryKeys.match.batchCache(resumeId),
-        { results: [...accumulatedResults] }
-      );
-    }
+    // クロージャ変数の代わりに currentResumeId パラメータを使用して古いクロージャのバグを回避
+    queryClient.setQueryData(
+      queryKeys.match.batchCache(currentResumeId),
+      { results: [...accumulatedResults] }
+    );
   };
 
   /**
@@ -372,7 +378,7 @@ export function useBatchMatching(
 
             if (newResults && newResults.length > 0) {
               hasSuccessfulBatch = true;
-              handleBatchSuccess(newResults, accumulatedResults);
+              handleBatchSuccess(newResults, accumulatedResults, currentResumeId);
             }
           } catch (batchError) {
             if (
@@ -385,7 +391,7 @@ export function useBatchMatching(
           }
         }
 
-        finalizeMatching(accumulatedResults, initialResultCount, hasSuccessfulBatch);
+        finalizeMatching(accumulatedResults, initialResultCount, hasSuccessfulBatch, currentResumeId);
       } catch (error) {
         if (error instanceof Error && error.name === "AbortError") {
           return;
@@ -397,7 +403,7 @@ export function useBatchMatching(
         setIsMatching(false);
       }
     },
-    [batchMutation, resumeId, queryClient]
+    [batchMutation, queryClient]
   );
 
   /**
