@@ -18,8 +18,10 @@ import {
   loadBatchMatchMetadata,
   saveBatchMatchMetadata,
 } from "@/lib/storage/batch-match-cache";
+import { queryKeys } from "@/lib/react-query/query-keys";
 import type { JobDetailV2, JobListItem } from "@/types/jobs_v2";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 
 import type { MatchResultItem, UseBatchMatchingResult } from "@/types/matching";
 
@@ -43,6 +45,7 @@ export function useBatchMatching(
   const [totalJobs, setTotalJobs] = useState(0);
   const abortControllerRef = useRef<AbortController | null>(null);
   const batchMutation = useBatchMatchingMutation();
+  const queryClient = useQueryClient();
 
   // Use ref to always access latest results value
   // 最新の results 値に常にアクセスするために ref を使用
@@ -64,7 +67,11 @@ export function useBatchMatching(
   // TanStack Query を使用してデータベースからキャッシュ結果を取得
   const { data: cacheData } = useBatchCacheQuery(resumeId, {
     enabled: Boolean(resumeId) && !isMatching,
-    staleTime: 0, // Always refetch on mount to capture single match updates
+    // Use longer staleTime to prevent immediate refetch after batch matching completes
+    // This gives database time to persist new results before refetching
+    // バッチマッチング完了後の即座のrefetchを防ぐために長いstaleTimeを使用
+    // これにより、refetch前にデータベースが新しい結果を永続化する時間を与える
+    staleTime: 3000, // 3 seconds - enough time for database writes to complete
   });
 
   // Keep resultsRef in sync with results
@@ -110,9 +117,11 @@ export function useBatchMatching(
     // Update results if cacheData has more items (e.g., after single match from detail page)
     // cacheData により多くのアイテムがある場合は結果を更新（例：詳細ページからの単一マッチ後）
     if (cacheData.results && cacheData.results.length > 0) {
-      // Only update if cache has different data
-      // キャッシュに異なるデータがある場合のみ更新
-      if (cacheData.results.length !== results.length) {
+      // CRITICAL: Only update if database has MORE data than local state
+      // This prevents race condition where database hasn't finished writing new results
+      // 重要：データベースがローカル状態より多くのデータを持つ場合のみ更新
+      // これにより、データベースが新しい結果の書き込みを完了していない競合状態を防ぐ
+      if (cacheData.results.length > results.length) {
         setResults(cacheData.results);
         
         // Load metadata from sessionStorage to restore UI state
@@ -265,6 +274,15 @@ export function useBatchMatching(
     accumulatedResults.push(...newResults);
     setResults([...accumulatedResults]);
     setProcessedJobs(accumulatedResults.length);
+
+    // Immediately update React Query cache after each batch to prevent race conditions
+    // 各バッチ後に即座に React Query キャッシュを更新して競合状態を防ぐ
+    if (resumeId) {
+      queryClient.setQueryData(
+        queryKeys.match.batchCache(resumeId),
+        { results: [...accumulatedResults] }
+      );
+    }
   };
 
   /**
@@ -301,6 +319,15 @@ export function useBatchMatching(
     setResults([...accumulatedResults]);
     setProcessedJobs(accumulatedResults.length);
     setIsMatchingComplete(true);
+
+    // Immediately update React Query cache to prevent stale data issues
+    // 新しい結果で即座に React Query キャッシュを更新して、古いデータの問題を防ぐ
+    if (resumeId) {
+      queryClient.setQueryData(
+        queryKeys.match.batchCache(resumeId),
+        { results: [...accumulatedResults] }
+      );
+    }
   };
 
   /**
@@ -370,7 +397,7 @@ export function useBatchMatching(
         setIsMatching(false);
       }
     },
-    [batchMutation]
+    [batchMutation, resumeId, queryClient]
   );
 
   /**
