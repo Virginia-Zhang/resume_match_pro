@@ -18,8 +18,10 @@ import {
   loadBatchMatchMetadata,
   saveBatchMatchMetadata,
 } from "@/lib/storage/batch-match-cache";
+import { queryKeys } from "@/lib/react-query/query-keys";
 import type { JobDetailV2, JobListItem } from "@/types/jobs_v2";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 
 import type { MatchResultItem, UseBatchMatchingResult } from "@/types/matching";
 
@@ -43,6 +45,7 @@ export function useBatchMatching(
   const [totalJobs, setTotalJobs] = useState(0);
   const abortControllerRef = useRef<AbortController | null>(null);
   const batchMutation = useBatchMatchingMutation();
+  const queryClient = useQueryClient();
 
   // Use ref to always access latest results value
   // 最新の results 値に常にアクセスするために ref を使用
@@ -64,7 +67,11 @@ export function useBatchMatching(
   // TanStack Query を使用してデータベースからキャッシュ結果を取得
   const { data: cacheData } = useBatchCacheQuery(resumeId, {
     enabled: Boolean(resumeId) && !isMatching,
-    staleTime: 0, // Always refetch on mount to capture single match updates
+    // Use longer staleTime to prevent immediate refetch after batch matching completes
+    // This gives database time to persist new results before refetching
+    // バッチマッチング完了後の即座のrefetchを防ぐために長いstaleTimeを使用
+    // これにより、refetch前にデータベースが新しい結果を永続化する時間を与える
+    staleTime: 3000, // 3 seconds - enough time for database writes to complete
   });
 
   // Keep resultsRef in sync with results
@@ -110,9 +117,11 @@ export function useBatchMatching(
     // Update results if cacheData has more items (e.g., after single match from detail page)
     // cacheData により多くのアイテムがある場合は結果を更新（例：詳細ページからの単一マッチ後）
     if (cacheData.results && cacheData.results.length > 0) {
-      // Only update if cache has different data
-      // キャッシュに異なるデータがある場合のみ更新
-      if (cacheData.results.length !== results.length) {
+      // CRITICAL: Only update if database has MORE data than local state
+      // This prevents race condition where database hasn't finished writing new results
+      // 重要：データベースがローカル状態より多くのデータを持つ場合のみ更新
+      // これにより、データベースが新しい結果の書き込みを完了していない競合状態を防ぐ
+      if (cacheData.results.length > results.length) {
         setResults(cacheData.results);
         
         // Load metadata from sessionStorage to restore UI state
@@ -257,14 +266,26 @@ export function useBatchMatching(
    * @param newResults バッチからの新しい結果
    * @param accumulatedResults Current accumulated results
    * @param accumulatedResults 現在の累積結果
+   * @param currentResumeId Resume ID for cache key (use parameter to avoid closure trap)
+   * @param currentResumeId キャッシュキー用のレジュメID（クロージャトラップを避けるためパラメータを使用）
    */
   const handleBatchSuccess = (
     newResults: MatchResultItem[],
-    accumulatedResults: MatchResultItem[]
+    accumulatedResults: MatchResultItem[],
+    currentResumeId: string
   ): void => {
     accumulatedResults.push(...newResults);
     setResults([...accumulatedResults]);
     setProcessedJobs(accumulatedResults.length);
+
+    // Immediately update React Query cache after each batch to prevent race conditions
+    // Use currentResumeId parameter instead of closure variable to avoid stale closure bug
+    // 各バッチ後に即座に React Query キャッシュを更新して競合状態を防ぐ
+    // クロージャ変数の代わりに currentResumeId パラメータを使用して古いクロージャのバグを回避
+    queryClient.setQueryData(
+      queryKeys.match.batchCache(currentResumeId),
+      { results: [...accumulatedResults] }
+    );
   };
 
   /**
@@ -276,11 +297,14 @@ export function useBatchMatching(
    * @param initialResultCount 処理前の初期結果数
    * @param hasSuccessfulBatch Whether any batch succeeded
    * @param hasSuccessfulBatch バッチが成功したかどうか
+   * @param currentResumeId Resume ID for cache key (use parameter to avoid closure trap)
+   * @param currentResumeId キャッシュキー用のレジュメID（クロージャトラップを避けるためパラメータを使用）
    */
   const finalizeMatching = (
     accumulatedResults: MatchResultItem[],
     initialResultCount: number,
-    hasSuccessfulBatch: boolean
+    hasSuccessfulBatch: boolean,
+    currentResumeId: string
   ): void => {
     const hasNewResults = accumulatedResults.length > initialResultCount;
 
@@ -301,6 +325,15 @@ export function useBatchMatching(
     setResults([...accumulatedResults]);
     setProcessedJobs(accumulatedResults.length);
     setIsMatchingComplete(true);
+
+    // Immediately update React Query cache to prevent stale data issues
+    // Use currentResumeId parameter instead of closure variable to avoid stale closure bug
+    // 新しい結果で即座に React Query キャッシュを更新して、古いデータの問題を防ぐ
+    // クロージャ変数の代わりに currentResumeId パラメータを使用して古いクロージャのバグを回避
+    queryClient.setQueryData(
+      queryKeys.match.batchCache(currentResumeId),
+      { results: [...accumulatedResults] }
+    );
   };
 
   /**
@@ -345,7 +378,7 @@ export function useBatchMatching(
 
             if (newResults && newResults.length > 0) {
               hasSuccessfulBatch = true;
-              handleBatchSuccess(newResults, accumulatedResults);
+              handleBatchSuccess(newResults, accumulatedResults, currentResumeId);
             }
           } catch (batchError) {
             if (
@@ -358,7 +391,7 @@ export function useBatchMatching(
           }
         }
 
-        finalizeMatching(accumulatedResults, initialResultCount, hasSuccessfulBatch);
+        finalizeMatching(accumulatedResults, initialResultCount, hasSuccessfulBatch, currentResumeId);
       } catch (error) {
         if (error instanceof Error && error.name === "AbortError") {
           return;
@@ -370,7 +403,7 @@ export function useBatchMatching(
         setIsMatching(false);
       }
     },
-    [batchMutation]
+    [batchMutation, queryClient]
   );
 
   /**
