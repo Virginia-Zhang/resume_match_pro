@@ -17,6 +17,7 @@ import {
 import { PrimaryCtaButton, SecondaryCtaButton } from "@/components/common/buttons/CtaButtons";
 import { useResumeStore } from "@/store/resume";
 import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
 /**
  * @component HomepageActions
@@ -29,7 +30,20 @@ export default function HomepageActions(): React.ReactElement {
   // Subscribe to resume state from Zustand store to react to hydration and updates
   // ハイドレーションと更新に反応するため、Zustandストアからレジュメ状態を購読
   const resumeStorageKey = useResumeStore((state) => state.resumeStorageKey);
-  const hasResume = Boolean(resumeStorageKey);
+  
+  // Track hydration to prevent SSR/CSR mismatch
+  // SSR/CSR ミスマッチを防ぐため水合状態を追跡
+  const [isHydrated, setIsHydrated] = useState(false);
+
+  useEffect(() => {
+    // Mark as hydrated after client-side mount
+    // クライアントサイドマウント後に水合完了とマーク
+    setIsHydrated(true);
+  }, []);
+
+  // Only enable button after hydration and when resume exists
+  // ハイドレーション完了後、かつレジュメが存在する場合のみボタンを有効化
+  const hasResume = isHydrated && Boolean(resumeStorageKey);
 
   return (
     <div className="flex flex-wrap gap-4 justify-center px-4 w-full lg:w-auto">
