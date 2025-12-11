@@ -237,3 +237,10 @@ export const SUPABASE_ERROR_NO_ROWS = "PGRST116" as const;
  */
 export const SUPABASE_ERROR_UNIQUE_CONSTRAINT = "23505" as const;
 
+// ---------- Observability & Analytics ----------
+/**
+ * Local storage key for anonymous user ID.
+ * 匿名ユーザー ID 用のローカルストレージキー。
+ */
+export const ANALYTICS_ANONYMOUS_ID_KEY = "rm_anonymous_id" as const;
+
